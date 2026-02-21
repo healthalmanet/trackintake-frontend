@@ -4,7 +4,7 @@ import { useAuth } from "./components/context/AuthContext";
 import { Loader } from "lucide-react";
 import { useState } from "react";
 
-// Public pages (imports are unchanged)
+// Public pages (imports are unchanged imran)
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -39,6 +39,10 @@ import NutritionPopup from "./components/components/nutritionist/NutritionPopup"
 import ChatPopUp from "./components/components/messages/ChatPopUp"
 import SocialAuthHandler from "./components/components/SocialAuthHandler";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
+import PrivacyPolicy from "./pages/dashboard/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
+import RefundPolicy from "./pages/RefundPolicy";
+import ContactPage from "./pages/dashboard/Tools/Contact";
 
 
 function App() {
@@ -65,7 +69,7 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
     );
   }
 
-  // ✅ Logic is completely unchanged
+  //  Logic is completely unchanged
   const getRedirectPath = () => {
     const role = user?.role?.toLowerCase();
     if (!role) return "/";
@@ -82,7 +86,7 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
 
   return (
     <>
-      {/* ✅ Navbar props are completely unchanged from your original code */}
+      {/*  Navbar props are completely unchanged from your original code */}
       {isAuthenticated && user?.role === "user" && (
         <Navbar
           logo={<img src={logo} alt="logo" className="h-10 w-auto" />}
@@ -110,7 +114,7 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
         />
       )}
 
-      {/* ✅ Routes are completely unchanged */}
+      {/*  Routes are completely unchanged */}
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Home />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Login />} />
@@ -128,10 +132,16 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
         <Route path="/social-auth" element={<SocialAuthHandler />} />
         <Route path="/subscription/success" element={<SubscriptionSuccess />} />
 
+        {/* footer section routes */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-conditions" element={<TermsConditions />} />
+        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/ContactPage" element={<ContactPage />} />
+
         
       </Routes>
 
-      {/* ✅ Chatbot and Footer are completely unchanged */}
+      {/*  Chatbot and Footer are completely unchanged */}
       {isAuthenticated && user?.role === "user" && 
       <>  
        <QuickTools 
@@ -162,7 +172,7 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
     }
       {isAuthenticated && user?.role === "user" && <Footer />}
 
-      {/* ✅ ToastContainer is completely unchanged in the JSX */}
+      {/*  ToastContainer is completely unchanged in the JSX */}
       <ToastContainer position="top-right" autoClose={3000} pauseOnHover theme="light" />
     </>
   );
