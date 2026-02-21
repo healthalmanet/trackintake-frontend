@@ -46,7 +46,7 @@ const ContactPage = () => {
     {
       icon: <MapPin className="w-6 h-6" />,
       label: "Address",
-      value: "Inodre, Madhya pradesh",
+      value: "Indore, Madhya Pradesh",
       bgColor: "bg-purple-100 dark:bg-purple-900/20",
       textColor: "text-purple-600 dark:text-purple-400"
     },
