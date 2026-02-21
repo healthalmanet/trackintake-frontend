@@ -105,7 +105,7 @@ const PlansPage = () => {
                   ₹{plan.price}
                 </span>
                 {plan.price > 0 && (
-                  <span className="text-sm"> / month</span>
+                  <span className="text-sm"> / days</span>
                 )}
               </div>
 
