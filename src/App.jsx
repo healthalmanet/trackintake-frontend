@@ -43,7 +43,8 @@ import PrivacyPolicy from "./pages/dashboard/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
 import RefundPolicy from "./pages/RefundPolicy";
 import ContactPage from "./pages/dashboard/Tools/Contact";
-
+// import ContactPage from "./pages/ContactPage";
+// import Contact from "./pages/dashboard/Tools/Contact";
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
@@ -136,8 +137,8 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-conditions" element={<TermsConditions />} />
         <Route path="/refund-policy" element={<RefundPolicy />} />
-        <Route path="/ContactPage" element={<ContactPage />} />
-
+        {/* <Route path="/Contact" element={<ContactPage />} /> */}
+       <Route path="/Contact" element={<ContactPage/>} />
         
       </Routes>
 
