@@ -14,7 +14,6 @@ import { useNavigate } from 'react-router-dom';
 const ContactPage = () => {
   const navigate = useNavigate();
 
-  // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({
       top: 0,
@@ -27,7 +26,7 @@ const ContactPage = () => {
     navigate(-1);
   };
 
-  // Contact details - aapki di hui information
+  // Contact details
   const contactInfo = [
     {
       icon: <User className="w-6 h-6" />,
@@ -44,18 +43,18 @@ const ContactPage = () => {
       textColor: "text-green-600 dark:text-green-400"
     },
     {
-      icon: <MapPin className="w-6 h-6" />,
-      label: "Address",
-      value: "Indore, Madhya Pradesh",
-      bgColor: "bg-purple-100 dark:bg-purple-900/20",
-      textColor: "text-purple-600 dark:text-purple-400"
-    },
-    {
       icon: <Mail className="w-6 h-6" />,
       label: "Email",
       value: "it.trackintake@gmail.com",
       bgColor: "bg-amber-100 dark:bg-amber-900/20",
       textColor: "text-amber-600 dark:text-amber-400"
+    },
+    {
+      icon: <MapPin className="w-6 h-6" />,
+      label: "Address",
+      value: "1-Snehalata ganj Indore,Madhya Pradesh",
+      bgColor: "bg-purple-100 dark:bg-purple-900/20",
+      textColor: "text-purple-600 dark:text-purple-400"
     },
     {
       icon: <Clock className="w-6 h-6" />,
@@ -64,13 +63,12 @@ const ContactPage = () => {
       bgColor: "bg-red-100 dark:bg-red-900/20",
       textColor: "text-red-600 dark:text-red-400"
     }
-  ];
+  ]; 
 
   // Form submit handler
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Yahan aap form submission logic add kar sakte hain
-    alert('Message sent successfully! (Demo)');
+    alert('Message sent successfully!');
   };
 
   return (
@@ -102,7 +100,7 @@ const ContactPage = () => {
       </motion.div>
 
       <div className="max-w-7xl mx-auto">
-        {/* Contact Info Cards - Grid Layout */}
+        {/* Contact Info Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6 mb-8 md:mb-12">
           {contactInfo.map((info, index) => (
             <motion.div
@@ -125,35 +123,29 @@ const ContactPage = () => {
           ))}
         </div>
 
-        {/* Main Content - Contact Form & Map */}
         <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
           {/* Contact Form */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-[var(--color-bg-surface)] p-4 md:p-8 rounded-2xl border-2 border-[var(--color-border-default)]"
+            className="bg-[var(--color-bg-surface)] p-6 md:p-8 rounded-2xl border-2 border-[var(--color-border-default)]"
           >
-            <h2 className="text-xl md:text-2xl font-bold text-[var(--color-text-strong)] mb-4 md:mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-[var(--color-text-strong)] mb-6">
               Send us a Message
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-              {/* Name Field - Pre-filled */}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Name Field */}
               <div>
                 <label className="block text-sm font-medium text-[var(--color-text-default)] mb-2">
                   Your Name
                 </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
-                  <input
-                    type="text"
-                    defaultValue="Yeshwant Maheshram"
-                    className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)]"
-                    placeholder="Enter your name"
-                    required
-                  />
-                </div>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)]"
+                  placeholder="Enter your name"
+                />
               </div>
 
               {/* Email Field */}
@@ -161,31 +153,24 @@ const ContactPage = () => {
                 <label className="block text-sm font-medium text-[var(--color-text-default)] mb-2">
                   Email Address
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
-                  <input
-                    type="email"
-                    className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)]"
-                    placeholder="Enter your email"
-                    required
-                  />
-                </div>
+                <input
+                  type="email"
+                  className="w-full px-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)]"
+                  placeholder="Enter your email"
+                />
               </div>
 
-              {/* Phone Field - Pre-filled */}
+              {/* Phone Field */}
               <div>
                 <label className="block text-sm font-medium text-[var(--color-text-default)] mb-2">
                   Phone Number
                 </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
-                  <input
-                    type="tel"
-                    defaultValue="+91 78986 22813"
-                    className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)]"
-                    placeholder="Enter your phone number"
-                  />
-                </div>
+                <input
+                  type="tel"
+                //   defaultValue="+91 78986 22813"
+                  className="w-full px-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)]"
+                  placeholder="Enter your phone number"
+                />
               </div>
 
               {/* Message Field */}
@@ -197,7 +182,6 @@ const ContactPage = () => {
                   rows="4"
                   className="w-full px-4 py-3 bg-[var(--color-bg-page)] border-2 border-[var(--color-border-default)] rounded-xl focus:border-[var(--color-primary)] focus:outline-none transition-colors text-[var(--color-text-default)] resize-none"
                   placeholder="Type your message here..."
-                  required
                 ></textarea>
               </div>
 
@@ -219,38 +203,46 @@ const ContactPage = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-[var(--color-bg-surface)] p-4 md:p-8 rounded-2xl border-2 border-[var(--color-border-default)]"
+            className="bg-[var(--color-bg-surface)] p-6 md:p-8 rounded-2xl border-2 border-[var(--color-border-default)]"
           >
-            <h2 className="text-xl md:text-2xl font-bold text-[var(--color-text-strong)] mb-4 md:mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-[var(--color-text-strong)] mb-6">
               Our Location
             </h2>
             
-            {/* Mumbai Map Embed (Google Maps) */}
-            <div className="w-full h-[300px] md:h-[400px] rounded-xl overflow-hidden border-2 border-[var(--color-border-default)]">
+            {/* Indore  */}
+            <div className="w-full h-[300px] md:h-[400px] rounded-xl overflow-hidden border-2 border-[var(--color-border-default)] mb-4">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d241316.67292877356!2d72.716373!3d19.082502!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7c6306644edc1%3A0x5da4ed8f8d648c69!2sMumbai%2C%20Maharashtra!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d117925.21689532266!2d75.816664!3d22.719568!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fcad1b410ddb%3A0x96ec4da356240f4!2sIndore%2C%20Madhya%20Pradesh!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
                 className="w-full h-full"
                 style={{ border: 0 }}
                 allowFullScreen
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
-                title="Mumbai Location"
+                title=" Location"
               ></iframe>
             </div>
 
-            {/* Additional Info */}
-            <div className="mt-4 md:mt-6 p-4 bg-[var(--color-bg-page)] rounded-xl">
-              <h3 className="font-semibold text-[var(--color-text-strong)] mb-2">
-                Quick Response
-              </h3>
-              <p className="text-sm text-[var(--color-text-muted)]">
-                We typically respond within 24 hours on business days. For urgent queries, please call us directly.
-              </p>
+            {/* Address Card */}
+            <div className="bg-[var(--color-bg-page)] p-4 rounded-xl border-2 border-[var(--color-border-default)]">
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-[var(--color-text-strong)] mb-1">
+                    Indore Office
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    Indore, Madhya Pradesh India,
+                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                    We typically respond within 24 hours on business days.
+                  </p>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Business Hours Card - Mobile Optimized */}
+        {/* Business Hours Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -282,3 +274,81 @@ const ContactPage = () => {
 };
 
 export default ContactPage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
