@@ -50,6 +50,9 @@ const Register = ({ onSwitchToLogin }) => {
       toast.warn("Please enter your email address.");
       return;
     }
+    const normalizedEmail = email.trim().toLowerCase();  // ✅
+    setEmail(normalizedEmail); // update state so everything downstream uses lowercase
+    setOtpLoading(true);
     setOtpLoading(true);
     try {
       const response = await sendOtp(email);
@@ -272,11 +275,14 @@ const Register = ({ onSwitchToLogin }) => {
                   className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg"
                   placeholder="email@domain.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.trim().toLowerCase())}
                   required
                 />
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
               </div>
+              <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                To continue, click <span className="font-semibold text-[var(--color-primary)]">Send OTP</span> and verify your email.
+              </p>
               {!otpSent ? (
                 <button type="button" onClick={handleSendOtp} disabled={otpLoading} className="text-sm p-2 text-[var(--color-primary)] mt-1 disabled:opacity-50">
                   {otpLoading ? 'Sending...' : 'Send OTP'}
