@@ -43,20 +43,10 @@ function Dashboard() {
   const [waterUpdateTrigger, setWaterUpdateTrigger] = useState(0);
   const [mealUpdateTrigger, setMealUpdateTrigger] = useState(0); // ✅ New state
 
-    useEffect(() => {
-    const initiateReminderConnection = async () => {
-      try {
-        console.log("Dashboard loaded. Triggering reminder connection...");
-        const response = await triggerReminders();
-        console.log("Reminder trigger successful:", response);
-      } catch (error) {
-        console.error("Failed to trigger reminder connection:", error);
-      }
-    };
-     if (user) {
-      initiateReminderConnection();
-    }
-  }, [user]); // The [user] dependency ensures this runs once when the user logs in.
+    // ✅ Only keep this one
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []); // The [user] dependency ensures this runs once when the user logs in.
   // --- END OF THE BLOCK TO ADD ---
 
 

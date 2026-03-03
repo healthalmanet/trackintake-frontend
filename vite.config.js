@@ -8,7 +8,6 @@ export default defineConfig({
     react()
   ],
   server: {
-    historyApiFallback: true,
     proxy: {
       '/api': {
         target: 'https://trackeats.onrender.com',
