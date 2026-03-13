@@ -125,48 +125,70 @@ const Register = ({ onSwitchToLogin }) => {
       setPlansLoading(false);
     }
   };
-
+  const fetchUserPlans = async () => {
+  setPlansLoading(true);
+  try {
+    const res = await publicAxios.get("/subscriptions/plans/?type=patient");
+    setPlans(res.data);
+  } catch {
+    toast.error("Failed to load plans. Please try again.");
+  } finally {
+    setPlansLoading(false);
+  }
+};
   // ── Open plan modal (triggered from submit when role = nutritionist) ───────
   const openPlanModal = async () => {
-    setShowPlanModal(true);
-    if (plans.length === 0) await fetchNutritionistPlans();
-  };
+  setShowPlanModal(true);
+  if (plans.length === 0) {
+    if (role === "nutritionist") await fetchNutritionistPlans();
+    else await fetchUserPlans();
+  }
+};
 
   // ── Razorpay payment flow ──────────────────────────────────────────────────
   const handlePurchasePlan = async (plan) => {
-    setSelectedPlan(plan);
-    setPaymentLoading(true);
+  setSelectedPlan(plan);
+  setPaymentLoading(true);
 
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      toast.error("Payment gateway failed to load. Please refresh.");
-      setPaymentLoading(false);
-      return;
-    }
+  const scriptLoaded = await loadRazorpayScript();
+  if (!scriptLoaded) {
+    toast.error("Payment gateway failed to load. Please refresh.");
+    setPaymentLoading(false);
+    return;
+  }
 
-    try {
-      // Create Razorpay order on backend
-      // NOTE: This endpoint needs to be public (no auth) for pre-registration
-      // See backend changes below — use /api/subscriptions/nutritionist-registration-order/
-      const res = await publicAxios.post("/subscriptions/nutritionist-registration-order/", {
-        plan_id: plan.id,
-        email,              // so backend can tie order to this email
-        full_name: fullName,
-      });
+  try {
+    // ✅ Use correct endpoint based on role
+    const endpoint =
+      role === "nutritionist"
+        ? "/subscriptions/nutritionist-registration-order/"
+        : "/subscriptions/user-registration-order/";
 
-      const { order_id, amount, currency, key } = res.data;
+    const res = await publicAxios.post(endpoint, {
+      plan_id: plan.id,
+      email,
+      full_name: fullName,
+    });
 
-      const options = {
-        key: key || RAZORPAY_KEY,
-        amount,
-        currency,
-        name: "NutriApp",
-        description: `${plan.name} Plan`,
-        order_id,
-        prefill: { name: fullName, email },
-        theme: { color: "var(--color-primary, #f97316)" },
-        handler: function (response) {
-          // Payment succeeded on Razorpay side
+    const { order_id, amount, currency, key } = res.data;
+
+    const options = {
+      key: key || RAZORPAY_KEY,
+      amount,
+      currency,
+      name: "NutriApp",
+      description: `${plan.name} Plan`,
+      order_id,
+      prefill: { name: fullName, email },
+      theme: { color: "var(--color-primary, #f97316)" },
+      handler: async function (response) {
+        try {
+          await publicAxios.post("/subscriptions/verify-payment/", {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+
           setPaymentData({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
@@ -174,63 +196,71 @@ const Register = ({ onSwitchToLogin }) => {
           });
           setShowPlanModal(false);
           toast.success("Payment successful! Complete your registration below.");
+        } catch {
+          toast.error("Payment verification failed. Please contact support.");
+        }
+        setPaymentLoading(false);
+      },
+      modal: {
+        ondismiss: () => {
+          toast.info("Payment cancelled.");
           setPaymentLoading(false);
         },
-        modal: {
-          ondismiss: () => {
-            toast.info("Payment cancelled.");
-            setPaymentLoading(false);
-          },
-        },
-      };
+      },
+    };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (error) {
-      toast.error(error?.response?.data?.error || "Failed to initiate payment.");
-      setPaymentLoading(false);
-    }
-  };
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (error) {
+    toast.error(error?.response?.data?.error || "Failed to initiate payment.");
+    setPaymentLoading(false);
+  }
+};
 
   // ── Final registration ─────────────────────────────────────────────────────
   const handleRegister = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!isFormValid) return toast.warn("Please ensure your password meets all requirements.");
-    if (!role) return toast.error("Please select a role before registering.");
+  if (!isFormValid) return toast.warn("Please ensure your password meets all requirements.");
+  if (!role) return toast.error("Please select a role before registering.");
 
-    // If nutritionist and payment not done yet → open plan modal
-    if (role === "nutritionist" && !paymentData) {
-      openPlanModal();
-      return;
-    }
+  // ✅ Gate payment for BOTH roles, not just nutritionist
+  if (!paymentData) {
+    openPlanModal();
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const payload = {
-        full_name: fullName,
-        email,
-        password,
-        password2: confirmPassword,
-        verification_token: verificationToken,
-        role,
-        // Include payment info for nutritionist so backend can verify & activate plan
-        ...(paymentData && {
-          razorpay_order_id: paymentData.razorpay_order_id,
-          razorpay_payment_id: paymentData.razorpay_payment_id,
-          razorpay_signature: paymentData.razorpay_signature,
-        }),
-      };
+  setLoading(true);
+  try {
+    const payload = {
+      full_name: fullName,
+      email,
+      password,
+      password2: confirmPassword,
+      verification_token: verificationToken,
+      role,
+      ...(paymentData && {
+        razorpay_order_id: paymentData.razorpay_order_id,
+        razorpay_payment_id: paymentData.razorpay_payment_id,
+        razorpay_signature: paymentData.razorpay_signature,
+      }),
+    };
 
-      await registerUser(payload);
-      toast.success("Registration successful! Please log in.");
-      navigate("/login");
-    } catch (error) {
-      toast.error(error?.response?.data?.message || "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    await registerUser(payload);
+    toast.success("Registration successful! Please log in.");
+    navigate("/login");
+  } catch (error) {
+    const errData = error?.response?.data;
+    const message =
+      errData?.payment?.[0] ||
+      errData?.token?.[0] ||
+      errData?.message ||
+      "Registration failed. Please try again.";
+    toast.error(message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Google login ───────────────────────────────────────────────────────────
   const handleGoogleSuccess = async (tokenResponse) => {
@@ -266,11 +296,11 @@ const Register = ({ onSwitchToLogin }) => {
 
   // ── Submit button label logic ──────────────────────────────────────────────
   const submitLabel = () => {
-    if (loading) return "Registering...";
-    if (role === "nutritionist" && !paymentData) return "Continue to Plan Purchase →";
-    return "Create Account";
-  };
-
+  if (loading) return "Registering...";
+  if (!paymentData) return "Continue to Plan Purchase →";  // both roles
+  return "Create Account";
+};
+  
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="text-left w-full max-w-sm mx-auto p-4 font-[var(--font-secondary)]">
@@ -365,34 +395,32 @@ const Register = ({ onSwitchToLogin }) => {
             </motion.div>
 
             {/* Nutritionist plan info banner */}
-            <AnimatePresence>
-              {role === "nutritionist" && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  {paymentData ? (
-                    /* ✅ Plan purchased */
-                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>
-                        <strong>{selectedPlan?.name}</strong> plan purchased — complete registration below.
-                      </span>
-                    </div>
-                  ) : (
-                    /* ℹ️ Plan required */
-                    <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-orange-50 border border-[var(--color-primary,#f97316)] border-opacity-30 text-sm text-orange-700">
-                      <CreditCard className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span>
-                        Nutritionist registration requires a <strong>plan purchase</strong>. You'll be prompted to pay after filling in your details.
-                      </span>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+           <AnimatePresence>
+            {role && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                {paymentData ? (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      <strong>{selectedPlan?.name}</strong> plan purchased — complete registration below.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-orange-50 border border-orange-300 text-sm text-orange-700">
+                    <CreditCard className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>
+                      Registration requires a <strong>plan purchase</strong>. You'll be prompted to select a plan next.
+                    </span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
             {/* Full Name */}
             <motion.div variants={itemVariants}>
@@ -523,7 +551,7 @@ const Register = ({ onSwitchToLogin }) => {
             >
               <h3 className="text-xl font-bold text-[var(--color-text-strong)] mb-1">Choose Your Plan</h3>
               <p className="text-sm text-[var(--color-text-muted)] mb-6">
-                Select a plan to activate your nutritionist account.
+                Select a plan to activate your {role === "nutritionist" ? "nutritionist" : "user"} account.
               </p>
 
               {plansLoading ? (
