@@ -135,6 +135,7 @@ const initialFormData = {
   activity_level: "",
   goal: "",
   country: "",
+  city: "",
   diet_type: "",
   allergies: "",
   is_diabetic: false,
@@ -432,6 +433,20 @@ const UserProfileForm = () => {
                   setFormData({ ...formData, country: selected.value })
                 }
                 placeholder=""
+              />
+            </div>
+            <div className="relative">
+              <label className={floatingLabelStyles(formData.city, focusedField === 'city')}>
+                City
+              </label>
+              <input
+                name="city"
+                required
+                value={formData.city || ""}
+                onChange={handleChange}
+                onFocus={() => setFocusedField('city')}
+                onBlur={() => setFocusedField(null)}
+                className={baseInputStyles}
               />
             </div>
             

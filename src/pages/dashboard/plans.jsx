@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom"; // ✅ Yeh import missing tha
 import { useEffect, useState } from "react";
 import { getPlans, createOrder } from "../../api/subscriptionService";
 import { getPlanBenefits } from "../../api/planBenefits";
@@ -6,36 +7,24 @@ import { useSubscription } from "../../hook/useSubscription";
 const PlansPage = () => {
   const [plans, setPlans] = useState([]);
   const [loadingId, setLoadingId] = useState(null);
-
   const { subscription } = useSubscription();
+  
+  const location = useLocation();
+  const isForced = location.state?.forced;
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    getPlans(token)
-      .then(setPlans)
+    getPlans()  // ✅ Token mat bhejo — axiosInstance handle karega
+      .then(data => setPlans(data.results || data))
       .catch((err) => {
         console.error("Failed to load plans:", err);
-        alert("Unable to load plans");
       });
   }, []);
 
   const handleBuy = async (plan) => {
     if (!plan || plan.price <= 0) return;
-
-    // 🔥 ALWAYS read token fresh
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Session expired. Please login again.");
-      return;
-    }
-
     try {
       setLoadingId(plan.id);
-
-      const order = await createOrder(plan.id, token);
+      const order = await createOrder(plan.id); // ✅ Token mat bhejo
 
       const options = {
         key: order.key,
@@ -45,9 +34,7 @@ const PlansPage = () => {
         name: "TrackIntake",
         description: `${plan.name} Plan`,
         handler: () => {
-          alert("Payment successful 🎉");
-          // 🔄 force fresh subscription fetch
-          window.location.reload();
+          window.location.href = '/dashboard'; // ✅ Plans ke baad dashboard pe jao
         },
         theme: { color: "#ff7a18" },
       };
@@ -56,7 +43,6 @@ const PlansPage = () => {
       rzp.open();
     } catch (err) {
       console.error("Create order failed:", err);
-      alert("Payment failed. Please try again.");
     } finally {
       setLoadingId(null);
     }
@@ -64,6 +50,13 @@ const PlansPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      
+      {isForced && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded mb-6 text-center">
+          ⚠️ Aapko aage badhne ke liye pehle ek plan kharidna hoga.
+        </div>
+      )}
+
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold">Choose Your Plan</h1>
         <p className="text-gray-500">
@@ -73,21 +66,15 @@ const PlansPage = () => {
 
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => {
-          const isCurrentPlan =
-            subscription?.plan?.id === plan.id;
-
-          const isFeatured =
-            plan.name?.toLowerCase() === "go";
-
+          const isCurrentPlan = subscription?.plan?.id === plan.id;
+          const isFeatured = plan.name?.toLowerCase() === "go";
           const benefits = getPlanBenefits(plan);
 
           return (
             <div
               key={plan.id}
               className={`rounded-xl border p-6 shadow-sm ${
-                isFeatured
-                  ? "border-orange-500 ring-2 ring-orange-400"
-                  : ""
+                isFeatured ? "border-orange-500 ring-2 ring-orange-400" : ""
               }`}
             >
               {isFeatured && (
@@ -95,31 +82,20 @@ const PlansPage = () => {
                   Recommended
                 </div>
               )}
-
-              <h2 className="text-xl font-semibold text-center">
-                {plan.name}
-              </h2>
-
+              <h2 className="text-xl font-semibold text-center">{plan.name}</h2>
               <div className="text-center my-4">
-                <span className="text-3xl font-bold">
-                  ₹{plan.price}
-                </span>
+                <span className="text-3xl font-bold">₹{plan.price}</span>
                 {plan.price > 0 && (
                   <span className="text-sm"> /{plan.duration_days} days</span>
                 )}
               </div>
-
               <ul className="text-sm space-y-2 mb-6">
                 {benefits.map((benefit, index) => (
-                  <li
-                    key={index}
-                    className="flex items-center gap-2"
-                  >
+                  <li key={index} className="flex items-center gap-2">
                     ✔ {benefit}
                   </li>
                 ))}
               </ul>
-
               <button
                 disabled={isCurrentPlan || loadingId === plan.id}
                 onClick={() => handleBuy(plan)}

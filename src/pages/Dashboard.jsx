@@ -31,6 +31,7 @@ import PatientChat from "../components/components/messages/PatientChat";
 import { triggerReminders } from "../api/CustomReminderApi";
 import DashboardPlans from "./dashboard/plans"
 import UpgradeCard from "../components/subscription/upgradecard"
+import { getMySubscription } from '../api/subscriptionService';
 
 
 
@@ -42,7 +43,24 @@ function Dashboard() {
 
   const [waterUpdateTrigger, setWaterUpdateTrigger] = useState(0);
   const [mealUpdateTrigger, setMealUpdateTrigger] = useState(0); // ✅ New state
+  useEffect(() => {
+  const checkSubscription = async () => {
+    try {
+      const subscription = await getMySubscription();
+      if (!subscription.has_plan) {
+        navigate('/dashboard/plans', {
+          state: { forced: true }
+        });
+      }
+    } catch (err) {
+      console.error("Subscription check failed:", err);
+    }
+  };
 
+  if (user?.role === "user") {
+    checkSubscription();
+  }
+}, [user]);
     // ✅ Only keep this one
   useEffect(() => {
     window.scrollTo(0, 0);

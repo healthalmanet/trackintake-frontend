@@ -1,50 +1,45 @@
-const API_BASE = import.meta.env.VITE_API_URL;
+import axiosInstance from './axiosInstance';
 
-// 🔹 Get all plans
-export const getPlans = async (token) => {
-  const res = await fetch(`${API_BASE}/subscriptions/plans/`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch plans");
-  }
-
-  return res.json();
+// ✅ Sirf patient plans fetch karo
+export const getPlans = async () => {
+  const res = await axiosInstance.get('/subscriptions/plans/?type=patient');
+  return res.data;
 };
 
-// 🔹 Create Razorpay order
-export const createOrder = async (planId, token) => {
-  const res = await fetch(`${API_BASE}/subscriptions/create-order/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ plan_id: planId }),
+// ✅ Order create karo
+export const createOrder = async (planId) => {
+  const res = await axiosInstance.post('/subscriptions/create-order/', {
+    plan_id: planId
   });
-
-  if (!res.ok) {
-    throw new Error("Failed to create order");
-  }
-
-  return res.json();
+  return res.data;
 };
-export const getMySubscription = async (token) => {
-  const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/subscriptions/my/`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch subscription");
-  }
+// ✅ Meri subscription fetch karo
+export const getMySubscription = async () => {
+  const res = await axiosInstance.get('/subscriptions/my/');
+  return res.data;
+};
 
-  return res.json();
+// ✅ Registration se pehle order create karo
+export const createRegistrationOrder = async (planId, email) => {
+  const res = await axiosInstance.post('/subscriptions/user-registration-order/', {
+    plan_id: planId,
+    email: email
+  });
+  return res.data;
+  // Note: agar res.data.already_paid === true
+  // toh frontend plan screen skip kare
+};
+
+// ✅ Payment verify karo
+export const verifyPayment = async (paymentData) => {
+  const res = await axiosInstance.post('/subscriptions/verify-payment/', paymentData);
+  return res.data;
+};
+// Consultation fee ka order banao
+export const payConsultationFee = async (consultType) => {
+  const res = await axiosInstance.post('/subscriptions/pay-consultation/', {
+    consult_type: consultType
+  });
+  return res.data;
 };

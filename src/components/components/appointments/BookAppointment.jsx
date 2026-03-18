@@ -4,7 +4,8 @@ import SlotPicker from "./SlotPicker";
 import { useAuth } from "../../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, User, ChevronRight, CalendarDays, Video, Users, Building2, Heart, X } from "lucide-react";
-
+import { payConsultationFee, verifyPayment } from "../../../api/subscriptionService";
+import { toast } from "react-toastify";
 // Import advertisement image
 import bpMonitorAd from "../../../assets/download.jpg";
 
@@ -23,7 +24,9 @@ const BookAppointment = ({ onBooked }) => {
 
   const [loading, setLoading] = useState(false);
   const [showAd, setShowAd] = useState(true);
-
+  const [showConsultPayment, setShowConsultPayment] = useState(false);
+  const [consultType, setConsultType] = useState(null);
+  const [pendingSlotId, setPendingSlotId] = useState(null);
   // -------------------------------
   // IN-HOUSE: fetch assigned nutritionist
   // -------------------------------
@@ -89,6 +92,7 @@ const BookAppointment = ({ onBooked }) => {
   const handleBook = async (slotId) => {
     try {
       setLoading(true);
+      setPendingSlotId(slotId); // ✅ retry ke liye save karo
 
       await bookAppointment({
         slot_id: slotId,
@@ -97,14 +101,64 @@ const BookAppointment = ({ onBooked }) => {
         expert_id: appointmentCategory === "EXPERT" ? expertId : null,
       });
 
-      alert("Appointment booked successfully");
-
+      toast.success("Appointment booked successfully!");
       await fetchSlots();
       onBooked?.();
+
+    } catch (error) {
+      const errData = error.response?.data;
+
+      // ✅ Consultation khatam — payment popup dikhao
+      if (errData?.consultation_required) {
+        setConsultType(errData.consult_type);
+        setShowConsultPayment(true);
+      } else {
+        toast.error(
+          errData?.message || errData?.detail || "Booking failed. Try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
+  const handleConsultPayment = async () => {
+  try {
+    const orderData = await payConsultationFee(consultType);
+
+    const rzp = new window.Razorpay({
+      key: orderData.key,
+      amount: orderData.amount,
+      order_id: orderData.order_id,
+      name: "TrackIntake",
+      description: "Consultation Fee",
+      handler: async (response) => {
+        try {
+          await verifyPayment(response);
+
+          // ✅ Payment ke baad dobara booking karo
+          await bookAppointment({
+            slot_id: pendingSlotId,
+            appointment_category: appointmentCategory,
+            appointment_type: appointmentType,
+            expert_id: appointmentCategory === "EXPERT" ? expertId : null,
+          });
+
+          toast.success("Appointment booked successfully!");
+          setShowConsultPayment(false);
+          await fetchSlots();
+          onBooked?.();
+        } catch (err) {
+          toast.error("Payment done but booking failed. Contact support.");
+        }
+      },
+      theme: { color: "#ff7a18" }
+    });
+    rzp.open();
+
+  } catch (err) {
+    toast.error("Payment failed. Try again.");
+  }
+};
 
   // ===============================
   // Ad Component - Simple with content only
@@ -181,6 +235,34 @@ const BookAppointment = ({ onBooked }) => {
   // ===============================
   return (
     <div className="w-full max-w-7xl mx-auto">
+        {/* ✅ Consultation Payment Popup */}
+        {showConsultPayment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl mx-4">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                Consultations Khatam Ho Gayi
+              </h2>
+              <p className="text-gray-500 text-sm mb-4">
+                Aapki{" "}
+                {consultType === "inhouse" ? "in-house" : "expert"}{" "}
+                consultations khatam ho gayi hain. Ek consultation fee
+                pay karein aur booking complete karein.
+              </p>
+              <button
+                onClick={handleConsultPayment}
+                className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition"
+              >
+                Pay & Book
+              </button>
+              <button
+                onClick={() => setShowConsultPayment(false)}
+                className="w-full mt-2 text-gray-400 text-sm py-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       {/* Mobile View - Stacked Layout */}
       <div className="block lg:hidden">
         {showAd && (

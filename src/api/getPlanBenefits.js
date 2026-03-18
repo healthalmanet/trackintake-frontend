@@ -1,40 +1,19 @@
-// src/api/planBenefits.js
-
 export function getPlanBenefits(plan) {
   const benefits = [];
 
-  // 🧠 AI Diet
-  if (plan.ai_diet_allowed) {
-    benefits.push("AI-powered diet plans");
-  }
-
-  // 📅 Appointments
-  if (plan.appointment_allowed) {
-    benefits.push("Doctor appointments enabled");
-  }
-
-  // 🏥 In-house consultations
-  if (plan.inhouse_consults > 0) {
-    benefits.push(
-      `${plan.inhouse_consults} in-house doctor consultation${
-        plan.inhouse_consults > 1 ? "s" : ""
-      }`
-    );
-  }
-
-  // 👨‍⚕️ Expert consultations
-  if (plan.expert_consults > 0) {
-    benefits.push(
-      `${plan.expert_consults} expert consultation${
-        plan.expert_consults > 1 ? "s" : ""
-      }`
-    );
-  }
-
-  // ⏳ Duration (optional but useful)
-  if (plan.duration_days) {
-    benefits.push(`${plan.duration_days} days validity`);
-  }
+  if (plan.meal_log_allowed) benefits.push("Meal Logging");
+  if (plan.water_intake_allowed) benefits.push("Water Intake Tracking");
+  if (plan.weight_tracker_allowed) benefits.push("Weight Tracker");
+  if (plan.custom_reminder_allowed) benefits.push("Custom Reminders");
+  if (plan.chat_allowed) benefits.push("Chat with Nutritionist");
+  if (plan.nutrition_search_allowed) benefits.push("Nutrition Search");
+  if (plan.ai_diet_allowed) benefits.push("AI Diet Plans");
+  if (plan.appointment_allowed) benefits.push("Appointments");
+  if (plan.BMI_Calculator_allowed) benefits.push("BMI Calculator");
+  if (plan.Fat_Calculator_allowed) benefits.push("Fat Calculator");
+  if (plan.inhouse_consults > 0) benefits.push(`${plan.inhouse_consults} In-house Consults`);
+  if (plan.expert_consults > 0) benefits.push(`${plan.expert_consults} Expert Consults`);
+  if (plan.duration_days) benefits.push(`${plan.duration_days} Days Validity`);
 
   return benefits;
 }
