@@ -53,7 +53,7 @@ const PlansPage = () => {
       
       {isForced && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded mb-6 text-center">
-          ⚠️ Aapko aage badhne ke liye pehle ek plan kharidna hoga.
+          ⚠️ You’ll need to purchase a plan before you can proceed.
         </div>
       )}
 

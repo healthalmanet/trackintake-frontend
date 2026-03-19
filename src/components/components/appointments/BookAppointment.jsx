@@ -240,13 +240,10 @@ const BookAppointment = ({ onBooked }) => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl mx-4">
               <h2 className="text-xl font-bold text-gray-800 mb-2">
-                Consultations Khatam Ho Gayi
+                Consultations Fee
               </h2>
               <p className="text-gray-500 text-sm mb-4">
-                Aapki{" "}
-                {consultType === "inhouse" ? "in-house" : "expert"}{" "}
-                consultations khatam ho gayi hain. Ek consultation fee
-                pay karein aur booking complete karein.
+                To continue, please pay the consultation fee and complete your appointment booking.
               </p>
               <button
                 onClick={handleConsultPayment}
