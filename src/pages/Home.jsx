@@ -223,11 +223,22 @@ useEffect(() => {
   </button>
 </>
             </motion.div>
-            <motion.div variants={itemFadeUp} className="flex space-x-10 mt-12 justify-center md:justify-start text-center">
-              <div className="hover:scale-110 transition-transform"><h4 className="text-2xl font-bold text-[var(--color-accent-2-text)]"><AnimatedNumber n={50} />K+</h4><p className="text-sm text-[var(--color-text-muted)]">Users</p></div>
-              <div className="hover:scale-110 transition-transform"><h4 className="text-2xl font-bold text-[var(--color-primary)]"><AnimatedNumber n={4.9} isFloat={true} />★</h4><p className="text-sm text-[var(--color-text-muted)]">Rating</p></div>
-              <div className="hover:scale-110 transition-transform"><h4 className="text-2xl font-bold text-[var(--color-accent-1-text)]"><AnimatedNumber n={1} />M+</h4><p className="text-sm text-[var(--color-text-muted)]">Meals Logged</p></div>
-            </motion.div>
+            <motion.div variants={itemFadeUp} className="flex space-x-8 mt-12 justify-center md:justify-start text-center">
+                {[
+                  { icon: FaLightbulb, label: "Quality Assured", bg: "bg-green-100", color: "text-green-600" },
+                  { icon: FaHeartbeat, label: "Personalized Support", bg: "bg-blue-100", color: "text-blue-600" },
+                  { icon: FaStethoscope, label: "Free Counselling", bg: "bg-purple-100", color: "text-purple-600" },
+                ].map((badge, i) => (
+                  <div key={i} className="hover:scale-110 transition-transform flex flex-col items-center gap-3">
+                    <div className={`${badge.bg} p-4 rounded-full`}>
+                      <badge.icon className={`text-2xl ${badge.color}`} />
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-strong)] max-w-[85px] leading-snug">
+                      {badge.label}
+                    </p>
+                  </div>
+                ))}
+              </motion.div>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 80, delay: 0.5 }} className="flex-1 md:w-1/2 relative z-10 mt-12 md:mt-0">
             <div className="relative max-w-md mx-auto animate-float">
