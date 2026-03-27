@@ -198,7 +198,7 @@ function App() {
             }}
           />
           
-          // 4. Add the drawer just below the toast (still inside the user role block):
+          
           <FoodSuggestionsDrawer
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
