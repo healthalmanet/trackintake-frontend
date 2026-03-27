@@ -121,6 +121,7 @@ function Dashboard() {
         <Route path="/messages" element={<PatientChat/>} />
         <Route path="appointments" element={<AppointmentPage />} />
         <Route path="plans" element={<DashboardPlans />} />
+        <Route path="Career" element={<DashboardPlans />} />
       </Routes>
     </div>
   );

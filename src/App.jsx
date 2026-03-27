@@ -1,10 +1,8 @@
-import React from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./components/context/AuthContext";
 import { Loader } from "lucide-react";
-import { useState } from "react";
 
-// Public pages (imports are unchanged imran)
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -12,53 +10,93 @@ import ForgotPassword from "./components/components/ForgotPassword";
 import ResetPassword from "./components/components/ResetPassword";
 import Unauthorized from "./pages/Unauthorized";
 
-// Role-based dashboards (imports are unchanged)
 import OwnerPage from "./pages/OwnerPage";
 import OperatorPage from "./pages/OperatorPage";
 import NutritionistPage from "./pages/NutritionistPage";
 import Dashboard from "./pages/Dashboard";
 
-// Shared UI components (imports are unchanged)
 import Navbar from "./components/components/Navbar";
 import NotificationDropdown from "./components/components/NotificationDropdown";
 import Footer from "./components/components/Footer";
-
 import ProtectedRoute from "./components/components/ProtectedRoute";
-import logo from "./assets/logo.png"; // Kept your logo import
+import logo from "./assets/logo.png";
 
 import BlogDetail from "./components/components/BlogDetails";
 import BlogsPage from "./components/components/Blogs";
 import HomeBlog from "./components/components/HomeBlog";
-// Toast notifications (kept your original react-toastify)
+
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 import { ProfileDropdown } from "./components/components/ProfileDropdown";
 import QuickTools from "./components/components/nutritionist/QuickTools";
 import SmartAssistant from "./components/components/nutritionist/SmartAssistant";
 import NutritionPopup from "./components/components/nutritionist/NutritionPopup";
-import ChatPopUp from "./components/components/messages/ChatPopUp"
+import ChatPopUp from "./components/components/messages/ChatPopUp";
 import SocialAuthHandler from "./components/components/SocialAuthHandler";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import PrivacyPolicy from "./pages/dashboard/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
 import RefundPolicy from "./pages/RefundPolicy";
 import ContactPage from "./pages/dashboard/Tools/Contact";
-// import ContactPage from "./pages/ContactPage";
-// import Contact from "./pages/dashboard/Tools/Contact";
+
+import useWebSockets from "./api/useWebSockets";
+import { FoodSuggestionToast } from "./components/FoodSuggestionToast";
+import { FoodSuggestionsDrawer } from "./components/components/FoodSuggestionsDrawer";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// ── Stable no-op callbacks defined OUTSIDE the component ────────
+// This ensures they never change reference between renders,
+// so useWebSockets' useEffect never re-runs and clears the handler.
+const noop = () => {};
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
 
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-     const [showNutrition, setShowNutrition] = useState(false);
-     const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showNutrition,   setShowNutrition]   = useState(false);
+  const [isChatOpen,      setIsChatOpen]       = useState(false);
+  const [suggestion,      setSuggestion]       = useState(null);
+  const [drawerOpen,      setDrawerOpen]      = useState(false);
+  const [drawerInitData,  setDrawerInitData]  = useState(null);
+ 
 
-   
-   const handleOpenAssistant = () => setIsAssistantOpen(true);
- // This is the new, correct line
-const handleOpenNutritionSearch = () => setShowNutrition(true);
+  // Stable callback — useCallback with [] is correct here
+  const handleSuggestion = useCallback((data) => {
+    console.log("🍽️ Food suggestion received:", data); // debug log
+    setSuggestion({
+      message:       data.message        || "",
+      topSuggestion: data.top_suggestion || "",
+      reason:        data.reason         || "",
+      caloriesLeft:  data.calories_left  || 0,
+      receivedAt:    Date.now(),
+    });
+  }, []);
 
-  // Themed loading state
+  // ── useWebSockets with stable references ─────────────────────
+  useWebSockets({
+    onReminder:   noop,             // stable — defined outside component
+    onMessage:    noop,             // stable — defined outside component
+    onSuggestion: handleSuggestion, // stable — useCallback with []
+  });
+
+  // ── Trigger suggest-foods API on dashboard load ───────────────
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "user") return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    console.log("🔍 Calling suggest-foods API..."); // debug log
+    fetch(`${API_BASE}/suggest-foods/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => console.log("📊 suggest-foods delivery:", d.delivery)) // debug log
+      .catch(() => {});
+  }, [isAuthenticated, user]);
+
+  const handleOpenAssistant       = () => setIsAssistantOpen(true);
+  const handleOpenNutritionSearch = () => setShowNutrition(true);
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-[var(--color-bg-app)] font-[var(--font-secondary)]">
@@ -70,7 +108,6 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
     );
   }
 
-  //  Logic is completely unchanged
   const getRedirectPath = () => {
     const role = user?.role?.toLowerCase();
     if (!role) return "/";
@@ -87,93 +124,91 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
 
   return (
     <>
-      {/*  Navbar props are completely unchanged from your original code */}
       {isAuthenticated && user?.role === "user" && (
         <Navbar
           logo={<img src={logo} alt="logo" className="h-10 w-auto" />}
           align="center"
           links={[
-            { label: "Home", to: "/dashboard" },
-            { label: "Tools", to: "/dashboard/tools" },
-            { label: "Health", to: "/dashboard/health-section" },
-            { label: "Diet", to: "/dashboard/meals" },
-            { label: "Progress", to: "/dashboard/reports" },
-            { label: "Blogs", to: "/blogs-section" },
+            { label: "Home",         to: "/dashboard" },
+            { label: "Tools",        to: "/dashboard/tools" },
+            { label: "Health",       to: "/dashboard/health-section" },
+            { label: "Diet",         to: "/dashboard/meals" },
+            { label: "Progress",     to: "/dashboard/reports" },
+            { label: "Blogs",        to: "/blogs-section" },
             { label: "Appointments", to: "/dashboard/appointments" },
-            { label: "Plans", to: "/dashboard/plans" },
+            { label: "Plans",        to: "/dashboard/plans" },
           ]}
-          
           rightContent={
-  <>
-    <div className="flex items-center gap-4">
-    <NotificationDropdown />
-    <ProfileDropdown />
-    </div>
-  </>
-}
-
+            <div className="flex items-center gap-4">
+              <NotificationDropdown />
+              <ProfileDropdown />
+            </div>
+          }
         />
       )}
 
-      {/*  Routes are completely unchanged */}
       <Routes>
-        <Route path="/" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Home />} />
-        <Route path="/login" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Login />} />
-        <Route path="/register" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Register />} />
-        <Route path="/forgot-password" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <ForgotPassword />} />
+        <Route path="/"                              element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Home />} />
+        <Route path="/login"                         element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Login />} />
+        <Route path="/register"                      element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Register />} />
+        <Route path="/forgot-password"               element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <ForgotPassword />} />
         <Route path="/reset-password/:uidb64/:token" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <ResetPassword />} />
-        <Route path="/owner" element={<ProtectedRoute requiredRole="owner"><OwnerPage /></ProtectedRoute>} />
-        <Route path="/operator" element={<ProtectedRoute requiredRole="operator"><OperatorPage /></ProtectedRoute>} />
-        <Route path="/nutritionist/*" element={<ProtectedRoute requiredRole="nutritionist"><NutritionistPage /></ProtectedRoute>} />
-        <Route path="/dashboard/*" element={<ProtectedRoute requiredRole="user"><Dashboard /></ProtectedRoute>} />
-        <Route path="/unauthorized" element={<Unauthorized />} />
-        <Route path="/blog/:blogId" element={<BlogDetail />} />
-        <Route path="/blogs" element={<HomeBlog/>} />
-        <Route path="/blogs-section" element={<BlogsPage/>} />
-        <Route path="/social-auth" element={<SocialAuthHandler />} />
-        <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-
-        {/* footer section routes */}
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-conditions" element={<TermsConditions />} />
-        <Route path="/refund-policy" element={<RefundPolicy />} />
-        {/* <Route path="/Contact" element={<ContactPage />} /> */}
-       <Route path="/Contact" element={<ContactPage/>} />
-        
+        <Route path="/owner"                         element={<ProtectedRoute requiredRole="owner"><OwnerPage /></ProtectedRoute>} />
+        <Route path="/operator"                      element={<ProtectedRoute requiredRole="operator"><OperatorPage /></ProtectedRoute>} />
+        <Route path="/nutritionist/*"                element={<ProtectedRoute requiredRole="nutritionist"><NutritionistPage /></ProtectedRoute>} />
+        <Route path="/dashboard/*"                   element={<ProtectedRoute requiredRole="user"><Dashboard /></ProtectedRoute>} />
+        <Route path="/unauthorized"                  element={<Unauthorized />} />
+        <Route path="/blog/:blogId"                  element={<BlogDetail />} />
+        <Route path="/blogs"                         element={<HomeBlog />} />
+        <Route path="/blogs-section"                 element={<BlogsPage />} />
+        <Route path="/social-auth"                   element={<SocialAuthHandler />} />
+        <Route path="/subscription/success"          element={<SubscriptionSuccess />} />
+        <Route path="/privacy-policy"                element={<PrivacyPolicy />} />
+        <Route path="/terms-conditions"              element={<TermsConditions />} />
+        <Route path="/refund-policy"                 element={<RefundPolicy />} />
+        <Route path="/Contact"                       element={<ContactPage />} />
       </Routes>
 
-      {/*  Chatbot and Footer are completely unchanged */}
-      {isAuthenticated && user?.role === "user" && 
-      <>  
-       <QuickTools 
-        onOpenAssistant={handleOpenAssistant}
-        onOpenNutrition={handleOpenNutritionSearch}
-         onOpenChat={() => setIsChatOpen(true)}
-          userRole={user?.role}
-      />
+      {isAuthenticated && user?.role === "user" && (
+        <>
+          <QuickTools
+            onOpenAssistant={handleOpenAssistant}
+            onOpenNutrition={handleOpenNutritionSearch}
+            onOpenChat={() => setIsChatOpen(true)}
+            userRole={user?.role}
+          />
+          <SmartAssistant
+            isVisible={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+          />
+          <NutritionPopup
+            isVisible={showNutrition}
+            onClose={() => setShowNutrition(false)}
+          />
+          <ChatPopUp
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+          />
+          <FoodSuggestionToast
+            suggestion={suggestion}
+            onDismiss={() => setSuggestion(null)}
+            onViewAll={() => {
+              setDrawerInitData(null); // drawer fetches fresh data itself
+              setDrawerOpen(true);
+            }}
+          />
+          
+          
+          <FoodSuggestionsDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            initialData={drawerInitData}
+          />
+        </>
+      )}
 
-       <SmartAssistant
-        isVisible={isAssistantOpen}
-        onClose={() => setIsAssistantOpen(false)}
-      />
-
-       <NutritionPopup
-        isVisible={showNutrition}
-        onClose={() => setShowNutrition(false)}
-      />
-
-      <ChatPopUp 
-                isOpen={isChatOpen} 
-                onClose={() => setIsChatOpen(false)} 
-            />
-
-      </>
-
-      
-    }
       {isAuthenticated && user?.role === "user" && <Footer />}
 
-      {/*  ToastContainer is completely unchanged in the JSX */}
       <ToastContainer position="top-right" autoClose={3000} pauseOnHover theme="light" />
     </>
   );

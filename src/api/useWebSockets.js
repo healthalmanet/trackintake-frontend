@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 
-// --- This block acts as our global WebSocket manager ---
+// --- Global WebSocket manager ---
 let messageSocket = null;
 let reminderSocket = null;
 let messageReconnectTimer = null;
@@ -10,21 +10,22 @@ let reminderReconnectTimer = null;
 let messageHeartbeatTimer = null;
 let reminderHeartbeatTimer = null;
 
-let onMessageHandler = () => {};
-let onReminderHandler = () => {};
+let onMessageHandler    = () => {};
+let onReminderHandler   = () => {};
+let onSuggestionHandler = () => {};   // ← NEW
 
-// +++ THE KILL SWITCH: Set this to true to disable all WebSockets for testing +++
+// +++ KILL SWITCH +++
 const WEBSOCKETS_DISABLED = false;
 
-
-const WEBSOCKET_URL =
-  import.meta.env.VITE_WS_URL;
-
-const RECONNECT_DELAY = 5000;
+const WEBSOCKET_URL      = import.meta.env.VITE_WS_URL;
+const RECONNECT_DELAY    = 5000;
 const HEARTBEAT_INTERVAL = 30000;
 
+// ─────────────────────────────────────────────
+// Message socket
+// ─────────────────────────────────────────────
 const connectMessages = () => {
-  if (WEBSOCKETS_DISABLED) return; // Abort if disabled
+  if (WEBSOCKETS_DISABLED) return;
   const token = localStorage.getItem("token");
   if (!token) return;
   if (messageSocket && messageSocket.readyState !== WebSocket.CLOSED) return;
@@ -44,7 +45,7 @@ const connectMessages = () => {
     onMessageHandler(data);
   };
 
-  messageSocket.onerror = (error) => console.error("❌ Message WebSocket error:", error);
+  messageSocket.onerror  = (error) => console.error("❌ Message WebSocket error:", error);
 
   messageSocket.onclose = (event) => {
     console.log(`🔌 Message WebSocket closed: ${event.code}`);
@@ -56,29 +57,37 @@ const connectMessages = () => {
   };
 };
 
+// ─────────────────────────────────────────────
+// Reminder socket  (also handles food_suggestion)
+// ─────────────────────────────────────────────
 const connectReminders = () => {
-  if (WEBSOCKETS_DISABLED) return; // Abort if disabled
+  if (WEBSOCKETS_DISABLED) return;
   const token = localStorage.getItem("token");
   if (!token) return;
   if (reminderSocket && reminderSocket.readyState !== WebSocket.CLOSED) return;
-  
+
   reminderSocket = new WebSocket(`${WEBSOCKET_URL}/ws/reminders/?token=${token}`);
   console.log("Attempting to connect Reminder WebSocket...");
-  
+
   reminderSocket.onopen = () => {
     console.log("✅ Reminder WebSocket connected.");
     clearTimeout(reminderReconnectTimer);
     startHeartbeat('reminder');
   };
 
-  reminderSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'pong') return;
+  // AFTER
+reminderSocket.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.type === 'pong') return;
+  if (data.type === 'food_suggestion') {
+    onSuggestionHandler(data);
+  } else {
     onReminderHandler(data);
-  };
-  
+  }
+};
+
   reminderSocket.onerror = (error) => console.error("❌ Reminder WebSocket error:", error);
-  
+
   reminderSocket.onclose = (event) => {
     console.log(`🔌 Reminder WebSocket closed: ${event.code}`);
     stopHeartbeat('reminder');
@@ -89,10 +98,13 @@ const connectReminders = () => {
   };
 };
 
+// ─────────────────────────────────────────────
+// Heartbeat helpers
+// ─────────────────────────────────────────────
 const startHeartbeat = (type) => {
-  const socket = type === 'message' ? messageSocket : reminderSocket;
-  let timerRef = type === 'message' ? messageHeartbeatTimer : reminderHeartbeatTimer;
-  
+  const socket   = type === 'message' ? messageSocket : reminderSocket;
+  let   timerRef = type === 'message' ? messageHeartbeatTimer : reminderHeartbeatTimer;
+
   clearInterval(timerRef);
   const newTimer = setInterval(() => {
     if (socket && socket.readyState === WebSocket.OPEN) {
@@ -101,11 +113,11 @@ const startHeartbeat = (type) => {
   }, HEARTBEAT_INTERVAL);
 
   if (type === 'message') messageHeartbeatTimer = newTimer;
-  else reminderHeartbeatTimer = newTimer;
+  else                    reminderHeartbeatTimer = newTimer;
 };
 
 const stopHeartbeat = (type) => {
-  let timerRef = type === 'message' ? messageHeartbeatTimer : reminderHeartbeatTimer;
+  const timerRef = type === 'message' ? messageHeartbeatTimer : reminderHeartbeatTimer;
   clearInterval(timerRef);
 };
 
@@ -121,32 +133,34 @@ const disconnectAll = () => {
 
 window.addEventListener("beforeunload", disconnectAll);
 
-
-// --- The Actual React Hook ---
-const useWebSockets = ({ onReminder, onMessage }) => {
-  
-  const stableOnMessage = useCallback(onMessage || (() => {}), [onMessage]);
-  const stableOnReminder = useCallback(onReminder || (() => {}), [onReminder]);
+// ─────────────────────────────────────────────
+// The React hook
+// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// The React hook
+// ─────────────────────────────────────────────
+const useWebSockets = ({ onReminder, onMessage, onSuggestion }) => {
 
   useEffect(() => {
-    // --- THIS IS THE KILL SWITCH CHECK ---
     if (WEBSOCKETS_DISABLED) {
       console.warn("WebSockets are currently disabled via the kill switch in useWebSockets.js");
-      return; // Do nothing else
+      return;
     }
-    // --- END OF KILL SWITCH CHECK ---
 
-    onMessageHandler = stableOnMessage;
-    onReminderHandler = stableOnReminder;
+    // Set handlers directly — no useCallback needed since these are module globals
+    if (onMessage)    onMessageHandler    = onMessage;
+    if (onReminder)   onReminderHandler   = onReminder;
+    if (onSuggestion) onSuggestionHandler = onSuggestion;
 
     connectMessages();
     connectReminders();
 
     return () => {
-      onMessageHandler = () => {};
-      onReminderHandler = () => {};
+      onMessageHandler    = () => {};
+      onReminderHandler   = () => {};
+      onSuggestionHandler = () => {};
     };
-  }, [stableOnMessage, stableOnReminder]);
+  }, []); // ← empty deps: run once on mount only
 };
 
 export default useWebSockets;
