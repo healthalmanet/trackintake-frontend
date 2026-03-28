@@ -176,7 +176,7 @@ useEffect(() => {
             onClick={openRegister}
             className="ml-5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold px-4 py-2 rounded-full shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-primary-glow"
           >
-            Sign In
+            Register
           </button>
          <button
     onClick={openLogin}

@@ -182,25 +182,46 @@ const Register = ({ onSwitchToLogin }) => {
       prefill: { name: fullName, email },
       theme: { color: "var(--color-primary, #f97316)" },
       handler: async function (response) {
-        try {
-          await publicAxios.post("/subscriptions/verify-payment/", {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
+          try {
+            await publicAxios.post("/subscriptions/verify-payment/", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
 
-          setPaymentData({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-          setShowPlanModal(false);
-          toast.success("Payment successful! Complete your registration below.");
-        } catch {
-          toast.error("Payment verification failed. Please contact support.");
-        }
-        setPaymentLoading(false);
-      },
+            setShowPlanModal(false);
+            toast.success("Payment successful! Creating your account...");
+
+            // ── Auto-register immediately after payment ──
+            try {
+              await registerUser({
+                full_name: fullName,
+                email,
+                password,
+                password2: confirmPassword,
+                verification_token: verificationToken,
+                role,
+                razorpay_order_id:   response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature:  response.razorpay_signature,
+              });
+              toast.success("🎉 Account created successfully! Please log in.");
+              navigate("/login");
+            } catch (regError) {
+              const errData = regError?.response?.data;
+              const message =
+                errData?.payment?.[0] ||
+                errData?.token?.[0] ||
+                errData?.message ||
+                "Registration failed after payment. Please contact support.";
+              toast.error(message);
+            }
+
+          } catch {
+            toast.error("Payment verification failed. Please contact support.");
+          }
+          setPaymentLoading(false);
+        },
       modal: {
         ondismiss: () => {
           toast.info("Payment cancelled.");
@@ -297,7 +318,7 @@ const Register = ({ onSwitchToLogin }) => {
   // ── Submit button label logic ──────────────────────────────────────────────
   const submitLabel = () => {
   if (loading) return "Registering...";
-  if (!paymentData) return "Continue to Plan Purchase →";  // both roles
+  if (!paymentData) return "Continue →";
   return "Create Account";
 };
   
@@ -335,13 +356,16 @@ const Register = ({ onSwitchToLogin }) => {
                 />
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
               </div>
-              <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                Click <span className="font-semibold text-[var(--color-primary)]">Send OTP</span> to verify your email.
-              </p>
+              
               {!otpSent ? (
-                <button type="button" onClick={handleSendOtp} disabled={otpLoading} className="text-sm p-2 text-[var(--color-primary)] mt-1 disabled:opacity-50">
-                  {otpLoading ? "Sending..." : "Send OTP"}
-                </button>
+                <button
+  type="button"
+  onClick={handleSendOtp}
+  disabled={otpLoading}
+  className="w-full mt-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] py-3 rounded-lg font-semibold shadow-md disabled:opacity-50 transition-colors"
+>
+  {otpLoading ? "Sending..." : "Click here to get OTP →"}
+</button>
               ) : (
                 <button type="button" disabled={otpTimer > 0} onClick={handleSendOtp} className="text-sm text-[var(--color-primary)] mt-1 disabled:opacity-50">
                   {otpTimer > 0 ? `Resend in ${otpTimer}s` : "Resend OTP"}
@@ -362,9 +386,14 @@ const Register = ({ onSwitchToLogin }) => {
                   />
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
                 </div>
-                <button type="button" onClick={handleVerifyOtp} disabled={loading} className="text-sm p-2 text-[var(--color-primary)] mt-1 disabled:opacity-50">
-                  {loading ? "Verifying..." : "Verify OTP"}
-                </button>
+                <button
+  type="button"
+  onClick={handleVerifyOtp}
+  disabled={loading}
+  className="w-full mt-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] py-3 rounded-lg font-semibold shadow-md disabled:opacity-50 transition-colors"
+>
+  {loading ? "Verifying..." : "Continue →"}
+</button>
               </motion.div>
             )}
           </>
@@ -487,14 +516,17 @@ const Register = ({ onSwitchToLogin }) => {
         )}
 
         {/* Submit */}
-        <motion.button
-          variants={itemVariants}
-          type="submit"
-          disabled={!isFormValid || loading || !isOtpVerified}
-          className="w-full bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-5 py-3 rounded-lg font-semibold shadow-lg hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
-        >
-          {submitLabel()}
-        </motion.button>
+        {/* Submit — only show after OTP verified */}
+{isOtpVerified && (
+  <motion.button
+    variants={itemVariants}
+    type="submit"
+    disabled={!isFormValid || loading}
+    className="w-full bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-5 py-3 rounded-lg font-semibold shadow-lg hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
+  >
+    {submitLabel()}
+  </motion.button>
+)}
       </motion.form>
 
       {/* Divider */}
