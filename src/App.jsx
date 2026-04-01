@@ -43,6 +43,7 @@ import ContactPage from "./pages/dashboard/Tools/Contact";
 import useWebSockets from "./api/useWebSockets";
 import { FoodSuggestionToast } from "./components/FoodSuggestionToast";
 import { FoodSuggestionsDrawer } from "./components/components/FoodSuggestionsDrawer";
+import Career from "./pages/Career";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // ── Stable no-op callbacks defined OUTSIDE the component ────────
@@ -134,6 +135,7 @@ function App() {
             { label: "Health",       to: "/dashboard/health-section" },
             { label: "Diet",         to: "/dashboard/meals" },
             { label: "Progress",     to: "/dashboard/reports" },
+            { label: "Career",        to: "/pages/Career" },
             { label: "Blogs",        to: "/blogs-section" },
             { label: "Appointments", to: "/dashboard/appointments" },
             { label: "Plans",        to: "/dashboard/plans" },
@@ -167,7 +169,9 @@ function App() {
         <Route path="/terms-conditions"              element={<TermsConditions />} />
         <Route path="/refund-policy"                 element={<RefundPolicy />} />
         <Route path="/Contact"                       element={<ContactPage />} />
+        <Route path="/pages/Career"                  element={<Career/>} />
       </Routes>
+      
 
       {isAuthenticated && user?.role === "user" && (
         <>

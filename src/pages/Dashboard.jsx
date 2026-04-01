@@ -32,7 +32,7 @@ import { triggerReminders } from "../api/CustomReminderApi";
 import DashboardPlans from "./dashboard/plans"
 import UpgradeCard from "../components/subscription/upgradecard"
 import { getMySubscription } from '../api/subscriptionService';
-
+import Career from "./Career";
 
 
 

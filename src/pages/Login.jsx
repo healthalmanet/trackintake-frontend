@@ -498,7 +498,7 @@ const Login = ({ onClose, onSwitchToRegister }) => {
         animate={{ opacity: 1, y: 0, transition: { delay: 0.5 } }} 
         className="mt-6 text-center"
       >
-        <div className="my-6 flex items-center">
+        {/* <div className="my-6 flex items-center">
           <div className="flex-grow border-t border-[var(--color-border-default)]"></div>
           <span className="mx-4 flex-shrink text-sm text-[var(--color-text-muted)]">OR</span>
           <div className="flex-grow border-t border-[var(--color-border-default)]"></div>
@@ -519,7 +519,7 @@ const Login = ({ onClose, onSwitchToRegister }) => {
             <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.021,35.596,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
           </svg>
           Sign in with Google
-        </motion.button>
+        </motion.button> */}
       </motion.div>
 
       <motion.div 
