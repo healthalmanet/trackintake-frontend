@@ -135,7 +135,6 @@ function App() {
             { label: "Health",       to: "/dashboard/health-section" },
             { label: "Diet",         to: "/dashboard/meals" },
             { label: "Progress",     to: "/dashboard/reports" },
-            { label: "Career",        to: "/pages/Career" },
             { label: "Blogs",        to: "/blogs-section" },
             { label: "Appointments", to: "/dashboard/appointments" },
             { label: "Plans",        to: "/dashboard/plans" },
