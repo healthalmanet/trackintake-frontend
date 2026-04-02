@@ -69,8 +69,10 @@ const AnimatedSection = ({ children, className }) => {
     { label: "Home", to: "#home" },
     { label: "About", to: "#about" },
     { label: "Features", to: "#features" },
+    { label: "Career", to: "/pages/Career" },
     { label: "Blogs", to: "#blogs" },
     { label: "Contact", to: "/contact" },
+    
   ];
 
 const itemFadeUp = {

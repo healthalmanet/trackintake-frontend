@@ -537,7 +537,7 @@ const Register = ({ onSwitchToLogin }) => {
       </div>
 
       {/* Google */}
-      <motion.button
+      {/* <motion.button
         type="button"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -552,7 +552,7 @@ const Register = ({ onSwitchToLogin }) => {
           <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.021,35.596,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
         </svg>
         Sign in with Google
-      </motion.button>
+      </motion.button> */}
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}

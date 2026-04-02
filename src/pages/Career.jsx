@@ -41,7 +41,7 @@ const JOBS = [
 
     ],
 
-    applyLink: "https://lnkd.in/ddaiNqdh",
+    applyLink: "https://docs.google.com/forms/d/e/1FAIpQLSfOAV47RQbEkCYt-1ukO3gQFHJFDN9xFwcOvdDbwhS_qo9chQ/viewform",
    
   },
 
@@ -86,7 +86,7 @@ const JOBS = [
       
     ],
 
-    applyLink: "https://lnkd.in/ddaiNqdh",
+    applyLink: "https://docs.google.com/forms/d/e/1FAIpQLSfOAV47RQbEkCYt-1ukO3gQFHJFDN9xFwcOvdDbwhS_qo9chQ/viewform",
     
   },
   
@@ -139,7 +139,7 @@ const JOBS = [
     { label: "Location", value: "Remote" },
   ],
 
-  applyLink: "https://lnkd.in/ddaiNqdh",
+  applyLink: "https://docs.google.com/forms/d/e/1FAIpQLSfOAV47RQbEkCYt-1ukO3gQFHJFDN9xFwcOvdDbwhS_qo9chQ/viewform",
 }
 ];
 
