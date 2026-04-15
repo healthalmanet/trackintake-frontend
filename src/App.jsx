@@ -44,6 +44,7 @@ import useWebSockets from "./api/useWebSockets";
 import { FoodSuggestionToast } from "./components/FoodSuggestionToast";
 import { FoodSuggestionsDrawer } from "./components/components/FoodSuggestionsDrawer";
 import Career from "./pages/Career";
+import Chatbot from "./components/ChatBot";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // ── Stable no-op callbacks defined OUTSIDE the component ────────
@@ -200,7 +201,7 @@ function App() {
               setDrawerOpen(true);
             }}
           />
-          
+          <Chatbot/>
           
           <FoodSuggestionsDrawer
             open={drawerOpen}
