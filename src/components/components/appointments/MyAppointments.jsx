@@ -618,7 +618,12 @@ const NoMeetingPlaceholder = () => (
 );
 
 /* ─── Appointment Card ──────────────────────────────────────── */
-const AppointmentCard = ({ a, onCancel, idx }) => {
+const AppointmentCard = ({ a, onCancel, onFeedback, idx }) => {
+    const hasGivenFeedback = a.feedbacks?.some(
+    fb => fb.role === "PATIENT"
+  )
+
+  const isCompleted = a.status === "CONFIRMED"
   const isVirtual   = a.appointment_type === "VIRTUAL";
   const isConfirmed = a.status === "CONFIRMED";
   const ablToCancel = canCancel(a.slot.date, a.slot.start_time);
@@ -737,6 +742,66 @@ const AppointmentCard = ({ a, onCancel, idx }) => {
             ? <ZoomBlock link={a.meeting_link} />
             : <NoMeetingPlaceholder />
         )}
+        {/* ── FEEDBACK DISPLAY ── */}
+        {a.feedbacks?.length > 0 && (
+          <div className="mt-4 rounded-2xl p-4"
+            style={{
+              background: "linear-gradient(135deg, #f8fafc, #f1f5f9)",
+              border: "1px solid var(--color-border-default)"
+            }}
+          >
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-3"
+              style={{ color: "var(--color-text-subtle)" }}>
+              Comment
+            </p>
+
+            {a.feedbacks.map((fb, i) => (
+              <div key={i} className="mb-3 last:mb-0">
+                
+                {/* Name + Rating */}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold">
+                    {fb.user_name}
+                  </p>
+
+                  {/* ⭐ Stars */}
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map((s) => (
+                      <span key={s}
+                        style={{
+                          color: s <= fb.rating ? "#facc15" : "#e5e7eb",
+                          fontSize: 12
+                        }}>
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Comment */}
+                {fb.comment && (
+                  <p className="text-xs mt-1"
+                    style={{ color: "var(--color-text-muted)" }}>
+                    {fb.comment}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {/* ── WRITE FEEDBACK BUTTON ── */}
+        {isCompleted && !hasGivenFeedback && (
+          <button
+            onClick={() => onFeedback(a.id)}
+            className="w-full mt-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+              color: "white"
+            }}
+          >
+            ✍️ Comment 
+          </button>
+        )}
 
         {/* ── Cancel ── */}
         {isConfirmed && (
@@ -789,7 +854,29 @@ const StatsBar = ({ appointments }) => {
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [selectedAppointment, setSelectedAppointment] = useState(null)
+  const [rating, setRating] = useState(0)
+  const [comment, setComment] = useState("")
+  const openFeedbackModal = (id) => {
+    setSelectedAppointment(id)
+    setRating(0)
+    setComment("")
+  }
 
+  const submitFeedback = async () => {
+    try {
+      await axiosInstance.post(
+        `/appointments/${selectedAppointment}/feedback/`,
+        { rating, comment }
+      )
+
+      toast.success("Feedback submitted ✨")
+      setSelectedAppointment(null)
+      fetchAppointments()
+    } catch {
+      toast.error("Failed to submit feedback")
+    }
+  }
   /* Inject styles */
   useEffect(() => {
     if (!document.getElementById("ma-styles")) {
@@ -897,16 +984,99 @@ const MyAppointments = () => {
             <div className="grid md:grid-cols-2 gap-6">
               {appointments.map((a, i) => (
                 <AppointmentCard
-                  key={a.id}
-                  a={a}
-                  idx={i}
-                  onCancel={cancelAppointment}
-                />
+                key={a.id}
+                a={a}
+                idx={i}
+                onCancel={cancelAppointment}
+                onFeedback={openFeedbackModal}
+              />
               ))}
             </div>
           </>
         )}
       </div>
+      {selectedAppointment && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(10px)"
+          }}
+        >
+
+          {/* Modal Box */}
+          <div
+            className="w-[360px] rounded-3xl p-6"
+            style={{
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border-default)"
+            }}
+          >
+
+            {/* Title */}
+            <h3 className="text-lg font-bold mb-4">
+              Give Feedback
+            </h3>
+
+            {/* ⭐ STAR RATING */}
+            <div className="flex justify-center gap-2 mb-4">
+              {[1,2,3,4,5].map((s) => (
+                <span
+                  key={s}
+                  onClick={() => setRating(s)}
+                  style={{
+                    fontSize: 26,
+                    cursor: "pointer",
+                    color: s <= rating ? "#facc15" : "#e5e7eb"
+                  }}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+
+            {/* COMMENT BOX */}
+            <textarea
+              placeholder="Share your experience..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="w-full p-3 rounded-xl text-sm"
+              style={{
+                border: "1px solid var(--color-border-default)",
+                minHeight: 100
+              }}
+            />
+
+            {/* ACTION BUTTONS */}
+            <div className="flex gap-2 mt-4">
+
+              {/* Cancel */}
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="flex-1 py-2 rounded-xl"
+                style={{
+                  background: "var(--color-bg-surface-alt)"
+                }}
+              >
+                Cancel
+              </button>
+
+              {/* Submit */}
+              <button
+                onClick={submitFeedback}
+                className="flex-1 py-2 rounded-xl"
+                style={{
+                  background: "#3b82f6",
+                  color: "white"
+                }}
+              >
+                Submit
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
