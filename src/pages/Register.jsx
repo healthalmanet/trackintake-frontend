@@ -61,7 +61,7 @@ const Register = ({ onSwitchToLogin }) => {
   const isLengthValid = password.length >= 8;
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
   const isMatch = confirmPassword !== "" && password === confirmPassword;
-  const isFormValid = isLengthValid && hasSymbol && isMatch;
+  const isFormValid = isLengthValid && hasSymbol && isMatch && fullName.trim() !== "" && role !== "";
 
   // ── OTP timer ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -192,6 +192,14 @@ const Register = ({ onSwitchToLogin }) => {
             setShowPlanModal(false);
             toast.success("Payment successful! Creating your account...");
 
+            // ✅ Save payment data so the user doesn't have to pay again if registration fails
+            const currentPaymentData = {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+            setPaymentData(currentPaymentData);
+
             // ── Auto-register immediately after payment ──
             try {
               await registerUser({
@@ -201,9 +209,7 @@ const Register = ({ onSwitchToLogin }) => {
                 password2: confirmPassword,
                 verification_token: verificationToken,
                 role,
-                razorpay_order_id:   response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature:  response.razorpay_signature,
+                ...currentPaymentData,
               });
               toast.success("🎉 Account created successfully! Please log in.");
               navigate("/login");
@@ -213,7 +219,7 @@ const Register = ({ onSwitchToLogin }) => {
                 errData?.payment?.[0] ||
                 errData?.token?.[0] ||
                 errData?.message ||
-                "Registration failed after payment. Please contact support.";
+                "Registration failed after payment. Please click 'Create Account' to try again.";
               toast.error(message);
             }
 
