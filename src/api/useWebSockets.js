@@ -1,166 +1,168 @@
-// FILE: src/api/useWebSockets.js (REPLACE ENTIRE FILE)
+import { useEffect } from 'react';
 
-import { useEffect, useCallback } from 'react';
+// --- Singleton WebSocket Manager ---
+class WebSocketManager {
+  constructor() {
+    this.sockets = {
+      message: null,
+      reminder: null,
+    };
+    this.reconnectTimers = {
+      message: null,
+      reminder: null,
+    };
+    this.reconnectAttempts = {
+      message: 0,
+      reminder: 0,
+    };
+    this.heartbeatTimers = {
+      message: null,
+      reminder: null,
+    };
+    this.listeners = {
+      onMessage: new Set(),
+      onReminder: new Set(),
+      onSuggestion: new Set(),
+    };
+    this.wsUrl = import.meta.env.VITE_WS_URL;
+    this.heartbeatInterval = 30000;
+    this.maxReconnectDelay = 30000;
+    this.baseReconnectDelay = 2000;
 
-// --- Global WebSocket manager ---
-let messageSocket = null;
-let reminderSocket = null;
-let messageReconnectTimer = null;
-let reminderReconnectTimer = null;
-let messageHeartbeatTimer = null;
-let reminderHeartbeatTimer = null;
-
-let onMessageHandler    = () => {};
-let onReminderHandler   = () => {};
-let onSuggestionHandler = () => {};   // ← NEW
-
-// +++ KILL SWITCH +++
-const WEBSOCKETS_DISABLED = false;
-
-const WEBSOCKET_URL      = import.meta.env.VITE_WS_URL;
-const RECONNECT_DELAY    = 5000;
-const HEARTBEAT_INTERVAL = 30000;
-
-// ─────────────────────────────────────────────
-// Message socket
-// ─────────────────────────────────────────────
-const connectMessages = () => {
-  if (WEBSOCKETS_DISABLED) return;
-  const token = localStorage.getItem("token");
-  if (!token) return;
-  if (messageSocket && messageSocket.readyState !== WebSocket.CLOSED) return;
-
-  messageSocket = new WebSocket(`${WEBSOCKET_URL}/ws/messages/?token=${token}`);
-  console.log("Attempting to connect Message WebSocket...");
-
-  messageSocket.onopen = () => {
-    console.log("✅ Message WebSocket connected.");
-    clearTimeout(messageReconnectTimer);
-    startHeartbeat('message');
-  };
-
-  messageSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'pong') return;
-    onMessageHandler(data);
-  };
-
-  messageSocket.onerror  = (error) => console.error("❌ Message WebSocket error:", error);
-
-  messageSocket.onclose = (event) => {
-    console.log(`🔌 Message WebSocket closed: ${event.code}`);
-    stopHeartbeat('message');
-    if (event.code !== 1000) {
-      clearTimeout(messageReconnectTimer);
-      messageReconnectTimer = setTimeout(connectMessages, RECONNECT_DELAY);
+    // Handle page unload
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => this.disconnectAll());
     }
-  };
-};
-
-// ─────────────────────────────────────────────
-// Reminder socket  (also handles food_suggestion)
-// ─────────────────────────────────────────────
-const connectReminders = () => {
-  if (WEBSOCKETS_DISABLED) return;
-  const token = localStorage.getItem("token");
-  if (!token) return;
-  if (reminderSocket && reminderSocket.readyState !== WebSocket.CLOSED) return;
-
-  reminderSocket = new WebSocket(`${WEBSOCKET_URL}/ws/reminders/?token=${token}`);
-  console.log("Attempting to connect Reminder WebSocket...");
-
-  reminderSocket.onopen = () => {
-    console.log("✅ Reminder WebSocket connected.");
-    clearTimeout(reminderReconnectTimer);
-    startHeartbeat('reminder');
-  };
-
-  // AFTER
-reminderSocket.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  if (data.type === 'pong') return;
-  if (data.type === 'food_suggestion') {
-    onSuggestionHandler(data);
-  } else {
-    onReminderHandler(data);
   }
-};
 
-  reminderSocket.onerror = (error) => console.error("❌ Reminder WebSocket error:", error);
+  getReconnectDelay(type) {
+    const delay = Math.min(
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts[type]),
+      this.maxReconnectDelay
+    );
+    return delay + Math.random() * 1000; // Add jitter
+  }
 
-  reminderSocket.onclose = (event) => {
-    console.log(`🔌 Reminder WebSocket closed: ${event.code}`);
-    stopHeartbeat('reminder');
-    if (event.code !== 1000) {
-      clearTimeout(reminderReconnectTimer);
-      reminderReconnectTimer = setTimeout(connectReminders, RECONNECT_DELAY);
-    }
-  };
-};
+  connect(type) {
+    const token = localStorage.getItem('token');
+    if (!token || !this.wsUrl) return;
 
-// ─────────────────────────────────────────────
-// Heartbeat helpers
-// ─────────────────────────────────────────────
-const startHeartbeat = (type) => {
-  const socket   = type === 'message' ? messageSocket : reminderSocket;
-  let   timerRef = type === 'message' ? messageHeartbeatTimer : reminderHeartbeatTimer;
-
-  clearInterval(timerRef);
-  const newTimer = setInterval(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "ping" }));
-    }
-  }, HEARTBEAT_INTERVAL);
-
-  if (type === 'message') messageHeartbeatTimer = newTimer;
-  else                    reminderHeartbeatTimer = newTimer;
-};
-
-const stopHeartbeat = (type) => {
-  const timerRef = type === 'message' ? messageHeartbeatTimer : reminderHeartbeatTimer;
-  clearInterval(timerRef);
-};
-
-const disconnectAll = () => {
-  clearTimeout(messageReconnectTimer);
-  clearTimeout(reminderReconnectTimer);
-  stopHeartbeat('message');
-  stopHeartbeat('reminder');
-  if (messageSocket) messageSocket.close(1000, "User left page");
-  if (reminderSocket) reminderSocket.close(1000, "User left page");
-  console.log("WebSockets cleanly disconnected.");
-};
-
-window.addEventListener("beforeunload", disconnectAll);
-
-// ─────────────────────────────────────────────
-// The React hook
-// ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-// The React hook
-// ─────────────────────────────────────────────
-const useWebSockets = ({ onReminder, onMessage, onSuggestion }) => {
-
-  useEffect(() => {
-    if (WEBSOCKETS_DISABLED) {
-      console.warn("WebSockets are currently disabled via the kill switch in useWebSockets.js");
+    if (this.sockets[type] && (this.sockets[type].readyState === WebSocket.OPEN || this.sockets[type].readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    // Set handlers directly — no useCallback needed since these are module globals
-    if (onMessage)    onMessageHandler    = onMessage;
-    if (onReminder)   onReminderHandler   = onReminder;
-    if (onSuggestion) onSuggestionHandler = onSuggestion;
+    const path = type === 'message' ? '/ws/messages/' : '/ws/reminders/';
+    const url = `${this.wsUrl}${path}?token=${token}`;
 
-    connectMessages();
-    connectReminders();
+    console.log(`📡 [WS] Connecting to ${type}...`);
+    const socket = new WebSocket(url);
+    this.sockets[type] = socket;
+
+    socket.onopen = () => {
+      console.log(`✅ [WS] ${type} connected.`);
+      this.reconnectAttempts[type] = 0;
+      clearTimeout(this.reconnectTimers[type]);
+      this.startHeartbeat(type);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'pong') return;
+
+        if (type === 'message') {
+          this.listeners.onMessage.forEach(handler => handler(data));
+        } else {
+          if (data.type === 'food_suggestion') {
+            this.listeners.onSuggestion.forEach(handler => handler(data));
+          } else {
+            this.listeners.onReminder.forEach(handler => handler(data));
+          }
+        }
+      } catch (e) {
+        console.error(`❌ [WS] Error parsing message on ${type}:`, e);
+      }
+    };
+
+    socket.onclose = (event) => {
+      console.log(`🔌 [WS] ${type} closed: ${event.code}`);
+      this.stopHeartbeat(type);
+      
+      if (event.code !== 1000 && event.code !== 1001) {
+        const delay = this.getReconnectDelay(type);
+        this.reconnectAttempts[type]++;
+        console.log(`🔄 [WS] Reconnecting ${type} in ${(delay/1000).toFixed(1)}s...`);
+        clearTimeout(this.reconnectTimers[type]);
+        this.reconnectTimers[type] = setTimeout(() => this.connect(type), delay);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error(`❌ [WS] ${type} error:`, error);
+    };
+  }
+
+  startHeartbeat(type) {
+    this.stopHeartbeat(type);
+    this.heartbeatTimers[type] = setInterval(() => {
+      const socket = this.sockets[type];
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, this.heartbeatInterval);
+  }
+
+  stopHeartbeat(type) {
+    if (this.heartbeatTimers[type]) {
+      clearInterval(this.heartbeatTimers[type]);
+      this.heartbeatTimers[type] = null;
+    }
+  }
+
+  disconnectAll() {
+    Object.keys(this.sockets).forEach(type => {
+      clearTimeout(this.reconnectTimers[type]);
+      this.stopHeartbeat(type);
+      if (this.sockets[type]) {
+        this.sockets[type].close(1000, 'Cleaning up');
+        this.sockets[type] = null;
+      }
+    });
+  }
+
+  addListener(type, handler) {
+    if (handler && this.listeners[type]) {
+      this.listeners[type].add(handler);
+    }
+  }
+
+  removeListener(type, handler) {
+    if (handler && this.listeners[type]) {
+      this.listeners[type].delete(handler);
+    }
+  }
+}
+
+const manager = new WebSocketManager();
+
+const useWebSockets = ({ onReminder, onMessage, onSuggestion } = {}) => {
+  useEffect(() => {
+    // Add listeners
+    manager.addListener('onMessage', onMessage);
+    manager.addListener('onReminder', onReminder);
+    manager.addListener('onSuggestion', onSuggestion);
+
+    // Connect if not connected
+    manager.connect('message');
+    manager.connect('reminder');
 
     return () => {
-      onMessageHandler    = () => {};
-      onReminderHandler   = () => {};
-      onSuggestionHandler = () => {};
+      // Remove listeners on unmount
+      manager.removeListener('onMessage', onMessage);
+      manager.removeListener('onReminder', onReminder);
+      manager.removeListener('onSuggestion', onSuggestion);
     };
-  }, []); // ← empty deps: run once on mount only
+  }, [onMessage, onReminder, onSuggestion]);
 };
 
 export default useWebSockets;

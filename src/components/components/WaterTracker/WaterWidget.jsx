@@ -24,7 +24,7 @@ const AnimatedNumber = ({ value }) => {
         onUpdate: (latest) => setDisplayValue(Math.round(latest)),
     });
     return () => controls.stop();
-  }, [value, displayValue]); 
+  }, [value]); 
   return <>{displayValue}</>;
 };
 
