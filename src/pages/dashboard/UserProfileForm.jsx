@@ -383,12 +383,16 @@ const UserProfileForm = () => {
               />
             </div>
 
-            <div className="relative" onFocus={() => setFocusedField("country")} onBlur={() => setFocusedField(null)}>
+            <div className="relative">
               <label className={floatingLabelStyles(formData.country, focusedField === "country")}>Country</label>
-              <Select
-                styles={themedSelectStyles} options={countryOptions} required placeholder=""
-                value={countryOptions.find((o) => o.value === formData.country)}
-                onChange={(s) => setFormData({ ...formData, country: s.value })}
+              <input
+                name="country" required
+                value={formData.country || ""}
+                onChange={handleChange}
+                onFocus={() => setFocusedField("country")}
+                onBlur={() => setFocusedField(null)}
+                className={baseInputStyles}
+                placeholder="e.g. India"
               />
             </div>
 
@@ -401,12 +405,16 @@ const UserProfileForm = () => {
               />
             </div>
 
-            <div className="sm:col-span-2 relative" onFocus={() => setFocusedField("allergies")} onBlur={() => setFocusedField(null)}>
+            <div className="sm:col-span-2 relative">
               <label className={floatingLabelStyles(formData.allergies, focusedField === "allergies")}>Any food allergies?</label>
-              <Select
-                styles={themedSelectStyles} options={allergyOptions} required placeholder=""
-                value={allergyOptions.find((o) => o.value === formData.allergies)}
-                onChange={(s) => setFormData({ ...formData, allergies: s.value })}
+              <input
+                name="allergies" required
+                value={formData.allergies || ""}
+                onChange={handleChange}
+                onFocus={() => setFocusedField("allergies")}
+                onBlur={() => setFocusedField(null)}
+                className={baseInputStyles}
+                placeholder="e.g. Peanut, Gluten, None"
               />
             </div>
           </div>
