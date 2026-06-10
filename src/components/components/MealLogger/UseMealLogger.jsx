@@ -38,9 +38,27 @@ const useMealLogger = () => {
   const [isFetching, setIsFetching] = useState(true);
   const [editingMeal, setEditingMeal] = useState(null);
 
-  const unitOptions = [ "Gram", "Milliliters", "Cup", "Bowl", "Piece", "Tbsp", "Tsp", "Plate" ];
-  const mealTypeOptions = [ "Early-Morning", "Breakfast", "Mid-Morning Snack", "Lunch", "Afternoon Snack", "Dinner", "Bedtime" ];
-  
+  const unitOptions = [//ananya
+    "Gram",
+    "Kilogram",
+    "Milliliters",
+    "Liters",
+    "Glass",
+    "Cup",
+    "Bowl",
+    "Piece",
+    "Tbsp",
+    "Tsp",
+    "Slice",
+    "Plate",
+    "Handful",
+    "Pinch",
+    "Dash",
+    "Sprinkle",
+    "Other"
+  ];
+  const mealTypeOptions = ["Early-Morning", "Breakfast", "Mid-Morning Snack", "Lunch", "Afternoon Snack", "Dinner", "Bedtime"];
+
   // --- All useEffect and useCallback hooks are also called unconditionally ---
   useEffect(() => {
     const updateDateAtMidnight = () => {
@@ -61,10 +79,10 @@ const useMealLogger = () => {
       // 1. START the fetch using the function designed for date filtering.
       let response = await getMealsByDate(searchDate);
       allResults = response.results || [];
-      
+
       // 2. Get the 'next' URL, which will correctly contain the date filter.
       let nextUrl = response.next;
-      
+
       // 3. For all SUBSEQUENT pages, use the generic paginated fetcher.
       while (nextUrl) {
         // Pass the full nextUrl to the generic getMeals function.
@@ -87,28 +105,28 @@ const useMealLogger = () => {
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
-  
+
   const searchByDate = useCallback((date) => {
     const newDate = date || getLocalDateString(new Date());
     setSearchDate(newDate);
   }, []);
 
   const addItem = (idx) => {
-  setFoodInputs(prev => {
-    const current = prev[idx]; // जिस index पे click हुआ
-    const newItem = {
-      id: Date.now(),
-      name: "",             // खाली
-      quantity: "",         // खाली
-      unit: "",             // खाली
-      remark: "",           // खाली
-      logDate: current.logDate, // copy
-      logTime: current.logTime, // copy
-      mealType: current.mealType, // copy
-    };
-    return [...prev, newItem];
-  });
-};
+    setFoodInputs(prev => {
+      const current = prev[idx]; // जिस index पे click हुआ
+      const newItem = {
+        id: Date.now(),
+        name: "",             // खाली
+        quantity: "",         // खाली
+        unit: "",             // खाली
+        remark: "",           // खाली
+        logDate: current.logDate, // copy
+        logTime: current.logTime, // copy
+        mealType: current.mealType, // copy
+      };
+      return [...prev, newItem];
+    });
+  };
 
 
   const handleSubmit = async (e) => {
@@ -168,7 +186,7 @@ const useMealLogger = () => {
     setEditingMeal(meal);
     setFoodInputs([{
       id: meal.id,
-       name: meal.food_name_display || meal.food_name || "",
+      name: meal.food_name_display || meal.food_name || "",
       quantity: meal.quantity,
       unit: meal.unit,
       remark: meal.remarks,
@@ -177,7 +195,7 @@ const useMealLogger = () => {
       mealType: meal.meal_type,
     }]);
   };
-  
+
   const cancelEdit = () => {
     setEditingMeal(null);
     setFoodInputs([getInitialFoodInput()]);

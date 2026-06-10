@@ -1,6 +1,6 @@
 // src/components/dashboard/QuickMealLogger.jsx
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { FaUtensils } from "react-icons/fa";
 import useMealLogger from "./UseMealLogger";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +25,53 @@ import {
   ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const UNITS = ["Gram","Kilogram","Milliliters","Liters","Glass","Cup","Bowl","Piece","Tbsp","Tsp","Slice","Plate","Handful","Pinch","Dash","Sprinkle","Other"];
+
+const UnitDropdown = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`flex items-center justify-between gap-2 bg-[var(--color-bg-app)] border-2 rounded-lg px-2 py-2 text-sm focus:outline-none transition-colors ${
+          open ? "border-[var(--color-primary)]" : "border-[var(--color-border-default)]"
+        }`}
+        style={{ minWidth: "90px" }}
+      >
+        <span className={value ? "text-[var(--color-text-strong)]" : "text-[var(--color-text-muted)]"}>{value || "Unit"}</span>
+        <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          className="absolute z-50 left-0 mt-1 bg-white border border-[var(--color-border-default)] rounded-lg shadow-xl"
+          style={{ minWidth: "120px", maxHeight: "200px", overflowY: "scroll" }}
+        >
+          {UNITS.map((unit) => (
+            <li
+              key={unit}
+              onClick={() => { onChange(unit); setOpen(false); }}
+              className={`px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors ${
+                value === unit ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:bg-gray-50"
+              }`}
+            >
+              {unit}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 const NutrientDetail = ({ icon: Icon, label, value, unit, colorClass }) => (
     <motion.div
@@ -199,10 +246,7 @@ const toggleMeal = (type) => {
                   <div className="flex flex-wrap items-center gap-3">
                     <input type="text" value={item.name} onChange={(e) => handleFoodChange(index, "name", e.target.value)} placeholder={`Food ${index + 1}`} className="flex-1 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" required />
                     <input type="number" value={item.quantity} onChange={(e) => handleFoodChange(index, "quantity", e.target.value)} placeholder="Qty" className="w-20 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-2 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" />
-                    <select value={item.unit} onChange={(e) => handleFoodChange(index, "unit", e.target.value)} className="bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-[var(--color-primary)] transition">
-                      <option value="">Unit</option>
-                      {unitOptions.map((unit) => (<option key={unit} value={unit}>{unit}</option>))}
-                    </select>
+                    <UnitDropdown value={item.unit} onChange={(val) => handleFoodChange(index, "unit", val)} />
                   </div>
                   <input type="text" value={item.remark} onChange={(e) => handleFoodChange(index, "remark", e.target.value)} placeholder="Remark (optional)" className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" />
                   <div className="flex flex-col sm:flex-row gap-3">
