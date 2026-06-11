@@ -246,8 +246,38 @@ const toggleMeal = (type) => {
                   <div className="flex flex-wrap items-center gap-3">
                     <input type="text" value={item.name} onChange={(e) => handleFoodChange(index, "name", e.target.value)} placeholder={`Food ${index + 1}`} className="flex-1 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" required />
                     <input type="number" value={item.quantity} onChange={(e) => handleFoodChange(index, "quantity", e.target.value)} placeholder="Qty" className="w-20 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-2 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" />
-                    <UnitDropdown value={item.unit} onChange={(val) => handleFoodChange(index, "unit", val)} />
+                    <UnitDropdown value={item.unit} onChange={(val) => { handleFoodChange(index, "unit", val); handleFoodChange(index, "portionSize", ""); }} />
                   </div>
+                  {["Glass", "Cup", "Bowl", "Plate"].includes(item.unit) && (
+                    <div className="border-2 border-dashed border-[var(--color-primary-subtle)] bg-[var(--color-primary-subtle)]/30 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-[var(--color-primary)] mb-2">▲ Select portion size per {item.unit.toLowerCase()}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Small", ml: item.unit === "Glass" ? "~150 ml" : item.unit === "Cup" ? "~120 ml" : item.unit === "Bowl" ? "~250 ml" : "~200 ml" },
+                          { label: "Medium", ml: item.unit === "Glass" ? "~250 ml" : item.unit === "Cup" ? "~240 ml" : item.unit === "Bowl" ? "~400 ml" : "~350 ml" },
+                          { label: "Large", ml: item.unit === "Glass" ? "~350 ml" : item.unit === "Cup" ? "~360 ml" : item.unit === "Bowl" ? "~600 ml" : "~500 ml" },
+                        ].map(({ label, ml }) => (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => handleFoodChange(index, "portionSize", label)}
+                            className={`flex flex-col items-center py-2 px-1 rounded-lg border-2 text-sm font-semibold transition-all ${
+                              item.portionSize === label
+                                ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)]"
+                                : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span className={`text-xs font-normal mt-0.5 ${ item.portionSize === label ? "text-white/80" : "text-[var(--color-text-muted)]" }`}>{ml}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                        Prefer exact ml per {item.unit.toLowerCase()}?{" "}
+                        <button type="button" onClick={() => { handleFoodChange(index, "unit", "Milliliters"); handleFoodChange(index, "portionSize", ""); }} className="text-[var(--color-primary)] font-semibold underline">Enter exact ml →</button>
+                      </p>
+                    </div>
+                  )}
                   <input type="text" value={item.remark} onChange={(e) => handleFoodChange(index, "remark", e.target.value)} placeholder="Remark (optional)" className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" />
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input type="date" value={item.logDate || ""} max={getLocalDateInputFormat(new Date())} onChange={(e) => handleFoodChange(index, "logDate", e.target.value)} className="flex-1 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" required />

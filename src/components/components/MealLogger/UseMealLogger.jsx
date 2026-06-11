@@ -25,6 +25,7 @@ const useMealLogger = () => {
     unit: "",
     quantity: "",
     remark: "",
+    portionSize: "",
     logDate: '',
     logTime: '',
     mealType: 'Breakfast',
@@ -120,6 +121,7 @@ const useMealLogger = () => {
         quantity: "",         // खाली
         unit: "",             // खाली
         remark: "",           // खाली
+        portionSize: "",
         logDate: current.logDate, // copy
         logTime: current.logTime, // copy
         mealType: current.mealType, // copy
@@ -151,7 +153,7 @@ const useMealLogger = () => {
           quantity: parseFloat(input.quantity),
           unit: input.unit,
           meal_type: input.mealType,
-          remarks: input.remark,
+          remarks: input.portionSize ? `${input.remark ? input.remark + ' | ' : ''}Portion: ${input.portionSize}` : input.remark,
           date: input.logDate,
           consumed_at: consumedAt,
         }, token);
@@ -165,7 +167,7 @@ const useMealLogger = () => {
             quantity: parseFloat(input.quantity),
             unit: input.unit,
             meal_type: input.mealType,
-            remarks: input.remark,
+            remarks: input.portionSize ? `${input.remark ? input.remark + ' | ' : ''}Portion: ${input.portionSize}` : input.remark,
             date: input.logDate,
             consumed_at: consumedAt,
           }, token);
