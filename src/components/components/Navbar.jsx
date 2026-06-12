@@ -1,9 +1,52 @@
 // src/components/layout/Navbar.jsx
 
-import React, { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const DropdownLink = ({ label, items, onClose }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isActive = items.some((item) => pathname.startsWith(item.to));
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`relative font-medium transition-colors duration-300 focus:outline-none flex items-center gap-1 ${
+          isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"
+        }`}
+      >
+        {label}
+        <svg className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-2 w-48 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-xl z-50 py-1">
+          {items.map((item) => (
+            <button
+              key={item.to}
+              onClick={() => { navigate(item.to); setOpen(false); onClose(); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-[var(--color-text-default)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] transition-colors"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Navbar = ({ links = [], rightContent, align = "right" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,7 +105,13 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
     "relative font-medium text-[var(--color-text-default)] transition-colors duration-300 focus:outline-none focus:text-[var(--color-primary)]";
   const activeLinkStyle = "text-[var(--color-primary)]";
 
-  const renderNavLink = ({ to, label }) => {
+  const renderNavLink = ({ to, label, children }) => {
+    // Dropdown link
+    if (children) {
+      return (
+        <DropdownLink key={label} label={label} items={children} onClose={() => setIsOpen(false)} />
+      );
+    }
     const isAnchorLink = to.startsWith("#");
     if (isAnchorLink) {
       const isActive = isHomepage && activeSection === to;

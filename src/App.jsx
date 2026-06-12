@@ -50,35 +50,35 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 // ── Stable no-op callbacks defined OUTSIDE the component ────────
 // This ensures they never change reference between renders,
 // so useWebSockets' useEffect never re-runs and clears the handler.
-const noop = () => {};
+const noop = () => { };
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
 
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [showNutrition,   setShowNutrition]   = useState(false);
-  const [isChatOpen,      setIsChatOpen]       = useState(false);
-  const [suggestion,      setSuggestion]       = useState(null);
-  const [drawerOpen,      setDrawerOpen]      = useState(false);
-  const [drawerInitData,  setDrawerInitData]  = useState(null);
- 
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerInitData, setDrawerInitData] = useState(null);
+
 
   // Stable callback — useCallback with [] is correct here
   const handleSuggestion = useCallback((data) => {
     console.log("🍽️ Food suggestion received:", data); // debug log
     setSuggestion({
-      message:       data.message        || "",
+      message: data.message || "",
       topSuggestion: data.top_suggestion || "",
-      reason:        data.reason         || "",
-      caloriesLeft:  data.calories_left  || 0,
-      receivedAt:    Date.now(),
+      reason: data.reason || "",
+      caloriesLeft: data.calories_left || 0,
+      receivedAt: Date.now(),
     });
   }, []);
 
   // ── useWebSockets with stable references ─────────────────────
   useWebSockets({
-    onReminder:   noop,             // stable — defined outside component
-    onMessage:    noop,             // stable — defined outside component
+    onReminder: noop,             // stable — defined outside component
+    onMessage: noop,             // stable — defined outside component
     onSuggestion: handleSuggestion, // stable — useCallback with []
   });
 
@@ -93,10 +93,10 @@ function App() {
     })
       .then(r => r.json())
       .then(d => console.log("📊 suggest-foods delivery:", d.delivery)) // debug log
-      .catch(() => {});
+      .catch(() => { });
   }, [isAuthenticated, user]);
 
-  const handleOpenAssistant       = () => setIsAssistantOpen(true);
+  const handleOpenAssistant = () => setIsAssistantOpen(true);
   const handleOpenNutritionSearch = () => setShowNutrition(true);
 
   if (loading) {
@@ -131,14 +131,20 @@ function App() {
           logo={<img src={logo} alt="logo" className="h-10 w-auto" />}
           align="center"
           links={[
-            { label: "Home",         to: "/dashboard" },
-            { label: "Tools",        to: "/dashboard/tools" },
-            { label: "Health",       to: "/dashboard/health-section" },
-            { label: "Diet",         to: "/dashboard/meals" },
-            { label: "Progress",     to: "/dashboard/reports" },
-            { label: "Blogs",        to: "/blogs-section" },
+            { label: "Home", to: "/dashboard" },
+            { label: "Tools", to: "/dashboard/tools" },
+            {
+              label: "Health", children: [
+                { label: "Health Dashboard", to: "/dashboard/health-dashboard" },
+                { label: "Lab Reports", to: "/dashboard/lab-reports" },
+                { label: "Add Report", to: "/dashboard/add-report" },
+              ]
+            },
+            { label: "Diet", to: "/dashboard/meals" },
+            { label: "Progress", to: "/dashboard/reports" },
+            { label: "Blogs", to: "/blogs-section" },
             { label: "Appointments", to: "/dashboard/appointments" },
-            { label: "Plans",        to: "/dashboard/plans" },
+            { label: "Plans", to: "/dashboard/plans" },
           ]}
           rightContent={
             <div className="flex items-center gap-4">
@@ -150,28 +156,28 @@ function App() {
       )}
 
       <Routes>
-        <Route path="/"                              element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Home />} />
-        <Route path="/login"                         element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Login />} />
-        <Route path="/register"                      element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Register />} />
-        <Route path="/forgot-password"               element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <ForgotPassword />} />
+        <Route path="/" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Home />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Login />} />
+        <Route path="/register" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Register />} />
+        <Route path="/forgot-password" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <ForgotPassword />} />
         <Route path="/reset-password/:uidb64/:token" element={isAuthenticated ? <Navigate to={getRedirectPath()} /> : <ResetPassword />} />
-        <Route path="/owner"                         element={<ProtectedRoute requiredRole="owner"><OwnerPage /></ProtectedRoute>} />
-        <Route path="/operator"                      element={<ProtectedRoute requiredRole="operator"><OperatorPage /></ProtectedRoute>} />
-        <Route path="/nutritionist/*"                element={<ProtectedRoute requiredRole="nutritionist"><NutritionistPage /></ProtectedRoute>} />
-        <Route path="/dashboard/*"                   element={<ProtectedRoute requiredRole="user"><Dashboard /></ProtectedRoute>} />
-        <Route path="/unauthorized"                  element={<Unauthorized />} />
-        <Route path="/blog/:blogId"                  element={<BlogDetail />} />
-        <Route path="/blogs"                         element={<HomeBlog />} />
-        <Route path="/blogs-section"                 element={<BlogsPage />} />
-        <Route path="/social-auth"                   element={<SocialAuthHandler />} />
-        <Route path="/subscription/success"          element={<SubscriptionSuccess />} />
-        <Route path="/privacy-policy"                element={<PrivacyPolicy />} />
-        <Route path="/terms-conditions"              element={<TermsConditions />} />
-        <Route path="/refund-policy"                 element={<RefundPolicy />} />
-        <Route path="/Contact"                       element={<ContactPage />} />
-        <Route path="/pages/Career"                  element={<Career/>} />
+        <Route path="/owner" element={<ProtectedRoute requiredRole="owner"><OwnerPage /></ProtectedRoute>} />
+        <Route path="/operator" element={<ProtectedRoute requiredRole="operator"><OperatorPage /></ProtectedRoute>} />
+        <Route path="/nutritionist/*" element={<ProtectedRoute requiredRole="nutritionist"><NutritionistPage /></ProtectedRoute>} />
+        <Route path="/dashboard/*" element={<ProtectedRoute requiredRole="user"><Dashboard /></ProtectedRoute>} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="/blog/:blogId" element={<BlogDetail />} />
+        <Route path="/blogs" element={<HomeBlog />} />
+        <Route path="/blogs-section" element={<BlogsPage />} />
+        <Route path="/social-auth" element={<SocialAuthHandler />} />
+        <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-conditions" element={<TermsConditions />} />
+        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/Contact" element={<ContactPage />} />
+        <Route path="/pages/Career" element={<Career />} />
       </Routes>
-      
+
 
       {isAuthenticated && user?.role === "user" && (
         <>
@@ -201,8 +207,8 @@ function App() {
               setDrawerOpen(true);
             }}
           />
-          <Chatbot/>
-          
+          <Chatbot />
+
           <FoodSuggestionsDrawer
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}

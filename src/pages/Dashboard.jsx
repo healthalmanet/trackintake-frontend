@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
-import { useState ,useEffect} from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../components/context/AuthContext";
 import AppointmentPage from "./AppointmentPage";
 
@@ -26,6 +26,8 @@ import WaterIntakeWidget from "../components/components/WaterTracker/WaterWidget
 import HealthTools from "../components/components/HealthSection";
 import DietRecommendations from "../components/components/RecommendationSection";
 import HealthDashboard from "../components/components/diabetic/HealthDashboard";
+import LabReports from "./dashboard/health/LabReports";
+import AddReport from "./dashboard/health/AddReport";
 import BlogsPage from "../components/components/Blogs";
 import PatientChat from "../components/components/messages/PatientChat";
 import { triggerReminders } from "../api/CustomReminderApi";
@@ -44,24 +46,24 @@ function Dashboard() {
   const [waterUpdateTrigger, setWaterUpdateTrigger] = useState(0);
   const [mealUpdateTrigger, setMealUpdateTrigger] = useState(0); // ✅ New state
   useEffect(() => {
-  const checkSubscription = async () => {
-    try {
-      const subscription = await getMySubscription();
-      if (!subscription.has_plan) {
-        navigate('/dashboard/plans', {
-          state: { forced: true }
-        });
+    const checkSubscription = async () => {
+      try {
+        const subscription = await getMySubscription();
+        if (!subscription.has_plan) {
+          navigate('/dashboard/plans', {
+            state: { forced: true }
+          });
+        }
+      } catch (err) {
+        console.error("Subscription check failed:", err);
       }
-    } catch (err) {
-      console.error("Subscription check failed:", err);
-    }
-  };
+    };
 
-  if (user?.role === "user") {
-    checkSubscription();
-  }
-}, [user]);
-    // ✅ Only keep this one
+    if (user?.role === "user") {
+      checkSubscription();
+    }
+  }, [user]);
+  // ✅ Only keep this one
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []); // The [user] dependency ensures this runs once when the user logs in.
@@ -76,7 +78,7 @@ function Dashboard() {
     return <Navigate to="/" />;
   }
 
-  
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -89,7 +91,7 @@ function Dashboard() {
             waterUpdateTrigger={waterUpdateTrigger}
             mealUpdateTrigger={mealUpdateTrigger} // ✅ Passed down
           />
-         <UpgradeCard />
+          <UpgradeCard />
           <QuickMealLogger
             onMealLogged={() => setMealUpdateTrigger((prev) => prev + 1)} // ✅ Triggers refresh
           />
@@ -98,7 +100,7 @@ function Dashboard() {
           />
           <HealthTools />
           <DietRecommendations />
-        
+
         </>
       )}
 
@@ -114,14 +116,17 @@ function Dashboard() {
         <Route path="tools/water-tracker" element={<WaterTracker />} />
         <Route path="tools/custom-reminder" element={<CustomReminder />} />
         <Route path="health-section" element={<HealthSection />} />
+        <Route path="health-dashboard" element={<HealthDashboard />} />
+        <Route path="lab-reports" element={<LabReports />} />
+        <Route path="add-report" element={<AddReport />} />
         <Route path="meals" element={<Meals />} />
         <Route path="reports" element={<Reports />} />
         <Route path="/diabetes" element={<HealthDashboard />} />
         <Route path="/blogs-section" element={<BlogsPage />} />
-        <Route path="/messages" element={<PatientChat/>} />
+        <Route path="/messages" element={<PatientChat />} />
         <Route path="appointments" element={<AppointmentPage />} />
         <Route path="plans" element={<DashboardPlans />} />
-        
+
       </Routes>
     </div>
   );
