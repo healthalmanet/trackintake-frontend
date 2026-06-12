@@ -747,11 +747,42 @@ const MealLogger = () => {
 
                           <UnitDropdown
                             value={input.unit}
-                            onChange={(val) =>
-                              handleFoodChange(idx, "unit", val)
-                            }
+                            onChange={(val) => {
+                              handleFoodChange(idx, "unit", val);
+                              handleFoodChange(idx, "portionSize", "");
+                            }}
                           />
                         </div>
+                        {["Glass", "Cup", "Bowl", "Plate"].includes(input.unit) && (
+                          <div className="col-span-12 border-2 border-dashed border-[var(--color-primary-subtle)] bg-[var(--color-primary-subtle)]/30 rounded-xl p-3">
+                            <p className="text-xs font-semibold text-[var(--color-primary)] mb-2">▲ Select portion size per {input.unit.toLowerCase()}</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { label: "Small", ml: input.unit === "Glass" ? "~150 ml" : input.unit === "Cup" ? "~120 ml" : input.unit === "Bowl" ? "~250 ml" : "~200 ml" },
+                                { label: "Medium", ml: input.unit === "Glass" ? "~250 ml" : input.unit === "Cup" ? "~240 ml" : input.unit === "Bowl" ? "~400 ml" : "~350 ml" },
+                                { label: "Large", ml: input.unit === "Glass" ? "~350 ml" : input.unit === "Cup" ? "~360 ml" : input.unit === "Bowl" ? "~600 ml" : "~500 ml" },
+                              ].map(({ label, ml }) => (
+                                <button
+                                  key={label}
+                                  type="button"
+                                  onClick={() => handleFoodChange(idx, "portionSize", label)}
+                                  className={`flex flex-col items-center py-2 px-1 rounded-lg border-2 text-sm font-semibold transition-all ${
+                                    input.portionSize === label
+                                      ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)]"
+                                      : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
+                                  }`}
+                                >
+                                  <span>{label}</span>
+                                  <span className={`text-xs font-normal mt-0.5 ${input.portionSize === label ? "text-white/80" : "text-[var(--color-text-muted)]"}`}>{ml}</span>
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                              Prefer exact ml per {input.unit.toLowerCase()}?{" "}
+                              <button type="button" onClick={() => { handleFoodChange(idx, "unit", "Milliliters"); handleFoodChange(idx, "portionSize", ""); }} className="text-[var(--color-primary)] font-semibold underline">Enter exact ml →</button>
+                            </p>
+                          </div>
+                        )}
                         <div className="col-span-12 sm:col-span-4">
                           <select
                             value={input.mealType}
