@@ -443,7 +443,7 @@ const toggleMeal = (type) => {
                     <div className="flex-1 truncate">
                       <p className="font-semibold text-[var(--color-text-strong)] text-base truncate">{meal.food_name_display}</p>
                       <p className="text-sm text-[var(--color-text-default)] capitalize">
-                        {meal.meal_type || "Meal"} • {meal.quantity} {meal.unit}
+                        {meal.meal_type || "Meal"} • {meal.quantity} {meal.unit}{meal.portion_size ? ` • ${meal.portion_size}` : ""}
                         {meal.consumed_at && (
                           <span className="text-[var(--color-text-muted)]">
                             {' • '}{new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -525,7 +525,7 @@ const toggleMeal = (type) => {
                                 </p>
                                 <p className="text-sm text-[var(--color-text-default)] capitalize">
                                   {meal.meal_type || "Meal"} • {meal.quantity}{" "}
-                                  {meal.unit}
+                                  {meal.unit}{meal.portion_size ? ` • ${meal.portion_size}` : ""}
                                   {/* --- MODIFICATION START --- */}
                                   {/* Add the consumed time */}
                                   {meal.consumed_at && (

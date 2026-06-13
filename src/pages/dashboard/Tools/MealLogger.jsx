@@ -436,7 +436,7 @@ const MealLogger = () => {
                                 <span className="font-semibold text-[var(--color-text-strong)] text-base md:text-lg">
                                   {item.food_name_display}
                                   <span className="ml-2 font-normal text-[var(--color-text-muted)] text-sm">
-                                    • {item.quantity} {item.unit}
+                                    • {item.quantity} {item.unit}{item.portion_size ? ` • ${item.portion_size}` : ""}
                                   </span>
                                 </span>
                                 {item.consumed_at && (
@@ -568,7 +568,7 @@ const MealLogger = () => {
                           <div className="flex flex-col gap-3 p-4 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-sm">
                             {/* Quantity and Unit */}
                             <p className="font-semibold text-[var(--color-text-strong)] text-base">
-                              Quantity: <span className="font-normal text-[var(--color-text-default)]">{mealGroupOrItem.quantity} {mealGroupOrItem.unit}</span>
+                              Quantity: <span className="font-normal text-[var(--color-text-default)]">{mealGroupOrItem.quantity} {mealGroupOrItem.unit}{mealGroupOrItem.portion_size ? ` • ${mealGroupOrItem.portion_size}` : ""}</span>
                             </p>
 
                             {/* Remarks (if any) */}
