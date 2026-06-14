@@ -153,7 +153,8 @@ const useMealLogger = () => {
           quantity: parseFloat(input.quantity),
           unit: input.unit,
           meal_type: input.mealType,
-          remarks: input.portionSize ? `${input.remark ? input.remark + ' | ' : ''}Portion: ${input.portionSize}` : input.remark,
+          remarks: input.remark,
+          ...(input.portionSize && { portion_size: input.portionSize }),
           date: input.logDate,
           consumed_at: consumedAt,
         }, token);
@@ -167,7 +168,8 @@ const useMealLogger = () => {
             quantity: parseFloat(input.quantity),
             unit: input.unit,
             meal_type: input.mealType,
-            remarks: input.portionSize ? `${input.remark ? input.remark + ' | ' : ''}Portion: ${input.portionSize}` : input.remark,
+            remarks: input.remark,
+            ...(input.portionSize && { portion_size: input.portionSize }),
             date: input.logDate,
             consumed_at: consumedAt,
           }, token);
@@ -192,6 +194,7 @@ const useMealLogger = () => {
       quantity: meal.quantity,
       unit: meal.unit,
       remark: meal.remarks,
+      portionSize: meal.portion_size || "",
       logDate: meal.date,
       logTime: new Date(meal.consumed_at).toTimeString().slice(0, 5),
       mealType: meal.meal_type,
