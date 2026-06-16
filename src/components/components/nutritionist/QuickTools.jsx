@@ -17,11 +17,11 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
       },
     },
     exit: {
-        opacity: 0,
-        transition: {
-            staggerChildren: 0.05,
-            staggerDirection: -1
-        }
+      opacity: 0,
+      transition: {
+        staggerChildren: 0.05,
+        staggerDirection: -1
+      }
     }
   };
 
@@ -35,20 +35,20 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
       transition: { type: "spring", stiffness: 300, damping: 20 },
     },
     exit: {
-        opacity: 0,
-        y: 15,
-        scale: 0.9,
+      opacity: 0,
+      y: 15,
+      scale: 0.9,
     }
   };
 
   return (
-    <div className="fixed bottom-22 right-6 z-50">
+    <div className="fixed bottom-32 right-5 z-50">
       <div className="relative group flex items-center">
         {/* Tooltip that appears on hover */}
         <div className="absolute right-full mr-4 px-3 py-1.5 bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] text-sm font-semibold rounded-lg shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-in-out">
           Quick Toolbox
         </div>
-        
+
         <div className="relative">
           {/* Options Panel that appears on click */}
           <AnimatePresence>

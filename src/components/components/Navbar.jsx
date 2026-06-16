@@ -22,9 +22,8 @@ const DropdownLink = ({ label, items, onClose }) => {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`relative font-medium transition-colors duration-300 focus:outline-none flex items-center gap-1 ${
-          isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"
-        }`}
+        className={`relative font-medium transition-colors duration-300 focus:outline-none flex items-center gap-1 ${isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"
+          }`}
       >
         {label}
         <svg className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +63,7 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
       if (isHomepage) {
         let currentSectionId = '';
         links.forEach(link => {
-          if (!link.to.startsWith('#')) return;
+          if (!link.to || !link.to.startsWith('#')) return;
           const element = document.getElementById(link.to.substring(1));
           if (element) {
             const rect = element.getBoundingClientRect();
@@ -81,7 +80,7 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [pathname, links, isHomepage]);
 
-   useEffect(() => {
+  useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 1024) { // MODIFIED: Changed from 768 to 1024 to match the new 'lg' breakpoint
         setIsOpen(false);
@@ -112,6 +111,7 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
         <DropdownLink key={label} label={label} items={children} onClose={() => setIsOpen(false)} />
       );
     }
+    if (!to) return null;
     const isAnchorLink = to.startsWith("#");
     if (isAnchorLink) {
       const isActive = isHomepage && activeSection === to;
@@ -152,7 +152,7 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
         isScrolled
           ? "bg-[var(--color-bg-surface)]/80 backdrop-blur-lg shadow-lg border-b border-[var(--color-border-default)]"
           : "bg-transparent"
-      }`}
+        }`}
     >
       <NavLink to="/" className="flex items-center">
         {/* MODIFIED: Logo text is now responsive */}
