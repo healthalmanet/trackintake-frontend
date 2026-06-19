@@ -291,10 +291,27 @@ export default function Chatbot() {
                 <div className="chat-box">
 
                     {/* HEADER */}
-                    <div className="chat-header">
-                        <span className="cursor-pointer px-2" onClick={goBack}>←</span>
+                    <div className="chat-header" style={{ display: "flex", alignItems: "center" }}>
+                        <span className="cursor-pointer px-2" onClick={goBack} style={{ flex: "0 0 auto" }}>
+                            ←
+                        </span>
 
-                        <span className="font-semibold">TrackIn-Take Bot</span>
+                        <span className="font-semibold" style={{ flex: "1 1 auto", textAlign: "center" }}>
+                            TrackIn-Take Bot
+                        </span>
+
+                        <span
+                            className="chat-header-close cursor-pointer px-2"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                closeBot();
+                            }}
+                            aria-label="Close chatbot"
+                            title="Close"
+                            style={{ flex: "0 0 auto" }}
+                        >
+                            ✕
+                        </span>
 
                         {/* MENU BUTTON */}
                         <span
@@ -303,9 +320,12 @@ export default function Chatbot() {
                                 e.stopPropagation(); // prevent closing when clicking menu
                                 setMenuOpen(!menuOpen);
                             }}
+                            style={{ flex: "0 0 auto" }}
                         >
                             ☰
                         </span>
+
+
 
                         {/* DROPDOWN MENU */}
                         {menuOpen && (
