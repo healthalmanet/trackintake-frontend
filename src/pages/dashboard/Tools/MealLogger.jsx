@@ -125,7 +125,13 @@ const MealLogger = () => {
     handleEditMeal,
     addItem,
     cancelEdit,
-    mealTypeOptions = [], // Added mealTypeOptions for the loop
+    mealTypeOptions = [],
+    // NEW: attributes wiring
+    foodAttributes,
+    selectedAttributes,
+    attributeLoading,
+    handleAttributeSelect,
+    fetchFoodAttributesOnBlur,
   } = useMealLogger();
 
   // --- DESIGN UPDATE: Changed to normalized key 'all' ---
@@ -436,7 +442,7 @@ const MealLogger = () => {
                                 <span className="font-semibold text-[var(--color-text-strong)] text-base md:text-lg">
                                   {item.food_name_display}
                                   <span className="ml-2 font-normal text-[var(--color-text-muted)] text-sm">
-                                    • {item.quantity} {item.unit}{item.portion_size ? ` • ${item.portion_size}` : ""}
+• {item.quantity} {item.unit}{(item.selected_size || item.portion_size || "Medium") ? ` • ${item.selected_size || item.portion_size || "Medium"}` : ""}
                                   </span>
                                 </span>
                                 {item.consumed_at && (
@@ -568,7 +574,7 @@ const MealLogger = () => {
                           <div className="flex flex-col gap-3 p-4 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-sm">
                             {/* Quantity and Unit */}
                             <p className="font-semibold text-[var(--color-text-strong)] text-base">
-                              Quantity: <span className="font-normal text-[var(--color-text-default)]">{mealGroupOrItem.quantity} {mealGroupOrItem.unit}{mealGroupOrItem.portion_size ? ` • ${mealGroupOrItem.portion_size}` : ""}</span>
+{mealGroupOrItem.quantity} {mealGroupOrItem.unit}{(mealGroupOrItem.selected_size || mealGroupOrItem.portion_size || "Medium") ? ` • ${mealGroupOrItem.selected_size || mealGroupOrItem.portion_size || "Medium"}` : ""}
                             </p>
 
                             {/* Remarks (if any) */}
@@ -722,6 +728,7 @@ const MealLogger = () => {
                             onChange={(e) =>
                               handleFoodChange(idx, "name", e.target.value)
                             }
+                            onBlur={() => fetchFoodAttributesOnBlur(input.name, idx)}
                             className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors peer"
                             placeholder=" "
                           />
@@ -844,6 +851,47 @@ const MealLogger = () => {
                             Time
                           </label>
                         </div>
+                        {/* NEW: Attributes selector (flour type / size etc) */}
+                        <div className="col-span-12">
+                          {foodAttributes?.[idx]?.length > 0 && (
+                            <div className="border-2 border-dashed border-[var(--color-success-text)] bg-[var(--color-success-bg-subtle)]/30 rounded-xl p-3 space-y-3">
+                              <p className="text-xs font-semibold text-[var(--color-success-text)] mb-2">
+                                ✓ Select attributes for <strong>{input.name}</strong>
+                              </p>
+                              {attributeLoading?.[idx] ? (
+                                <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                                  <Loader size={16} className="animate-spin" />
+                                  Fetching food details...
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {foodAttributes[idx].map((attr) => (
+                                    <div key={attr.id} className="space-y-1">
+                                      <label className="text-xs font-semibold text-[var(--color-text-strong)] flex items-center gap-1">
+                                        {attr.attribute.name}
+                                        {attr.is_required && <span className="text-[var(--color-danger-text)]">*</span>}
+                                      </label>
+                                      <select
+                                        value={selectedAttributes?.[idx]?.[attr.attribute.id] || ""}
+                                        onChange={(e) => handleAttributeSelect(idx, attr.attribute.id, parseInt(e.target.value))}
+                                        className="w-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-success-text)] transition"
+                                      >
+                                        <option value="">-- Select {attr.attribute.name} --</option>
+                                        {attr.attribute.options.map((option) => (
+                                          <option key={option.id} value={option.id}>
+                                            {option.display_name || option.value}
+
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="col-span-12 relative">
                           <input
                             type="text"

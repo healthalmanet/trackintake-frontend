@@ -65,3 +65,51 @@ export const deleteMeal = async (mealId) => {
     throw error;
   }
 };
+
+// NEW: Fetch food details with attributes
+// IMPORTANT: Supports fetching by numeric ID or by food name (via dedicated endpoint)
+export const getFoodWithAttributes = async (foodNameOrId) => {
+  try {
+    const trimmed = String(foodNameOrId).trim();
+
+    // If it looks like a number, treat as numeric ID
+    if (!isNaN(trimmed)) {
+      console.log(`[API] Fetching food by ID: ${trimmed}`);
+      const idResponse = await axiosInstance.get(`/userFood/foods/${trimmed}/`);
+      if (idResponse.data) {
+        console.log(`[API] ✅ Found food by ID:`, idResponse.data.name);
+        return idResponse.data;
+      }
+    }
+
+    // Otherwise, treat as food name and use the dedicated by-name endpoint
+    console.log(`[API] Fetching food by name: "${trimmed}"`);
+    const nameResponse = await axiosInstance.get(
+      `/foods/by-name/${encodeURIComponent(trimmed)}/`
+    );
+    if (nameResponse.data) {
+      console.log(`[API] ✅ Found food by name:`, nameResponse.data.name);
+      return nameResponse.data;
+    }
+
+    throw new Error(`Food "${trimmed}" not found. Make sure it's set up in the backend.`);
+  } catch (error) {
+    console.error(`[API] ❌ Error fetching food "${foodNameOrId}":`, error.message);
+    throw error;
+  }
+};
+
+
+// NEW: Log meal with attributes in one request
+export const createMealWithAttributes = async (mealData) => {
+  try {
+    const response = await axiosInstance.post('/logmeals_with_attributes/', mealData);
+    if (response.data && response.data.notifications && response.data.notifications.length > 0) {
+      pushMealNotifications(response.data.notifications);
+    }
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error creating meal with attributes:', error.response?.data || error.message);
+    throw error;
+  }
+};
