@@ -101,6 +101,26 @@ export const getFoodWithAttributes = async (foodNameOrId) => {
 
 
 // NEW: Log meal with attributes in one request
+// === Changes made by Ananya (Start) ===
+export const searchFoods = async (query, limit = 10) => {
+  try {
+    const q = String(query ?? "").trim();
+    if (!q) return { results: [] };
+
+    const params = new URLSearchParams({
+      q,
+      limit: String(limit ?? 10),
+    });
+
+    const response = await axiosInstance.get(`/foods/search/?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error searching foods:', error.response?.data || error.message);
+    throw error;
+  }
+};
+// === Changes made by Ananya (End) ===
+
 export const createMealWithAttributes = async (mealData) => {
   try {
     const response = await axiosInstance.post('/logmeals_with_attributes/', mealData);

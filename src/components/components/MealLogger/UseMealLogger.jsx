@@ -1,7 +1,7 @@
 // src/components/dashboard/UseMealLogger.js
 
 import { useEffect, useState, useCallback } from "react";
-import { getMeals, createMeal, deleteMeal, getMealsByDate, patchMeal, getFoodWithAttributes, createMealWithAttributes } from "../../../api/mealLog";
+import { getMeals, createMeal, deleteMeal, getMealsByDate, patchMeal, getFoodWithAttributes, createMealWithAttributes, searchFoods } from "../../../api/mealLog";
 import { toast } from "react-hot-toast";
 import { CheckCircle, AlertTriangle, CircleHelp } from "lucide-react";
 import React from "react";
@@ -19,6 +19,7 @@ const getLocalDateString = (date) => {
 
 const useMealLogger = () => {
   // --- All useState hooks are called unconditionally at the top level ---
+  // === Changes made by Ananya (Start) ===
   const getInitialFoodInput = () => ({
     id: Date.now(),
     foodId: "",
@@ -31,6 +32,7 @@ const useMealLogger = () => {
     logTime: '',
     mealType: 'Breakfast',
   });
+  // === Changes made by Ananya (End) ===
 
   const [foodInputs, setFoodInputs] = useState([getInitialFoodInput()]);
   const [loggedMeals, setLoggedMeals] = useState([]);
@@ -276,7 +278,7 @@ const useMealLogger = () => {
       quantity: meal.quantity,
       unit: meal.unit,
       remark: meal.remarks,
-portionSize: meal.selected_size || meal.portion_size || "",
+      portionSize: meal.selected_size || meal.portion_size || "",
       logDate: meal.date,
       logTime: new Date(meal.consumed_at).toTimeString().slice(0, 5),
       mealType: meal.meal_type,
@@ -300,11 +302,11 @@ portionSize: meal.selected_size || meal.portion_size || "",
 
     console.log(`[Attributes] Fetching attributes for: "${foodIdentifier}" (index: ${inputIndex})`);
     setAttributeLoading(prev => ({ ...prev, [inputIndex]: true }));
-    
+
     try {
       const food = await getFoodWithAttributes(foodIdentifier);
       console.log(`[Attributes] API Response:`, food);
-      
+
       if (food && Array.isArray(food.attributes) && food.attributes.length > 0) {
         console.log(`[Attributes] ✅ Found ${food.attributes.length} attributes`);
         setFoodAttributes(prev => ({ ...prev, [inputIndex]: food.attributes }));
@@ -362,6 +364,90 @@ portionSize: meal.selected_size || meal.portion_size || "",
     setFoodInputs(prev => prev.map((input, i) => (i === idx ? { ...input, [field]: value } : input)));
   };
 
+  const resolvedFoodNamesRef = React.useRef({});
+
+  const resolveFoodFromName = useCallback(async (inputIndex, foodName) => {
+    const trimmedName = String(foodName ?? "").trim();
+    if (!trimmedName) {
+      return false;
+    }
+
+    const input = foodInputs?.[inputIndex];
+    if (!input) {
+      return false;
+    }
+
+    if (input.foodId) {
+      return true;
+    }
+
+    const cacheKey = `${inputIndex}:${trimmedName.toLowerCase()}`;
+    if (resolvedFoodNamesRef.current[cacheKey]) {
+      return true;
+    }
+
+    try {
+      const baseDate = input.logDate || searchDate || getLocalDateString(new Date());
+      const consumedAt = input.logTime
+        ? new Date(`${baseDate}T${input.logTime}:00`).toISOString()
+        : new Date().toISOString();
+
+      const mealPayload = {
+        food_name: trimmedName,
+        quantity: parseFloat(input.quantity || 1) || 1,
+        unit: input.unit || "Gram",
+        meal_type: input.mealType || "Breakfast",
+        remarks: input.remark || "",
+        ...(input.portionSize && { portion_size: input.portionSize }),
+        date: baseDate,
+        consumed_at: consumedAt,
+      };
+
+      const createdMeal = await createMeal(mealPayload);
+      const createdMealId = createdMeal?.data?.[0]?.id || createdMeal?.data?.id;
+      if (createdMealId) {
+        try {
+          await deleteMeal(createdMealId, localStorage.getItem("token"));
+        } catch {
+          // Ignore cleanup failures and continue loading the resolved food.
+        }
+      }
+
+      const resolvedFood = await getFoodWithAttributes(trimmedName);
+      if (resolvedFood?.id) {
+        setFoodInputs(prev => prev.map((entry, index) => index === inputIndex ? {
+          ...entry,
+          foodId: String(resolvedFood.id),
+          name: resolvedFood.name || trimmedName,
+        } : entry));
+      }
+
+      setFoodAttributes(prev => ({ ...prev, [inputIndex]: Array.isArray(resolvedFood?.attributes) ? resolvedFood.attributes : [] }));
+      setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
+      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
+      resolvedFoodNamesRef.current[cacheKey] = true;
+      return true;
+    } catch (error) {
+      setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
+      setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
+      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
+      return false;
+    }
+  }, [foodInputs, searchDate]);
+
+  const handleFoodBlur = useCallback(async (inputIndex, foodName) => {
+    if (!foodName || !String(foodName).trim()) {
+      return;
+    }
+
+    const currentInput = foodInputs?.[inputIndex];
+    if (currentInput?.foodId) {
+      return;
+    }
+
+    await resolveFoodFromName(inputIndex, foodName);
+  }, [foodInputs, resolveFoodFromName]);
+
   // NEW: Exportable handler to fetch attributes onBlur.
   const fetchFoodAttributesOnBlur = useCallback(
     async (foodNameOrId, inputIndex) => {
@@ -369,6 +455,81 @@ portionSize: meal.selected_size || meal.portion_size || "",
     },
     [fetchFoodAttributes]
   );
+
+  // === Changes made by Ananya (Start) ===
+  const [foodSearchResults, setFoodSearchResults] = useState({}); // { [index]: [{id,name,has_attributes}] }
+  const [foodSearchLoading, setFoodSearchLoading] = useState({});
+  const [foodSearchQuery, setFoodSearchQuery] = useState({});
+
+  const handleSelectFood = useCallback((inputIndex, selected) => {
+    const selectedId = selected?.id != null ? String(selected.id) : "";
+    const selectedName = selected?.name || "";
+
+    // Store selected foodId + name.
+    setFoodInputs(prev =>
+      prev.map((inp, i) =>
+        i === inputIndex
+          ? {
+            ...inp,
+            foodId: selectedId,
+            name: selectedName,
+          }
+          : inp
+      )
+    );
+
+    // Hide dropdown immediately.
+    setFoodSearchResults(prev => ({ ...prev, [inputIndex]: [] }));
+    setFoodSearchLoading(prev => ({ ...prev, [inputIndex]: false }));
+
+    // Fetch attributes immediately using selected foodId.
+    setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
+    setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
+    setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
+
+    // Per requirements: if we have a foodId, use ID endpoint.
+    // (fetchFoodAttributesOnBlur will call getFoodWithAttributes which uses numeric IDs first.)
+    fetchFoodAttributesOnBlur(selectedId || selectedName, inputIndex);
+  }, [fetchFoodAttributesOnBlur]);
+
+  // Debounce timers per inputIndex so we can cancel previous requests.
+  const searchTimersRef = React.useRef({});
+
+  const debouncedSearch = useCallback((inputIndex, query) => {
+    const q = String(query ?? "").trim();
+    setFoodSearchQuery(prev => ({ ...prev, [inputIndex]: q }));
+
+    // Cancel previous timer for this input.
+    if (searchTimersRef.current[inputIndex]) {
+      window.clearTimeout(searchTimersRef.current[inputIndex]);
+      delete searchTimersRef.current[inputIndex];
+    }
+
+    // IMPORTANT: while typing, ONLY call /foods/search/.
+    // Do NOT call /foods/by-name/ during typing.
+    if (!q) {
+      setFoodSearchResults(prev => ({ ...prev, [inputIndex]: [] }));
+      setFoodSearchLoading(prev => ({ ...prev, [inputIndex]: false }));
+      return;
+    }
+
+    setFoodSearchLoading(prev => ({ ...prev, [inputIndex]: true }));
+
+    const timerId = window.setTimeout(async () => {
+      try {
+        const data = await searchFoods(q, 10);
+        const results = Array.isArray(data?.results) ? data.results : [];
+        setFoodSearchResults(prev => ({ ...prev, [inputIndex]: results }));
+      } catch (e) {
+        setFoodSearchResults(prev => ({ ...prev, [inputIndex]: [] }));
+      } finally {
+        setFoodSearchLoading(prev => ({ ...prev, [inputIndex]: false }));
+      }
+    }, 300);
+
+    searchTimersRef.current[inputIndex] = timerId;
+  }, []);
+  // === Changes made by Ananya (End) ===
 
 
   const addFoodField = () => {
@@ -402,7 +563,17 @@ portionSize: meal.selected_size || meal.portion_size || "",
     // NEW: Export attributes-related state and functions
     foodAttributes, selectedAttributes, attributeLoading,
     handleAttributeSelect, validateAttributes,
-    fetchFoodAttributesOnBlur
+    fetchFoodAttributesOnBlur,
+
+    // === Changes made by Ananya (Start) ===
+    foodSearchResults,
+    foodSearchLoading,
+    foodSearchQuery,
+    debouncedSearch,
+    handleSelectFood,
+    handleFoodBlur,
+    resolveFoodFromName,
+    // === Changes made by Ananya (End) ===
   };
 };
 
