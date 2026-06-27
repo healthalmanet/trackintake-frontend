@@ -32,6 +32,7 @@ import {
   FaConciergeBell,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import FoodAutocompleteInput from "../../../components/components/MealLogger/FoodAutocompleteInput";
 //ananya start
 
 const UnitDropdown = ({ value, onChange }) => {
@@ -49,9 +50,8 @@ const UnitDropdown = ({ value, onChange }) => {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center justify-between bg-[var(--color-bg-app)] border-2 rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none transition-colors text-sm font-medium ${
-          open ? "border-[var(--color-primary)]" : "border-[var(--color-border-default)]"
-        }`}
+        className={`w-full flex items-center justify-between bg-[var(--color-bg-app)] border-2 rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none transition-colors text-sm font-medium ${open ? "border-[var(--color-primary)]" : "border-[var(--color-border-default)]"
+          }`}
       >
         <span className={value ? "text-[var(--color-text-default)]" : "text-[var(--color-text-muted)]"}>
           {value || "Unit"}
@@ -70,11 +70,10 @@ const UnitDropdown = ({ value, onChange }) => {
             <li
               key={unit}
               onClick={() => { onChange(unit); setOpen(false); }}
-              className={`px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors ${
-                value === unit
-                  ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
-                  : "text-[var(--color-text-default)] hover:bg-gray-50"
-              }`}
+              className={`px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors ${value === unit
+                ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                : "text-[var(--color-text-default)] hover:bg-gray-50"
+                }`}
             >
               {unit}
             </li>
@@ -132,6 +131,13 @@ const MealLogger = () => {
     attributeLoading,
     handleAttributeSelect,
     fetchFoodAttributesOnBlur,
+    // === Changes made by Ananya (Start) ===
+    foodSearchResults,
+    foodSearchLoading,
+    handleSelectFood,
+    debouncedSearch,
+    handleFoodBlur,
+    // === Changes made by Ananya (End) ===
   } = useMealLogger();
 
   // --- DESIGN UPDATE: Changed to normalized key 'all' ---
@@ -442,7 +448,7 @@ const MealLogger = () => {
                                 <span className="font-semibold text-[var(--color-text-strong)] text-base md:text-lg">
                                   {item.food_name_display}
                                   <span className="ml-2 font-normal text-[var(--color-text-muted)] text-sm">
-• {item.quantity} {item.unit}{(item.selected_size || item.portion_size || "Medium") ? ` • ${item.selected_size || item.portion_size || "Medium"}` : ""}
+                                    • {item.quantity} {item.unit}{(item.selected_size || item.portion_size || "Medium") ? ` • ${item.selected_size || item.portion_size || "Medium"}` : ""}
                                   </span>
                                 </span>
                                 {item.consumed_at && (
@@ -574,7 +580,7 @@ const MealLogger = () => {
                           <div className="flex flex-col gap-3 p-4 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-sm">
                             {/* Quantity and Unit */}
                             <p className="font-semibold text-[var(--color-text-strong)] text-base">
-{mealGroupOrItem.quantity} {mealGroupOrItem.unit}{(mealGroupOrItem.selected_size || mealGroupOrItem.portion_size || "Medium") ? ` • ${mealGroupOrItem.selected_size || mealGroupOrItem.portion_size || "Medium"}` : ""}
+                              {mealGroupOrItem.quantity} {mealGroupOrItem.unit}{(mealGroupOrItem.selected_size || mealGroupOrItem.portion_size || "Medium") ? ` • ${mealGroupOrItem.selected_size || mealGroupOrItem.portion_size || "Medium"}` : ""}
                             </p>
 
                             {/* Remarks (if any) */}
@@ -722,16 +728,24 @@ const MealLogger = () => {
                     <div className="flex items-start gap-3">
                       <div className="flex-grow grid grid-cols-12 gap-4">
                         <div className="col-span-12 sm:col-span-6 relative">
-                          <input
-                            type="text"
-                            value={input.name}
-                            onChange={(e) =>
-                              handleFoodChange(idx, "name", e.target.value)
-                            }
-                            onBlur={() => fetchFoodAttributesOnBlur(input.name, idx)}
-                            className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors peer"
-                            placeholder=" "
-                          />
+                          <div className="relative">
+                            <FoodAutocompleteInput
+                              value={input.name}
+                              onChange={(e) => {
+                                const nextVal = e.target.value;
+                                handleFoodChange(idx, "name", nextVal);
+                                debouncedSearch(idx, nextVal);
+                              }}
+                              onBlur={() => handleFoodBlur(idx, input.name)}
+                              onFocus={() => debouncedSearch(idx, input.name)}
+                              onSelect={(selected) => handleSelectFood(idx, selected)}
+                              results={foodSearchResults?.[idx] || []}
+                              loading={Boolean(foodSearchLoading?.[idx])}
+                              inputClassName="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors peer"
+                              className="w-full"
+                              inputId={`meal-logger-food-${input.id}`}
+                            />
+                          </div>
                           <label className="absolute left-3 -top-2.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-surface)] px-1 peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-[var(--color-primary)] transition-all pointer-events-none">
                             Food Name
                           </label>
@@ -773,11 +787,10 @@ const MealLogger = () => {
                                   key={label}
                                   type="button"
                                   onClick={() => handleFoodChange(idx, "portionSize", label)}
-                                  className={`flex flex-col items-center py-2 px-1 rounded-lg border-2 text-sm font-semibold transition-all ${
-                                    input.portionSize === label
-                                      ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)]"
-                                      : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
-                                  }`}
+                                  className={`flex flex-col items-center py-2 px-1 rounded-lg border-2 text-sm font-semibold transition-all ${input.portionSize === label
+                                    ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)]"
+                                    : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
+                                    }`}
                                 >
                                   <span>{label}</span>
                                   <span className={`text-xs font-normal mt-0.5 ${input.portionSize === label ? "text-white/80" : "text-[var(--color-text-muted)]"}`}>{ml}</span>

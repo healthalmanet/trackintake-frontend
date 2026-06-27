@@ -25,6 +25,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import FoodAutocompleteInput from "./FoodAutocompleteInput";
 
 const UNITS = ["Gram", "Kilogram", "Milliliters", "Liters", "Glass", "Cup", "Bowl", "Piece", "Tbsp", "Tsp", "Slice", "Plate", "Handful", "Pinch", "Dash", "Sprinkle", "Other"];
 
@@ -167,7 +168,12 @@ const QuickMealLogger = ({ onMealLogged }) => {
     attributeLoading,
     handleAttributeSelect,
     validateAttributes,
-    fetchFoodAttributesOnBlur
+    fetchFoodAttributesOnBlur,
+    foodSearchResults,
+    foodSearchLoading,
+    debouncedSearch,
+    handleSelectFood,
+    handleFoodBlur
   } = useMealLogger();
 
   const mealTypeMap = {
@@ -301,14 +307,21 @@ const QuickMealLogger = ({ onMealLogged }) => {
                   className="mb-4 space-y-3 border-t-2 border-dashed border-[var(--color-border-default)] pt-4 overflow-hidden"
                 >
                   <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="text"
+                    <FoodAutocompleteInput
                       value={item.name}
-                      onChange={(e) => handleFoodChange(index, "name", e.target.value)}
-                      onBlur={() => fetchFoodAttributesOnBlur(item.name, index)}
+                      onChange={(e) => {
+                        handleFoodChange(index, "name", e.target.value);
+                        debouncedSearch(index, e.target.value);
+                      }}
+                      onBlur={() => handleFoodBlur(index, item.name)}
+                      onFocus={() => debouncedSearch(index, item.name)}
+                      onSelect={(selected) => handleSelectFood(index, selected)}
+                      results={foodSearchResults?.[index] || []}
+                      loading={Boolean(foodSearchLoading?.[index])}
                       placeholder={`Food ${index + 1}`}
-                      className="flex-1 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition"
-                      required
+                      inputClassName="w-full bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition"
+                      className="flex-1"
+                      inputId={`quick-food-${item.id}`}
                     />
 
                     <input type="number" value={item.quantity} onChange={(e) => handleFoodChange(index, "quantity", e.target.value)} placeholder="Qty" className="w-20 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-2 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" />
@@ -329,8 +342,8 @@ const QuickMealLogger = ({ onMealLogged }) => {
                             type="button"
                             onClick={() => handleFoodChange(index, "portionSize", label)}
                             className={`flex flex-col items-center py-2 px-1 rounded-lg border-2 text-sm font-semibold transition-all ${item.portionSize === label
-                                ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)]"
-                                : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
+                              ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)]"
+                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
                               }`}
                           >
                             <span>{label}</span>
@@ -516,7 +529,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
                                             <div className="flex-1 truncate">
                                               <p className="font-semibold text-[var(--color-text-strong)] text-base truncate">{meal.food_name_display}</p>
                                               <p className="text-sm text-[var(--color-text-default)] capitalize">
-{meal.meal_type || "Meal"} • {meal.quantity} {meal.unit}{(meal.selected_size || meal.portion_size || "Medium") ? ` • ${meal.selected_size || meal.portion_size || "Medium"}` : ""}
+                                                {meal.meal_type || "Meal"} • {meal.quantity} {meal.unit}{(meal.selected_size || meal.portion_size || "Medium") ? ` • ${meal.selected_size || meal.portion_size || "Medium"}` : ""}
                                                 {meal.consumed_at && (
                                                   <span className="text-[var(--color-text-muted)]">
                                                     {' • '}{new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -596,7 +609,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
                                       {meal.food_name_display}
                                     </p>
                                     <p className="text-sm text-[var(--color-text-default)] capitalize">
-{meal.meal_type || "Meal"} • {meal.quantity}{" "}
+                                      {meal.meal_type || "Meal"} • {meal.quantity}{" "}
                                       {meal.unit}{(meal.selected_size || meal.portion_size || "Medium") ? ` • ${meal.selected_size || meal.portion_size || "Medium"}` : ""}
                                       {/* --- MODIFICATION START --- */}
                                       {/* Add the consumed time */}
