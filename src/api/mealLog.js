@@ -3,6 +3,41 @@
 import axiosInstance from './axiosInstance';
 import { pushMealNotifications } from '../components/components/NotificationDropdown';
 
+const normalizeFoodAttributesResponse = (foodData) => {
+  if (!foodData || !Array.isArray(foodData.attributes)) {
+    return foodData;
+  }
+
+  const hasNestedAttribute = foodData.attributes.some(attr => attr && attr.attribute);
+  if (hasNestedAttribute) {
+    return {
+      ...foodData,
+      name: foodData.name || foodData.food_name || undefined,
+    };
+  }
+
+  const normalizedAttributes = foodData.attributes.map((attr) => ({
+    id: attr.id ?? attr.attribute?.id ?? null,
+    attribute: {
+      id: attr.attribute?.id ?? attr.id ?? null,
+      name: attr.attribute?.name ?? attr.name ?? '',
+      description: attr.attribute?.description ?? attr.description ?? '',
+      options: Array.isArray(attr.attribute?.options)
+        ? attr.attribute.options
+        : Array.isArray(attr.options)
+          ? attr.options
+          : [],
+    },
+    is_required: attr.is_required ?? false,
+    order: attr.order ?? 0,
+  }));
+
+  return {
+    ...foodData,
+    name: foodData.name || foodData.food_name || undefined,
+    attributes: normalizedAttributes,
+  };
+};
 
 export const getMeals = async (url) => {
   try {
@@ -75,10 +110,26 @@ export const getFoodWithAttributes = async (foodNameOrId) => {
     // If it looks like a number, treat as numeric ID
     if (!isNaN(trimmed)) {
       console.log(`[API] Fetching food by ID: ${trimmed}`);
-      const idResponse = await axiosInstance.get(`/userFood/foods/${trimmed}/`);
-      if (idResponse.data) {
-        console.log(`[API] ✅ Found food by ID:`, idResponse.data.name);
-        return idResponse.data;
+      // Prefer the attributes-only endpoint (faster). If that fails, fall back to the full food endpoint.
+      try {
+        const idResponse = await axiosInstance.get(`/foods/${trimmed}/attributes/`);
+        if (idResponse.data) {
+          const normalized = normalizeFoodAttributesResponse(idResponse.data);
+          console.log(`[API] ✅ Found food by ID (attributes):`, normalized.name || normalized.food_name || normalized);
+          return normalized;
+        }
+      } catch (err) {
+        console.warn(`[API] attributes endpoint failed for ID ${trimmed}, falling back to /foods/${trimmed}/`, err?.message || err);
+        try {
+          const fallback = await axiosInstance.get(`/foods/${trimmed}/`);
+          if (fallback.data) {
+            const normalized = normalizeFoodAttributesResponse(fallback.data);
+            console.log(`[API] ✅ Found food by ID (fallback):`, normalized.name);
+            return normalized;
+          }
+        } catch (err2) {
+          console.warn(`[API] fallback food endpoint also failed for ID ${trimmed}:`, err2?.message || err2);
+        }
       }
     }
 
@@ -88,8 +139,9 @@ export const getFoodWithAttributes = async (foodNameOrId) => {
       `/foods/by-name/${encodeURIComponent(trimmed)}/`
     );
     if (nameResponse.data) {
-      console.log(`[API] ✅ Found food by name:`, nameResponse.data.name);
-      return nameResponse.data;
+      const normalized = normalizeFoodAttributesResponse(nameResponse.data);
+      console.log(`[API] ✅ Found food by name:`, normalized.name);
+      return normalized;
     }
 
     throw new Error(`Food "${trimmed}" not found. Make sure it's set up in the backend.`);
