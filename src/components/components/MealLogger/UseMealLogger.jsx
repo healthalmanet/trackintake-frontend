@@ -46,6 +46,11 @@ const useMealLogger = () => {
   const [selectedAttributes, setSelectedAttributes] = useState({});
   const [attributeLoading, setAttributeLoading] = useState({});
 
+  // Search/autocomplete state (keep these near the top so callbacks can reference them)
+  const [foodSearchResults, setFoodSearchResults] = useState({}); // { [index]: [{id,name,has_attributes}] }
+  const [foodSearchLoading, setFoodSearchLoading] = useState({});
+  const [foodSearchQuery, setFoodSearchQuery] = useState({});
+
   const unitOptions = [//ananya
     "Gram",
     "Kilogram",
@@ -344,8 +349,10 @@ const useMealLogger = () => {
     const selected = selectedAttributes[inputIndex] || {};
 
     for (const attr of attributes) {
-      if (attr.is_required && !selected[attr.attribute.id]) {
-        return { valid: false, message: `Please select ${attr.attribute.name}` };
+      const attributeId = attr.attribute?.id ?? attr.id;
+      const attributeName = attr.attribute?.name ?? attr.name ?? "this attribute";
+      if (attr.is_required && !selected[attributeId]) {
+        return { valid: false, message: `Please select ${attributeName}` };
       }
     }
     return { valid: true };
@@ -360,8 +367,17 @@ const useMealLogger = () => {
   }, []);
 
   const handleFoodChange = (idx, field, value) => {
-    // Only update state. Attribute fetching should happen onBlur.
-    setFoodInputs(prev => prev.map((input, i) => (i === idx ? { ...input, [field]: value } : input)));
+    setFoodInputs(prev => prev.map((input, i) => {
+      if (i !== idx) return input;
+      const nextInput = { ...input, [field]: value };
+      if (field === "name") {
+        nextInput.foodId = "";
+        setFoodAttributes(prev => ({ ...prev, [idx]: [] }));
+        setSelectedAttributes(prev => ({ ...prev, [idx]: {} }));
+        setAttributeLoading(prev => ({ ...prev, [idx]: false }));
+      }
+      return nextInput;
+    }));
   };
 
   const resolvedFoodNamesRef = React.useRef({});
@@ -385,6 +401,12 @@ const useMealLogger = () => {
     if (resolvedFoodNamesRef.current[cacheKey]) {
       return true;
     }
+
+    if ((foodSearchResults?.[inputIndex]?.length || 0) > 0) {
+      return false;
+    }
+
+    setAttributeLoading(prev => ({ ...prev, [inputIndex]: true }));
 
     try {
       const baseDate = input.logDate || searchDate || getLocalDateString(new Date());
@@ -424,29 +446,16 @@ const useMealLogger = () => {
 
       setFoodAttributes(prev => ({ ...prev, [inputIndex]: Array.isArray(resolvedFood?.attributes) ? resolvedFood.attributes : [] }));
       setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
       resolvedFoodNamesRef.current[cacheKey] = true;
       return true;
     } catch (error) {
       setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
       setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
       return false;
+    } finally {
+      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
     }
-  }, [foodInputs, searchDate]);
-
-  const handleFoodBlur = useCallback(async (inputIndex, foodName) => {
-    if (!foodName || !String(foodName).trim()) {
-      return;
-    }
-
-    const currentInput = foodInputs?.[inputIndex];
-    if (currentInput?.foodId) {
-      return;
-    }
-
-    await resolveFoodFromName(inputIndex, foodName);
-  }, [foodInputs, resolveFoodFromName]);
+  }, [foodInputs, foodSearchResults, searchDate]);
 
   // NEW: Exportable handler to fetch attributes onBlur.
   const fetchFoodAttributesOnBlur = useCallback(
@@ -457,9 +466,6 @@ const useMealLogger = () => {
   );
 
   // === Changes made by Ananya (Start) ===
-  const [foodSearchResults, setFoodSearchResults] = useState({}); // { [index]: [{id,name,has_attributes}] }
-  const [foodSearchLoading, setFoodSearchLoading] = useState({});
-  const [foodSearchQuery, setFoodSearchQuery] = useState({});
 
   const handleSelectFood = useCallback((inputIndex, selected) => {
     const selectedId = selected?.id != null ? String(selected.id) : "";
@@ -491,6 +497,31 @@ const useMealLogger = () => {
     // (fetchFoodAttributesOnBlur will call getFoodWithAttributes which uses numeric IDs first.)
     fetchFoodAttributesOnBlur(selectedId || selectedName, inputIndex);
   }, [fetchFoodAttributesOnBlur]);
+
+  const handleFoodBlur = useCallback(async (inputIndex, foodName) => {
+    const trimmedName = String(foodName ?? "").trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    const currentInput = foodInputs?.[inputIndex];
+    if (currentInput?.foodId) {
+      return;
+    }
+
+    const results = foodSearchResults?.[inputIndex] || [];
+    const exactMatch = results.find(
+      (result) => String(result.name).trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (exactMatch) {
+      handleSelectFood(inputIndex, exactMatch);
+      return;
+    }
+
+    // If there are search results but none matches exactly, the user likely entered a custom food name.
+    await resolveFoodFromName(inputIndex, trimmedName);
+  }, [foodInputs, foodSearchResults, resolveFoodFromName, handleSelectFood]);
 
   // Debounce timers per inputIndex so we can cancel previous requests.
   const searchTimersRef = React.useRef({});

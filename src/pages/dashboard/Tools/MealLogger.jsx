@@ -739,6 +739,7 @@ const MealLogger = () => {
                               onBlur={() => handleFoodBlur(idx, input.name)}
                               onFocus={() => debouncedSearch(idx, input.name)}
                               onSelect={(selected) => handleSelectFood(idx, selected)}
+                              onConfirm={() => handleFoodBlur(idx, input.name)}
                               results={foodSearchResults?.[idx] || []}
                               loading={Boolean(foodSearchLoading?.[idx])}
                               inputClassName="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors peer"
@@ -878,27 +879,37 @@ const MealLogger = () => {
                                 </div>
                               ) : (
                                 <div className="space-y-2">
-                                  {foodAttributes[idx].map((attr) => (
-                                    <div key={attr.id} className="space-y-1">
-                                      <label className="text-xs font-semibold text-[var(--color-text-strong)] flex items-center gap-1">
-                                        {attr.attribute.name}
-                                        {attr.is_required && <span className="text-[var(--color-danger-text)]">*</span>}
-                                      </label>
-                                      <select
-                                        value={selectedAttributes?.[idx]?.[attr.attribute.id] || ""}
-                                        onChange={(e) => handleAttributeSelect(idx, attr.attribute.id, parseInt(e.target.value))}
-                                        className="w-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-success-text)] transition"
-                                      >
-                                        <option value="">-- Select {attr.attribute.name} --</option>
-                                        {attr.attribute.options.map((option) => (
-                                          <option key={option.id} value={option.id}>
-                                            {option.display_name || option.value}
+                                  {foodAttributes[idx].map((attr) => {
+                                    const attribute = attr.attribute || {
+                                      id: attr.id,
+                                      name: attr.name || "Attribute",
+                                      options: Array.isArray(attr.options) ? attr.options : [],
+                                    };
+                                    const attributeId = attribute.id ?? attr.id;
+                                    const attributeName = attribute.name || attr.name || "Attribute";
+                                    const attributeOptions = Array.isArray(attribute.options) ? attribute.options : [];
 
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                  ))}
+                                    return (
+                                      <div key={attr.id ?? attributeId} className="space-y-1">
+                                        <label className="text-xs font-semibold text-[var(--color-text-strong)] flex items-center gap-1">
+                                          {attributeName}
+                                          {attr.is_required && <span className="text-[var(--color-danger-text)]">*</span>}
+                                        </label>
+                                        <select
+                                          value={selectedAttributes?.[idx]?.[attributeId] || ""}
+                                          onChange={(e) => handleAttributeSelect(idx, attributeId, parseInt(e.target.value))}
+                                          className="w-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-success-text)] transition"
+                                        >
+                                          <option value="">-- Select {attributeName} --</option>
+                                          {attributeOptions.map((option) => (
+                                            <option key={option.id} value={option.id}>
+                                              {option.display_name || option.value}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>

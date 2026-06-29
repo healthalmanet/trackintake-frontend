@@ -7,6 +7,7 @@ const FoodAutocompleteInput = ({
     onBlur,
     onFocus,
     onSelect,
+    onConfirm,
     results = [],
     loading = false,
     placeholder = "Food Name",
@@ -40,6 +41,7 @@ const FoodAutocompleteInput = ({
         if (!isOpen || !results?.length) {
             if (event.key === "Enter") {
                 event.preventDefault();
+                onConfirm?.(event);
                 onBlur?.(event);
             }
             return;
@@ -113,8 +115,8 @@ const FoodAutocompleteInput = ({
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => handleSelectResult(result)}
                             className={`px-3 py-2 text-sm font-medium cursor-pointer transition-colors ${highlightedIndex === index
-                                    ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
-                                    : "text-[var(--color-text-default)] hover:bg-gray-50"
+                                ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                                : "text-[var(--color-text-default)] hover:bg-gray-50"
                                 }`}
                         >
                             {result.name}
