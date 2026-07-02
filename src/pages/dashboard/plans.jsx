@@ -1,16 +1,29 @@
-import { useLocation } from "react-router-dom"; // ✅ Yeh import missing tha
+import { useLocation, useNavigate } from "react-router-dom"; // ✅ Yeh import missing tha
 import { useEffect, useState } from "react";
 import { getPlans, createOrder } from "../../api/subscriptionService";
 import { getPlanBenefits } from "../../api/planBenefits";
 import { useSubscription } from "../../hook/useSubscription";
 
 const PlansPage = () => {
+  const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [loadingId, setLoadingId] = useState(null);
   const { subscription } = useSubscription();
   
   const location = useLocation();
   const isForced = location.state?.forced;
+
+  // Only auto-redirect back to dashboard if:
+  // 1. User was FORCE-sent here (no plan was detected on dashboard load), AND
+  // 2. The subscription API has NOW confirmed they DO have a plan
+  // This handles PathyaTech users whose plan was slow to load on first check
+  useEffect(() => {
+    if (isForced && subscription?.has_plan) {
+      // Clear the session check flag so next fresh login re-evaluates
+      sessionStorage.removeItem("sub_checked");
+      navigate("/dashboard");
+    }
+  }, [subscription, navigate, isForced]);
 
   useEffect(() => {
     getPlans()  // ✅ Token mat bhejo — axiosInstance handle karega
