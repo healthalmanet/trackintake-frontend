@@ -60,15 +60,23 @@ function Dashboard() {
 
   // Memoized subscription check to prevent re-triggering useEffect
   const checkSubscription = useCallback(async () => {
+    // Only do the forced redirect once per browser session to avoid redirect loops
+    // (PathyaTech API can be slow, causing false negatives on first load)
+    if (sessionStorage.getItem("sub_checked")) return;
     try {
       const subscription = await getMySubscription();
       if (subscription && !subscription.has_plan) {
+        sessionStorage.setItem("sub_checked", "1");
         navigate("/dashboard/plans", {
           state: { forced: true },
         });
+      } else {
+        // Subscription found — mark as checked so we don't re-check
+        sessionStorage.setItem("sub_checked", "1");
       }
     } catch (err) {
       console.error("Subscription check failed:", err);
+      // Do NOT redirect on error — PathyaTech API may be slow
     }
   }, [navigate]);
 
