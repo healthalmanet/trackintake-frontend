@@ -43,9 +43,10 @@ import {
   archiveDietPlan,
   restoreDietPlan
 } from "../../../api/nutritionistApi";
-import { PROFILE_STRUCTURE_TEMPLATE,goals,activityLevels,dietTypeOptions,themedSelectStyles, allergyOptions,        // <-- ADD THIS
-  medicalConditions,  
- } from "./ProfileContent";
+import {
+  PROFILE_STRUCTURE_TEMPLATE, goals, activityLevels, dietTypeOptions, themedSelectStyles, allergyOptions,        // <-- ADD THIS
+  medicalConditions,
+} from "./ProfileContent";
 import { motion, AnimatePresence } from "framer-motion";
 import NutriNavbar from "./NutriNavbar";
 import QuickTools from "./QuickTools";
@@ -137,12 +138,12 @@ const PatientDetailsPage = () => {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-const [editableProfile, setEditableProfile] = useState(null);
-const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [editableProfile, setEditableProfile] = useState(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-const [isEditingReport, setIsEditingReport] = useState(false);
-const [editableReport, setEditableReport] = useState(null);
-const [isSavingReport, setIsSavingReport] = useState(false);
+  const [isEditingReport, setIsEditingReport] = useState(false);
+  const [editableReport, setEditableReport] = useState(null);
+  const [isSavingReport, setIsSavingReport] = useState(false);
 
   // States for Meal Log tab
   const [filteredMeals, setFilteredMeals] = useState([]);
@@ -161,21 +162,21 @@ const [isSavingReport, setIsSavingReport] = useState(false);
   const [loadingReport, setLoadingReport] = useState(false);
   const [isArchiving, setIsArchiving] = useState(null);
 
-   console.log('[RENDER] Page rendering. Current "diets" state:', JSON.parse(JSON.stringify(diets)));
+  console.log('[RENDER] Page rendering. Current "diets" state:', JSON.parse(JSON.stringify(diets)));
 
   // --- [CORRECTED] Sorting constant matching the backend model ---
   // --- [CORRECTED] Sorting constant matching the backend model ---
-const DIET_PLAN_MEAL_ORDER = [
-  "Early Morning",
-  "Breakfast",
-  "Mid Morning Snack",
-  "Lunch",
-  "Afternoon Snack",
-  "Dinner",
-  "Bedtime",
-];
+  const DIET_PLAN_MEAL_ORDER = [
+    "Early Morning",
+    "Breakfast",
+    "Mid Morning Snack",
+    "Lunch",
+    "Afternoon Snack",
+    "Dinner",
+    "Bedtime",
+  ];
 
-const MANDATORY_PROFILE_FIELDS = [
+  const MANDATORY_PROFILE_FIELDS = [
     'full_name',
     'date_of_birth',
     'gender',
@@ -189,22 +190,22 @@ const MANDATORY_PROFILE_FIELDS = [
 
   // [UPDATED] Check for profile completion (This is the new hard requirement for the button)
   const isProfileComplete = useMemo(() => {
-  // First, handle the initial loading/error/placeholder states.
-  if (!profile || profile.full_name === "New Patient (Profile Incomplete)" || profile.full_name === "Error Loading Patient") {
-    return false;
-  }
-
-  // Now, check if every mandatory field has a valid, non-empty value.
-  return MANDATORY_PROFILE_FIELDS.every(field => {
-    const value = profile[field];
-    // For numbers, we must allow 0. `!= null` checks for both null and undefined.
-    if (typeof value === 'number') {
-      return value != null;
+    // First, handle the initial loading/error/placeholder states.
+    if (!profile || profile.full_name === "New Patient (Profile Incomplete)" || profile.full_name === "Error Loading Patient") {
+      return false;
     }
-    // For strings and other types, a simple truthy check is fine (e.g., an empty string is falsy).
-    return !!value; 
-  });
-}, [profile]);
+
+    // Now, check if every mandatory field has a valid, non-empty value.
+    return MANDATORY_PROFILE_FIELDS.every(field => {
+      const value = profile[field];
+      // For numbers, we must allow 0. `!= null` checks for both null and undefined.
+      if (typeof value === 'number') {
+        return value != null;
+      }
+      // For strings and other types, a simple truthy check is fine (e.g., an empty string is falsy).
+      return !!value;
+    });
+  }, [profile]);
 
   // [NEW] A separate check to see if lab reports exist (This will be used for showing messages)
   const hasLabReports = useMemo(() => {
@@ -220,12 +221,12 @@ const MANDATORY_PROFILE_FIELDS = [
 
     // --- The single theme for the hover state, now including title color ---
     const primaryHoverTheme = {
-        border: 'group-hover:border-[var(--color-primary)]/70',
-        iconBg: 'group-hover:bg-[var(--color-primary-bg-subtle)]',
-        iconText: 'group-hover:text-[var(--color-primary)]',
-        titleText: 'group-hover:text-[var(--color-primary)]', // <--- THE NEW ADDITION
+      border: 'group-hover:border-[var(--color-primary)]/70',
+      iconBg: 'group-hover:bg-[var(--color-primary-bg-subtle)]',
+      iconText: 'group-hover:text-[var(--color-primary)]',
+      titleText: 'group-hover:text-[var(--color-primary)]', // <--- THE NEW ADDITION
     };
-    
+
     // --- Suggestion 1: Diabetes / High Blood Sugar ---
     const isDiabeticCondition =
       profile.is_diabetic ||
@@ -271,7 +272,7 @@ const MANDATORY_PROFILE_FIELDS = [
         theme: primaryHoverTheme,
       });
     }
-    
+
     // --- Suggestion 5: High Uric Acid (Gout Risk) ---
     if (latestReport.uric_acid > 6.8) {
       suggestions.push({
@@ -295,7 +296,7 @@ const MANDATORY_PROFILE_FIELDS = [
   const findLatestValidPlan = (allPlans) => {
     if (!allPlans || allPlans.length === 0) return null;
 
-    
+
     const nonRejected = allPlans.filter((diet) => diet.status !== "rejected");
     nonRejected.sort(
       (a, b) => new Date(b.for_week_starting) - new Date(a.for_week_starting)
@@ -308,7 +309,7 @@ const MANDATORY_PROFILE_FIELDS = [
       const dietRes = await getDietByPatientId(id);
 
       console.log('[FETCH-A] Inside fetchAndSetAllPlans. Raw API Response:', JSON.parse(JSON.stringify(dietRes.data)));
-      
+
       const allDietsData = (dietRes.data.results || []).sort(
         (a, b) => new Date(b.for_week_starting) - new Date(a.for_week_starting)
       );
@@ -333,9 +334,9 @@ const MANDATORY_PROFILE_FIELDS = [
             plan.for_week_starting + "T00:00:00"
           ).toLocaleDateString()} - Current`;
         } else if (plan.status === 'archived') {
-            label = `${new Date(
-                plan.for_week_starting + "T00:00:00"
-            ).toLocaleDateString()} (Archived)`;
+          label = `${new Date(
+            plan.for_week_starting + "T00:00:00"
+          ).toLocaleDateString()} (Archived)`;
         }
         return { id: plan.id, label: label, status: plan.status }; // Add status to option
       });
@@ -348,87 +349,87 @@ const MANDATORY_PROFILE_FIELDS = [
     }
   }, [id]);
   const isCurrentPlanApproved = useMemo(() => {
-  // We only display one diet plan at a time in the `diets` state array.
-  // So, we can safely check the first (and only) item.
-  if (diets && diets.length > 0) {
-    return diets[0].status === 'approved';
-  }
-  return false; // Default to false if no diet is being displayed
-}, [diets]);
-
-  
-useEffect(() => {
-  const fetchPatientData = async () => {
-    setIsLoading(true);
-    try {
-      const today = new Date().toISOString().split("T")[0];
-
-      // --- [REVISED] Fetch the combined profile/report and the full report history separately.
-      const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes] =
-        await Promise.all([
-          // This is now our primary source of truth for the display
-          getPatientProfile(id).catch((err) => {
-            if (err.response && err.response.status === 404) {
-              return { data: { profile: null, latest_lab_report: null } };
-            }
-            throw err;
-          }),
-          // This call is ONLY for populating the dropdown history
-          getAllLabReports(id).catch(() => ({ data: { results: [] } })),
-          getPatientMeals(id).catch(() => ({ data: { results: [] } })),
-          getTargetNutrients(id, today).catch(() => ({ data: null })),
-        ]);
-
-      // --- [REVISED] State setting logic based on the new API response ---
-      const { profile, latest_lab_report } = profileAndReportRes.data;
-
-      // 1. Set the Basic Profile State
-      if (profile) {
-        setProfile(profile);
-      } else {
-        setProfile({ full_name: "New Patient (Profile Incomplete)" });
-      }
-
-      // 2. Set the Lab Report State for Display
-      if (latest_lab_report) {
-        setLabReports([latest_lab_report]);
-        setSelectedReportId(latest_lab_report.id);
-      } else {
-        setLabReports([]);
-      }
-
-      // 3. Set the Lab Report History for the Dropdown
-      const allReports = (allReportsHistoryRes?.data?.results || []).sort(
-        (a, b) => new Date(b.report_date) - new Date(a.report_date)
-      );
-      setAllLabReportsHistory(allReports);
-
-      // Set other states as before
-      setMeals(mealsRes?.data?.results || []);
-      setTargetNutrients(targetNutrientsRes?.data);
-
-      // Fetch and set the diet plans
-      const { latestPlan } = await fetchAndSetAllPlans();
-      if (latestPlan) {
-        setDiets([latestPlan]);
-        setSelectedPlanId(latestPlan.id);
-        const planDays = Object.keys(latestPlan.meals || {});
-        if (planDays.length > 0) setActiveDayPerDiet({ [latestPlan.id]: planDays[0] });
-      } else {
-        setDiets([]);
-        setSelectedPlanId(null);
-      }
-    } catch (err) {
-      console.error("Critical error fetching patient details:", err);
-      toast.error("Could not load critical patient data.");
-      setProfile({ full_name: "Error Loading Patient" });
-    } finally {
-      setIsLoading(false);
+    // We only display one diet plan at a time in the `diets` state array.
+    // So, we can safely check the first (and only) item.
+    if (diets && diets.length > 0) {
+      return diets[0].status === 'approved';
     }
-  };
+    return false; // Default to false if no diet is being displayed
+  }, [diets]);
 
-  fetchPatientData();
-}, [id, fetchAndSetAllPlans]);
+
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      setIsLoading(true);
+      try {
+        const today = new Date().toISOString().split("T")[0];
+
+        // --- [REVISED] Fetch the combined profile/report and the full report history separately.
+        const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes] =
+          await Promise.all([
+            // This is now our primary source of truth for the display
+            getPatientProfile(id).catch((err) => {
+              if (err.response && err.response.status === 404) {
+                return { data: { profile: null, latest_lab_report: null } };
+              }
+              throw err;
+            }),
+            // This call is ONLY for populating the dropdown history
+            getAllLabReports(id).catch(() => ({ data: { results: [] } })),
+            getPatientMeals(id).catch(() => ({ data: { results: [] } })),
+            getTargetNutrients(id, today).catch(() => ({ data: null })),
+          ]);
+
+        // --- [REVISED] State setting logic based on the new API response ---
+        const { profile, latest_lab_report } = profileAndReportRes.data;
+
+        // 1. Set the Basic Profile State
+        if (profile) {
+          setProfile(profile);
+        } else {
+          setProfile({ full_name: "New Patient (Profile Incomplete)" });
+        }
+
+        // 2. Set the Lab Report State for Display
+        if (latest_lab_report) {
+          setLabReports([latest_lab_report]);
+          setSelectedReportId(latest_lab_report.id);
+        } else {
+          setLabReports([]);
+        }
+
+        // 3. Set the Lab Report History for the Dropdown
+        const allReports = (allReportsHistoryRes?.data?.results || []).sort(
+          (a, b) => new Date(b.report_date) - new Date(a.report_date)
+        );
+        setAllLabReportsHistory(allReports);
+
+        // Set other states as before
+        setMeals(mealsRes?.data?.results || []);
+        setTargetNutrients(targetNutrientsRes?.data);
+
+        // Fetch and set the diet plans
+        const { latestPlan } = await fetchAndSetAllPlans();
+        if (latestPlan) {
+          setDiets([latestPlan]);
+          setSelectedPlanId(latestPlan.id);
+          const planDays = Object.keys(latestPlan.meals || {});
+          if (planDays.length > 0) setActiveDayPerDiet({ [latestPlan.id]: planDays[0] });
+        } else {
+          setDiets([]);
+          setSelectedPlanId(null);
+        }
+      } catch (err) {
+        console.error("Critical error fetching patient details:", err);
+        toast.error("Could not load critical patient data.");
+        setProfile({ full_name: "Error Loading Patient" });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPatientData();
+  }, [id, fetchAndSetAllPlans]);
 
   useEffect(() => {
     const activeTabRef = tabRefs.current.find(
@@ -446,12 +447,12 @@ useEffect(() => {
     !dob
       ? "-"
       : Math.floor(
-          (Date.now() - new Date(dob).getTime()) /
-            (1000 * 60 * 60 * 24 * 365.25)
-        );
+        (Date.now() - new Date(dob).getTime()) /
+        (1000 * 60 * 60 * 24 * 365.25)
+      );
 
   // --- [UPDATED & CORRECTED] The handleSave logic with explicit mapping ---
-const handleSave = async (dietId, day) => {
+  const handleSave = async (dietId, day) => {
     setIsSaving(true);
     const dayChanges = editStates[dietId]?.[day];
 
@@ -470,7 +471,7 @@ const handleSave = async (dietId, day) => {
     // Iterate over the changed meals
     for (const rawMealKey in dayChanges) {
       const mealData = dayChanges[rawMealKey];
-      
+
       // --- [THIS IS THE NEW MAPPING LOGIC] ---
       // 1. Normalize the key from our state (e.g., "Early Morning", "early-morning" all become "early morning")
       const normalizedKey = rawMealKey.replace(/-/g, " ").toLowerCase();
@@ -478,7 +479,7 @@ const handleSave = async (dietId, day) => {
       // 2. Look up the correct API key from our mapping object.
       //    If a key is not found in the map, we'll use the original key as a safe fallback.
       const apiMealKey = MEAL_TYPE_API_MAPPING[normalizedKey] || rawMealKey;
-      
+
       // For developers: log a warning if a meal type isn't in our map
       if (!MEAL_TYPE_API_MAPPING[normalizedKey]) {
         console.warn(`Meal type "${rawMealKey}" was not found in MEAL_TYPE_API_MAPPING. Using original key as fallback.`);
@@ -498,7 +499,7 @@ const handleSave = async (dietId, day) => {
     try {
       await editDiet(dietId, payload);
       toast.success("Changes saved!");
-      
+
       const { allDietsData } = await fetchAndSetAllPlans();
       const updatedPlan = allDietsData.find((p) => p.id === dietId);
       if (updatedPlan) {
@@ -525,124 +526,124 @@ const handleSave = async (dietId, day) => {
   };
 
   const handleEditProfileClick = () => {
-  // [UPDATED] Merge the current profile with the complete structure template.
-  // This ensures all fields (even empty ones) are present for the edit form.
-  setEditableProfile({
-    ...PROFILE_STRUCTURE_TEMPLATE,
-    ...profile,
-  });
-  setIsEditingProfile(true);
-};
+    // [UPDATED] Merge the current profile with the complete structure template.
+    // This ensures all fields (even empty ones) are present for the edit form.
+    setEditableProfile({
+      ...PROFILE_STRUCTURE_TEMPLATE,
+      ...profile,
+    });
+    setIsEditingProfile(true);
+  };
 
-const handleCancelProfileEdit = () => {
-  setIsEditingProfile(false);
-  setEditableProfile(null);
-};
-
-const handleProfileInputChange = (e) => {
-  const { name, value, type, checked } = e.target;
-  setEditableProfile((prev) => ({
-    ...prev,
-    [name]: type === "checkbox" ? checked : value,
-  }));
-};
-
-const handleSaveProfile = async () => {
-  setIsSavingProfile(true);
-  try {
-    // We assume updatePatientProfile takes (patientId, data)
-    const res = await updatePatientProfile(id, editableProfile);
-    
-    // [FIXED] Use res.data directly, as it is the profile object.
-    setProfile(res.data); 
-
+  const handleCancelProfileEdit = () => {
     setIsEditingProfile(false);
     setEditableProfile(null);
-    toast.success("Profile updated successfully!");
-  } catch (err) {
-    console.error("Failed to update profile:", err);
-    toast.error(err.response?.data?.detail || "Failed to update profile.");
-  } finally {
-    setIsSavingProfile(false);
-  }
-};
+  };
 
-const handleEditReportClick = () => {
-  // Assumes we are editing the first (and only) displayed report
-  if (labReports.length > 0) {
-    setEditableReport(JSON.parse(JSON.stringify(labReports[0])));
-    setIsEditingReport(true);
-  }
-};
+  const handleProfileInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditableProfile((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
 
-const handleCancelReportEdit = () => {
-  setIsEditingReport(false);
-  setEditableReport(null);
-};
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      // We assume updatePatientProfile takes (patientId, data)
+      const res = await updatePatientProfile(id, editableProfile);
 
-const handleReportInputChange = (key, value) => {
-  setEditableReport((prev) => ({
-    ...prev,
-    [key]: value,
-  }));
-};
+      // [FIXED] Use res.data directly, as it is the profile object.
+      setProfile(res.data);
 
-const handleSaveReport = async () => {
-  if (!editableReport) return;
-  setIsSavingReport(true);
+      setIsEditingProfile(false);
+      setEditableProfile(null);
+      toast.success("Profile updated successfully!");
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      toast.error(err.response?.data?.detail || "Failed to update profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
-  const originalReport = labReports[0];
-  const changesPayload = {};
+  const handleEditReportClick = () => {
+    // Assumes we are editing the first (and only) displayed report
+    if (labReports.length > 0) {
+      setEditableReport(JSON.parse(JSON.stringify(labReports[0])));
+      setIsEditingReport(true);
+    }
+  };
 
-  for (const key in editableReport) {
-    if (
-      Object.prototype.hasOwnProperty.call(editableReport, key) &&
-      !['id', 'user', 'report_file'].includes(key)
-    ) {
-      if (editableReport[key] !== originalReport[key]) {
-        changesPayload[key] = editableReport[key];
+  const handleCancelReportEdit = () => {
+    setIsEditingReport(false);
+    setEditableReport(null);
+  };
+
+  const handleReportInputChange = (key, value) => {
+    setEditableReport((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleSaveReport = async () => {
+    if (!editableReport) return;
+    setIsSavingReport(true);
+
+    const originalReport = labReports[0];
+    const changesPayload = {};
+
+    for (const key in editableReport) {
+      if (
+        Object.prototype.hasOwnProperty.call(editableReport, key) &&
+        !['id', 'user', 'report_file'].includes(key)
+      ) {
+        if (editableReport[key] !== originalReport[key]) {
+          changesPayload[key] = editableReport[key];
+        }
       }
     }
-  }
 
-  if (Object.keys(changesPayload).length === 0) {
-    toast.info("No changes were made.");
-    setIsEditingReport(false);
-    setEditableReport(null);
-    setIsSavingReport(false);
-    return;
-  }
-
-  try {
-    const reportId = editableReport.id;
-    const patientId = id; 
-    
-    // This call will now work perfectly with the corrected API function
-    await updateLabReport(patientId, reportId, changesPayload);
-    
-    // Refresh the lab reports list after successful update
-    const allReportsRes = await getAllLabReports(patientId);
-    const allReports = (allReportsRes?.data?.results || []).sort(
-      (a, b) => new Date(b.report_date) - new Date(a.report_date)
-    );
-    setAllLabReportsHistory(allReports);
-    
-    const updatedReport = allReports.find(r => r.id === reportId);
-    if (updatedReport) {
-      setLabReports([updatedReport]);
+    if (Object.keys(changesPayload).length === 0) {
+      toast.info("No changes were made.");
+      setIsEditingReport(false);
+      setEditableReport(null);
+      setIsSavingReport(false);
+      return;
     }
 
-    setIsEditingReport(false);
-    setEditableReport(null);
-    toast.success("Lab report updated successfully!");
-  } catch (err) {
-    console.error("Failed to update lab report:", err.response || err);
-    const errorDetail = err.response?.data?.detail || JSON.stringify(err.response?.data) || "Failed to update lab report.";
-    toast.error(errorDetail);
-  } finally {
-    setIsSavingReport(false);
-  }
-};
+    try {
+      const reportId = editableReport.id;
+      const patientId = id;
+
+      // This call will now work perfectly with the corrected API function
+      await updateLabReport(patientId, reportId, changesPayload);
+
+      // Refresh the lab reports list after successful update
+      const allReportsRes = await getAllLabReports(patientId);
+      const allReports = (allReportsRes?.data?.results || []).sort(
+        (a, b) => new Date(b.report_date) - new Date(a.report_date)
+      );
+      setAllLabReportsHistory(allReports);
+
+      const updatedReport = allReports.find(r => r.id === reportId);
+      if (updatedReport) {
+        setLabReports([updatedReport]);
+      }
+
+      setIsEditingReport(false);
+      setEditableReport(null);
+      toast.success("Lab report updated successfully!");
+    } catch (err) {
+      console.error("Failed to update lab report:", err.response || err);
+      const errorDetail = err.response?.data?.detail || JSON.stringify(err.response?.data) || "Failed to update lab report.";
+      toast.error(errorDetail);
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
 
   // --- All other handler functions remain unchanged ---
   const handleReportSelectionChange = (e) => {
@@ -725,42 +726,42 @@ const handleSaveReport = async () => {
 
   const handleArchivePlan = async (dietId) => {
     if (window.confirm("Are you sure you want to archive this diet plan? It can be restored later.")) {
-        setIsArchiving(dietId);
-        try {
-            await archiveDietPlan(dietId);
-            toast.success("Diet plan archived successfully!");
-            // Re-fetch all plans to update the UI
-            const { latestPlan } = await fetchAndSetAllPlans();
-            setDiets(latestPlan ? [latestPlan] : []); // Display the new latest non-archived plan
-            setSelectedPlanId(latestPlan ? latestPlan.id : null);
-        } catch (err) {
-            console.error("Failed to archive diet plan:", err);
-            toast.error("Failed to archive plan.");
-        } finally {
-            setIsArchiving(null);
-        }
+      setIsArchiving(dietId);
+      try {
+        await archiveDietPlan(dietId);
+        toast.success("Diet plan archived successfully!");
+        // Re-fetch all plans to update the UI
+        const { latestPlan } = await fetchAndSetAllPlans();
+        setDiets(latestPlan ? [latestPlan] : []); // Display the new latest non-archived plan
+        setSelectedPlanId(latestPlan ? latestPlan.id : null);
+      } catch (err) {
+        console.error("Failed to archive diet plan:", err);
+        toast.error("Failed to archive plan.");
+      } finally {
+        setIsArchiving(null);
+      }
     }
-};
+  };
 
-// --- [NEW] handleRestorePlan function ---
-const handleRestorePlan = async (dietId) => {
+  // --- [NEW] handleRestorePlan function ---
+  const handleRestorePlan = async (dietId) => {
     if (window.confirm("Are you sure you want to restore this diet plan?")) {
-        setIsArchiving(dietId);
-        try {
-            await restoreDietPlan(dietId);
-            toast.success("Diet plan restored successfully!");
-            // Re-fetch all plans to update the UI
-            const { latestPlan } = await fetchAndSetAllPlans();
-            setDiets(latestPlan ? [latestPlan] : []); // Display the new latest non-archived plan
-            setSelectedPlanId(latestPlan ? latestPlan.id : null);
-        } catch (err) {
-            console.error("Failed to restore diet plan:", err);
-            toast.error("Failed to restore plan.");
-        } finally {
-            setIsArchiving(null);
-        }
+      setIsArchiving(dietId);
+      try {
+        await restoreDietPlan(dietId);
+        toast.success("Diet plan restored successfully!");
+        // Re-fetch all plans to update the UI
+        const { latestPlan } = await fetchAndSetAllPlans();
+        setDiets(latestPlan ? [latestPlan] : []); // Display the new latest non-archived plan
+        setSelectedPlanId(latestPlan ? latestPlan.id : null);
+      } catch (err) {
+        console.error("Failed to restore diet plan:", err);
+        toast.error("Failed to restore plan.");
+      } finally {
+        setIsArchiving(null);
+      }
     }
-};
+  };
 
   const handleMealSearchByDate = async (e) => {
     const input = e.target.value;
@@ -783,7 +784,7 @@ const handleRestorePlan = async (dietId) => {
 
   // Inside PatientDetailsPage.jsx
 
-const handleLogDateClick = async (date) => {
+  const handleLogDateClick = async (date) => {
     const newActiveDate = activeLogDate === date ? null : date;
     setActiveLogDate(newActiveDate);
 
@@ -799,7 +800,7 @@ const handleLogDateClick = async (date) => {
       const month = String(localDate.getMonth() + 1).padStart(2, '0');
       // Pad with '0' if it's a single digit.
       const day = String(localDate.getDate()).padStart(2, '0');
-      
+
       const formattedDateForApi = `${year}-${month}-${day}`;
       // --- END OF FIX ---
 
@@ -846,95 +847,95 @@ const handleLogDateClick = async (date) => {
     }
   };
 
-   // --- [CORRECTED] handleGenerateDiet with polling for real-time updates ---
-   // --- [MODIFIED] handleGenerateDiet with delayed fetch instead of polling ---
-const handleGenerateDiet = async () => {
-  if (
-    !window.confirm(
-      "Generate a new AI diet plan? This will run in background."
-    )
-  ) {
-    return;
-  }
+  // --- [CORRECTED] handleGenerateDiet with polling for real-time updates ---
+  // --- [MODIFIED] handleGenerateDiet with delayed fetch instead of polling ---
+  const handleGenerateDiet = async () => {
+    if (
+      !window.confirm(
+        "Generate a new AI diet plan? This will run in background."
+      )
+    ) {
+      return;
+    }
 
-  setIsGenerating(true);
+    setIsGenerating(true);
 
-  try {
-    // 1️⃣ Backend returns placeholder plan immediately
-    const res = await generateDietPlan(id);
-    const placeholderPlan = res.data;
+    try {
+      // 1️⃣ Backend returns placeholder plan immediately
+      const res = await generateDietPlan(id);
+      const placeholderPlan = res.data;
 
-    toast.info("AI generation started...");
+      toast.info("AI generation started...");
 
-    // Show placeholder immediately
-    setDiets([placeholderPlan]);
-    setSelectedPlanId(placeholderPlan.id);
+      // Show placeholder immediately
+      setDiets([placeholderPlan]);
+      setSelectedPlanId(placeholderPlan.id);
 
-    const planId = placeholderPlan.id;
+      const planId = placeholderPlan.id;
 
-    const POLL_INTERVAL = 8000;   // 8 seconds
-    const MAX_ATTEMPTS = 25;      // ~3 minutes max
-    let attempts = 0;
+      const POLL_INTERVAL = 8000;   // 8 seconds
+      const MAX_ATTEMPTS = 25;      // ~3 minutes max
+      let attempts = 0;
 
-    const poll = async () => {
-      attempts++;
+      const poll = async () => {
+        attempts++;
 
-      try {
-        const { allDietsData } = await fetchAndSetAllPlans();
-        const updatedPlan = allDietsData.find(p => p.id === planId);
+        try {
+          const { allDietsData } = await fetchAndSetAllPlans();
+          const updatedPlan = allDietsData.find(p => p.id === planId);
 
-        if (!updatedPlan) {
-          if (attempts < MAX_ATTEMPTS) {
-            setTimeout(poll, POLL_INTERVAL);
-          } else {
-            toast.warn("Plan still processing. Please refresh later.");
-            setIsGenerating(false);
+          if (!updatedPlan) {
+            if (attempts < MAX_ATTEMPTS) {
+              setTimeout(poll, POLL_INTERVAL);
+            } else {
+              toast.warn("Plan still processing. Please refresh later.");
+              setIsGenerating(false);
+            }
+            return;
           }
-          return;
-        }
 
-        // ✅ SUCCESS
-        if (updatedPlan.status === "pending") {
-          toast.success("Diet plan generated successfully!");
-          setDiets([updatedPlan]);
-          setIsGenerating(false);
-          return;
-        }
-
-        // ❌ FAILED
-        if (updatedPlan.status === "failed") {
-          toast.error("AI failed to generate the plan.");
-          setDiets([updatedPlan]);
-          setIsGenerating(false);
-          return;
-        }
-
-        // 🔄 STILL GENERATING
-        if (updatedPlan.status === "generating") {
-          if (attempts < MAX_ATTEMPTS) {
-            setTimeout(poll, POLL_INTERVAL);
-          } else {
-            toast.warn("Still generating. Please check later.");
+          // ✅ SUCCESS
+          if (updatedPlan.status === "pending") {
+            toast.success("Diet plan generated successfully!");
+            setDiets([updatedPlan]);
             setIsGenerating(false);
+            return;
           }
+
+          // ❌ FAILED
+          if (updatedPlan.status === "failed") {
+            toast.error("AI failed to generate the plan.");
+            setDiets([updatedPlan]);
+            setIsGenerating(false);
+            return;
+          }
+
+          // 🔄 STILL GENERATING
+          if (updatedPlan.status === "generating") {
+            if (attempts < MAX_ATTEMPTS) {
+              setTimeout(poll, POLL_INTERVAL);
+            } else {
+              toast.warn("Still generating. Please check later.");
+              setIsGenerating(false);
+            }
+          }
+
+        } catch (err) {
+          console.error("Polling error:", err);
+          toast.error("Error checking plan status.");
+          setIsGenerating(false);
         }
+      };
 
-      } catch (err) {
-        console.error("Polling error:", err);
-        toast.error("Error checking plan status.");
-        setIsGenerating(false);
-      }
-    };
+      setTimeout(poll, POLL_INTERVAL);
 
-    setTimeout(poll, POLL_INTERVAL);
-
-  } catch (err) {
-    toast.error(
-      err.response?.data?.error || "Failed to start generation."
-    );
-    setIsGenerating(false);
-  }
-};
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error || "Failed to start generation."
+      );
+      setIsGenerating(false);
+    }
+  };
 
 
 
@@ -942,7 +943,7 @@ const handleGenerateDiet = async () => {
     setEditStates((prev) => {
       // Get previous changes for the specific day, or start with a new empty object.
       const dayChanges = prev[dietId]?.[day] || {};
-      
+
       // Get previous changes for the specific meal, or start with a new empty object.
       const mealChanges = dayChanges[mealType] || {};
 
@@ -1043,11 +1044,11 @@ const handleGenerateDiet = async () => {
     uncategorized: <Utensils size={18} />,
   };
   const hasPendingOrApprovedPlan = allDietPlans.some(
-  (diet) =>
-    diet.status === "pending" ||
-    diet.status === "approved" ||
-    diet.status === "generating"
-);
+    (diet) =>
+      diet.status === "pending" ||
+      diet.status === "approved" ||
+      diet.status === "generating"
+  );
 
   const currentPlan = diets[0];
 
@@ -1146,48 +1147,48 @@ const handleGenerateDiet = async () => {
               </div>
             </div>
             {targetNutrients && (
-<div className="w-full lg:w-auto mt-4 lg:mt-0 p-4 bg-white border border-[var(--color-border-default)] rounded-xl shadow-sm">
-  {/* Header */}
-  <div className="flex items-center gap-4 mb-4 border-b border-dashed border-[var(--color-border-default)] pb-3">
-    <Flame className="text-orange-500 w-8 h-8 transition-transform duration-300 hover:scale-110" />
-    <div>
-      <h3 className="text-xs font-semibold uppercase text-[var(--color-text-muted)] tracking-wider">
-        Target Calories
-      </h3>
-      <p className="text-2xl font-bold text-[var(--color-text-strong)] leading-tight">
-        {Math.round(targetNutrients.recommended_calories)}{" "}
-        <span className="text-base font-semibold text-[var(--color-primary)] ml-1">kcal</span>
-      </p>
-    </div>
-  </div>
+              <div className="w-full lg:w-auto mt-4 lg:mt-0 p-4 bg-white border border-[var(--color-border-default)] rounded-xl shadow-sm">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-4 border-b border-dashed border-[var(--color-border-default)] pb-3">
+                  <Flame className="text-orange-500 w-8 h-8 transition-transform duration-300 hover:scale-110" />
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase text-[var(--color-text-muted)] tracking-wider">
+                      Target Calories
+                    </h3>
+                    <p className="text-2xl font-bold text-[var(--color-text-strong)] leading-tight">
+                      {Math.round(targetNutrients.recommended_calories)}{" "}
+                      <span className="text-base font-semibold text-[var(--color-primary)] ml-1">kcal</span>
+                    </p>
+                  </div>
+                </div>
 
-  {/* Nutrients */}
-  <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-4 gap-y-4 justify-items-center text-center font-[var(--font-secondary)]">
-    {[
-      { label: "Protein", value: targetNutrients.macronutrients?.protein_g, icon: <Drumstick size={20} /> },
-      { label: "Carbs", value: targetNutrients.macronutrients?.carbs_g, icon: <Wheat size={20} /> },
-      { label: "Fats", value: targetNutrients.macronutrients?.fats_g, icon: <Droplets size={20} /> },
-      { label: "Sugar", value: targetNutrients.macronutrients?.sugar_g, icon: <Apple size={20} /> },
-      { label: "Fiber", value: targetNutrients.macronutrients?.fiber_g, icon: <Leaf size={20} /> },
-    ].map((n) => (
-      <div key={n.label} className="flex flex-col items-center w-20 group transition-all duration-200">
-        <div className="flex items-center gap-1 text-[var(--color-text-strong)]">
-          <span className="text-[var(--color-primary)] group-hover:scale-110 transition-transform duration-200">
-            {n.icon}
-          </span>
-          <p className="font-bold text-lg">
-            {Math.round(n.value)}
-            <span className="text-[13px] font-semibold text-[var(--color-primary)] ml-0.5">g</span>
-          </p>
-        </div>
-        <p className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase mt-1 tracking-wide">
-          {n.label}
-        </p>
-      </div>
-    ))}
-  </div>
-</div>
-      )}
+                {/* Nutrients */}
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-4 gap-y-4 justify-items-center text-center font-[var(--font-secondary)]">
+                  {[
+                    { label: "Protein", value: targetNutrients.macronutrients?.protein_g, icon: <Drumstick size={20} /> },
+                    { label: "Carbs", value: targetNutrients.macronutrients?.carbs_g, icon: <Wheat size={20} /> },
+                    { label: "Fats", value: targetNutrients.macronutrients?.fats_g, icon: <Droplets size={20} /> },
+                    { label: "Sugar", value: targetNutrients.macronutrients?.sugar_g, icon: <Apple size={20} /> },
+                    { label: "Fiber", value: targetNutrients.macronutrients?.fiber_g, icon: <Leaf size={20} /> },
+                  ].map((n) => (
+                    <div key={n.label} className="flex flex-col items-center w-20 group transition-all duration-200">
+                      <div className="flex items-center gap-1 text-[var(--color-text-strong)]">
+                        <span className="text-[var(--color-primary)] group-hover:scale-110 transition-transform duration-200">
+                          {n.icon}
+                        </span>
+                        <p className="font-bold text-lg">
+                          {Math.round(n.value)}
+                          <span className="text-[13px] font-semibold text-[var(--color-primary)] ml-0.5">g</span>
+                        </p>
+                      </div>
+                      <p className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase mt-1 tracking-wide">
+                        {n.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="mt-6 pt-6 border-t-2 border-dashed border-[var(--color-border-default)] flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-[var(--font-secondary)]">
             <div className="flex items-center gap-2 font-semibold">
@@ -1218,11 +1219,10 @@ const handleGenerateDiet = async () => {
                   ref={(el) => (tabRefs.current[index] = el)}
                   data-tab-key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`relative flex-shrink-0 flex items-center gap-2.5 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold transition-colors duration-300 outline-none ${
-                    activeTab === tab.key
+                  className={`relative flex-shrink-0 flex items-center gap-2.5 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold transition-colors duration-300 outline-none ${activeTab === tab.key
                       ? "text-[var(--color-primary)]"
                       : "text-[var(--color-text-default)] hover:text-[var(--color-text-strong)]"
-                  }`}
+                    }`}
                 >
                   {tab.icon} <span>{tab.label}</span>
                 </button>
@@ -1243,255 +1243,255 @@ const handleGenerateDiet = async () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
               >
-                
-{activeTab === "profile" && (
-  <div>
-    {/* --- [NEW] Edit/Save/Cancel controls for Profile --- */}
-    <div className="flex justify-end items-center mb-4 gap-3">
-      {isEditingProfile ? (
-        <>
-          <button
-            onClick={handleCancelProfileEdit}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
-          >
-            <FaTimes /> Cancel
-          </button>
-          <button
-            onClick={handleSaveProfile}
-            disabled={isSavingProfile}
-            className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
-          >
-            {isSavingProfile ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
-          </button>
-        </>
-      ) : (
-        <button
-          onClick={handleEditProfileClick}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg)] hover:text-[var(--color-text-on-primary)] transition-all duration-200"
-        >
-          <FaPencilAlt /> Edit Profile
-        </button>
-      )}
-    </div>
 
-    {/* --- [UPDATED] The rest of the profile section --- */}
-    {/* --- [FULLY UPDATED] Profile content section --- */}
-<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-  {/* Left Column: Stats & Preferences */}
-  <div className="space-y-6">
-    <h3 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)]">
-      Core Statistics
-    </h3>
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <ContentCard className="text-center">
-        <p className="text-sm text-[var(--color-text-muted)] font-semibold">Height</p>
-        {isEditingProfile ? (
-          <input type="number" name="height_cm" value={editableProfile.height_cm || ""} onChange={handleProfileInputChange} className="mt-1 text-3xl font-bold w-full text-center bg-transparent focus:outline-none" />
-        ) : (
-          <p className="mt-1 text-3xl font-bold text-[var(--color-text-strong)]">
-            {profile.height_cm ? `${profile.height_cm} cm` : "Not Set"}
-          </p>
-        )}
-      </ContentCard>
-      <ContentCard className="text-center">
-        <p className="text-sm text-[var(--color-text-muted)] font-semibold">Weight</p>
-        {isEditingProfile ? (
-          <input type="number" name="weight_kg" value={editableProfile.weight_kg || ""} onChange={handleProfileInputChange} className="mt-1 text-3xl font-bold w-full text-center bg-transparent focus:outline-none" />
-        ) : (
-          <p className="mt-1 text-3xl font-bold text-[var(--color-text-strong)]">
-            {profile.weight_kg ? `${profile.weight_kg} kg` : "Not Set"}
-          </p>
-        )}
-      </ContentCard>
-      <ContentCard className="text-center">
-        <p className="text-sm text-[var(--color-text-muted)] font-semibold">BMI</p>
-        <p className="mt-1 text-3xl font-bold text-[var(--color-text-strong)]">{profile.bmi?.toFixed(1) || "Not Set"}</p>
-      </ContentCard>
-    </div>
+                {activeTab === "profile" && (
+                  <div>
+                    {/* --- [NEW] Edit/Save/Cancel controls for Profile --- */}
+                    <div className="flex justify-end items-center mb-4 gap-3">
+                      {isEditingProfile ? (
+                        <>
+                          <button
+                            onClick={handleCancelProfileEdit}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
+                          >
+                            <FaTimes /> Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveProfile}
+                            disabled={isSavingProfile}
+                            className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
+                          >
+                            {isSavingProfile ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleEditProfileClick}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg)] hover:text-[var(--color-text-on-primary)] transition-all duration-200"
+                        >
+                          <FaPencilAlt /> Edit Profile
+                        </button>
+                      )}
+                    </div>
 
-    <h3 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)] pt-4 border-t-2 border-dashed border-[var(--color-border-default)]">
-      Goals & Preferences
-    </h3>
-    <div className="space-y-4">
-      {/* Dynamic Fields */}
-      {[
-        { icon: FaBullseye, label: "Primary Goal", key: "goal", options: goals },
-        { icon: Zap, label: "Activity Level", key: "activity_level", options: activityLevels },
-        { icon: Utensils, label: "Dietary Preference", key: "diet_type", options: dietTypeOptions },
-        { icon: FaAllergies, label: "Allergies", key: "allergies", options: allergyOptions },
-      ].map(({ icon: Icon, label, key, options }) => (
-        <ContentCard key={key} className="flex items-center gap-4">
-          <span className="text-2xl text-[var(--color-primary)] p-2 bg-[var(--color-primary-bg-subtle)] rounded-lg"><Icon/></span>
-          <div className="w-full">
-            <p className="text-sm text-[var(--color-text-default)]">{label}</p>
-            {isEditingProfile ? (
-              
-              
-            <Select
-    styles={themedSelectStyles}
-    options={options}
-    value={options.find(opt => opt.value === (editableProfile?.[key] || ''))}
-    onChange={(selected) => handleProfileInputChange({ target: { name: key, value: selected.value }})}
-    
-    // [ADD THESE TWO PROPS TO FIX OVERLAPPING]
-    menuPosition="fixed"
-    menuPortalTarget={document.body}
-  />
-            ) : (
-              <p className="capitalize font-semibold text-[var(--color-text-strong)]">{profile[key]?.replace(/_/g, " ") || 'Not Set'}</p>
-            )}
-          </div>
-        </ContentCard>
-      ))}
-    </div>
-  </div>
+                    {/* --- [UPDATED] The rest of the profile section --- */}
+                    {/* --- [FULLY UPDATED] Profile content section --- */}
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      {/* Left Column: Stats & Preferences */}
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)]">
+                          Core Statistics
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <ContentCard className="text-center">
+                            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Height</p>
+                            {isEditingProfile ? (
+                              <input type="number" name="height_cm" value={editableProfile.height_cm || ""} onChange={handleProfileInputChange} className="mt-1 text-3xl font-bold w-full text-center bg-transparent focus:outline-none" />
+                            ) : (
+                              <p className="mt-1 text-3xl font-bold text-[var(--color-text-strong)]">
+                                {profile.height_cm ? `${profile.height_cm} cm` : "Not Set"}
+                              </p>
+                            )}
+                          </ContentCard>
+                          <ContentCard className="text-center">
+                            <p className="text-sm text-[var(--color-text-muted)] font-semibold">Weight</p>
+                            {isEditingProfile ? (
+                              <input type="number" name="weight_kg" value={editableProfile.weight_kg || ""} onChange={handleProfileInputChange} className="mt-1 text-3xl font-bold w-full text-center bg-transparent focus:outline-none" />
+                            ) : (
+                              <p className="mt-1 text-3xl font-bold text-[var(--color-text-strong)]">
+                                {profile.weight_kg ? `${profile.weight_kg} kg` : "Not Set"}
+                              </p>
+                            )}
+                          </ContentCard>
+                          <ContentCard className="text-center">
+                            <p className="text-sm text-[var(--color-text-muted)] font-semibold">BMI</p>
+                            <p className="mt-1 text-3xl font-bold text-[var(--color-text-strong)]">{profile.bmi?.toFixed(1) || "Not Set"}</p>
+                          </ContentCard>
+                        </div>
 
-  {/* Right Column: Medical Summary */}
-  <div className="space-y-6">
-    <h3 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)]">
-      Medical Summary
-    </h3>
-    <ContentCard>
-      <p className="text-sm text-[var(--color-text-default)] font-semibold mb-3">Reported Chronic Conditions</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-        {isEditingProfile ? (
-          medicalConditions.map(({ field, label }) => (
-            <label key={field} className="flex items-center gap-3 font-semibold cursor-pointer">
-              <input type="checkbox" name={field} checked={!!editableProfile?.[field]} onChange={handleProfileInputChange} className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]" />
-              {label}
-            </label>
-          ))
-        ) : (
-          medicalConditions.some(c => profile[c.field]) ? (
-            medicalConditions.map(({ field, label }) =>
-              profile[field] && (
-                <div key={field} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)] font-semibold"><FaCheck />{label}</div>
-              )
-            )
-          ) : (
-            <p className="text-sm text-gray-500 col-span-2">None Reported</p>
-          )
-        )}
-      </div>
-    </ContentCard>
-    <ContentCard>
-      <p className="text-sm text-[var(--color-text-default)] font-semibold mb-2">Family Medical History</p>
-      {isEditingProfile ? (
-          <textarea name="family_history" value={editableProfile.family_history || ""} onChange={handleProfileInputChange} rows="4" className="w-full text-sm bg-[var(--color-bg-app)] focus:outline-none border-2 border-[var(--color-border-default)] focus:border-[var(--color-primary)] rounded-md p-2"/>
-        ) : (
-          <p className="text-sm text-[var(--color-text-strong)] whitespace-pre-wrap">{profile.family_history || "None Reported"}</p>
-        )
-      }
-    </ContentCard>
-  </div>
-</div>
-  </div>
-)}
-                
-                               {activeTab === "reports" && (
-  <div>
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-      <h2 className="text-2xl font-[var(--font-secondary)] font-bold text-[var(--color-text-strong)]">
-        Lab Reports
-      </h2>
-      {allLabReportsHistory.length > 0 && (
-        <div className="flex items-center gap-4">
-          <div className="relative group w-full sm:w-auto">
-            <select
-              id="report-selector"
-              value={selectedReportId}
-              onChange={handleReportSelectionChange}
-              disabled={isEditingReport}
-              className="appearance-none w-full sm:w-56 cursor-pointer bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2.5 pl-4 pr-10 rounded-lg shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-surface)] focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {allLabReportsHistory.map((report) => (
-                <option key={report.id} value={report.id}>Report: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[var(--color-text-muted)] transition-colors duration-300 group-hover:text-[var(--color-primary)]">
-              <FaChevronDown size={14} />
-            </div>
-          </div>
-          {/* --- [NEW] Edit button for Lab Report --- */}
-          {!isEditingReport && (
-            <button
-              onClick={handleEditReportClick}
-              className="p-2.5 rounded-lg text-sm bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg)] hover:text-[var(--color-text-on-primary)] transition-all duration-200"
-              title="Edit this report"
-            >
-              <FaPencilAlt />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+                        <h3 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)] pt-4 border-t-2 border-dashed border-[var(--color-border-default)]">
+                          Goals & Preferences
+                        </h3>
+                        <div className="space-y-4">
+                          {/* Dynamic Fields */}
+                          {[
+                            { icon: FaBullseye, label: "Primary Goal", key: "goal", options: goals },
+                            { icon: Zap, label: "Activity Level", key: "activity_level", options: activityLevels },
+                            { icon: Utensils, label: "Dietary Preference", key: "diet_type", options: dietTypeOptions },
+                            { icon: FaAllergies, label: "Allergies", key: "allergies", options: allergyOptions },
+                          ].map(({ icon: Icon, label, key, options }) => (
+                            <ContentCard key={key} className="flex items-center gap-4">
+                              <span className="text-2xl text-[var(--color-primary)] p-2 bg-[var(--color-primary-bg-subtle)] rounded-lg"><Icon /></span>
+                              <div className="w-full">
+                                <p className="text-sm text-[var(--color-text-default)]">{label}</p>
+                                {isEditingProfile ? (
 
-    {allLabReportsHistory.length === 0 ? (
-      <div className="text-center py-16 bg-[var(--color-bg-app)] rounded-lg border-2 border-dashed border-[var(--color-border-default)]">
-        <FaFileMedicalAlt className="mx-auto h-12 w-12 text-[var(--color-text-muted)]" />
-        <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-strong)]">No Lab Reports Uploaded</h3>
-        <p className="mt-1 text-sm text-[var(--color-text-default)]">The patient has not uploaded any lab reports yet.</p>
-      </div>
-    ) : loadingReport ? (
-      <div className="flex justify-center items-center py-10">
-        <FaSpinner className="animate-spin text-4xl text-[var(--color-primary)]" />
-      </div>
-    ) : (
-      <div className="space-y-8">
-        {(isEditingReport ? [editableReport] : labReports).map((report) => (
-          <div key={report.id} className="bg-[var(--color-bg-app)] p-5 rounded-xl border-2 border-[var(--color-border-default)] shadow-sm">
-            <h4 className="text-lg font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)] mb-4 pb-3 border-b-2 border-dashed border-[var(--color-border-default)]">
-              Report Date: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Object.entries(report)
-                .filter(([key]) => !["id", "user", "report_date", "report_file"].includes(key))
-                .map(([key, value]) => (
-                  <ContentCard key={key} className="bg-[var(--color-bg-surface)]">
-                    <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{key.replace(/_/g, " ")}</p>
-                    {isEditingReport ? (
-                      <input
-                        type="text"
-                        value={editableReport[key] ?? ""}
-                        onChange={(e) => handleReportInputChange(key, e.target.value)}
-                        className="text-2xl font-bold text-[var(--color-text-strong)] mt-1 bg-transparent w-full focus:outline-none"
-                      />
+
+                                  <Select
+                                    styles={themedSelectStyles}
+                                    options={options}
+                                    value={options.find(opt => opt.value === (editableProfile?.[key] || ''))}
+                                    onChange={(selected) => handleProfileInputChange({ target: { name: key, value: selected.value } })}
+
+                                    // [ADD THESE TWO PROPS TO FIX OVERLAPPING]
+                                    menuPosition="fixed"
+                                    menuPortalTarget={document.body}
+                                  />
+                                ) : (
+                                  <p className="capitalize font-semibold text-[var(--color-text-strong)]">{profile[key]?.replace(/_/g, " ") || 'Not Set'}</p>
+                                )}
+                              </div>
+                            </ContentCard>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right Column: Medical Summary */}
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)]">
+                          Medical Summary
+                        </h3>
+                        <ContentCard>
+                          <p className="text-sm text-[var(--color-text-default)] font-semibold mb-3">Reported Chronic Conditions</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                            {isEditingProfile ? (
+                              medicalConditions.map(({ field, label }) => (
+                                <label key={field} className="flex items-center gap-3 font-semibold cursor-pointer">
+                                  <input type="checkbox" name={field} checked={!!editableProfile?.[field]} onChange={handleProfileInputChange} className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]" />
+                                  {label}
+                                </label>
+                              ))
+                            ) : (
+                              medicalConditions.some(c => profile[c.field]) ? (
+                                medicalConditions.map(({ field, label }) =>
+                                  profile[field] && (
+                                    <div key={field} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)] font-semibold"><FaCheck />{label}</div>
+                                  )
+                                )
+                              ) : (
+                                <p className="text-sm text-gray-500 col-span-2">None Reported</p>
+                              )
+                            )}
+                          </div>
+                        </ContentCard>
+                        <ContentCard>
+                          <p className="text-sm text-[var(--color-text-default)] font-semibold mb-2">Family Medical History</p>
+                          {isEditingProfile ? (
+                            <textarea name="family_history" value={editableProfile.family_history || ""} onChange={handleProfileInputChange} rows="4" className="w-full text-sm bg-[var(--color-bg-app)] focus:outline-none border-2 border-[var(--color-border-default)] focus:border-[var(--color-primary)] rounded-md p-2" />
+                          ) : (
+                            <p className="text-sm text-[var(--color-text-strong)] whitespace-pre-wrap">{profile.family_history || "None Reported"}</p>
+                          )
+                          }
+                        </ContentCard>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "reports" && (
+                  <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                      <h2 className="text-2xl font-[var(--font-secondary)] font-bold text-[var(--color-text-strong)]">
+                        Lab Reports
+                      </h2>
+                      {allLabReportsHistory.length > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="relative group w-full sm:w-auto">
+                            <select
+                              id="report-selector"
+                              value={selectedReportId}
+                              onChange={handleReportSelectionChange}
+                              disabled={isEditingReport}
+                              className="appearance-none w-full sm:w-56 cursor-pointer bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2.5 pl-4 pr-10 rounded-lg shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-surface)] focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {allLabReportsHistory.map((report) => (
+                                <option key={report.id} value={report.id}>Report: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}</option>
+                              ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[var(--color-text-muted)] transition-colors duration-300 group-hover:text-[var(--color-primary)]">
+                              <FaChevronDown size={14} />
+                            </div>
+                          </div>
+                          {/* --- [NEW] Edit button for Lab Report --- */}
+                          {!isEditingReport && (
+                            <button
+                              onClick={handleEditReportClick}
+                              className="p-2.5 rounded-lg text-sm bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg)] hover:text-[var(--color-text-on-primary)] transition-all duration-200"
+                              title="Edit this report"
+                            >
+                              <FaPencilAlt />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {allLabReportsHistory.length === 0 ? (
+                      <div className="text-center py-16 bg-[var(--color-bg-app)] rounded-lg border-2 border-dashed border-[var(--color-border-default)]">
+                        <FaFileMedicalAlt className="mx-auto h-12 w-12 text-[var(--color-text-muted)]" />
+                        <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-strong)]">No Lab Reports Uploaded</h3>
+                        <p className="mt-1 text-sm text-[var(--color-text-default)]">The patient has not uploaded any lab reports yet.</p>
+                      </div>
+                    ) : loadingReport ? (
+                      <div className="flex justify-center items-center py-10">
+                        <FaSpinner className="animate-spin text-4xl text-[var(--color-primary)]" />
+                      </div>
                     ) : (
-                      <p className="text-2xl font-bold text-[var(--color-text-strong)] mt-1">{value ?? "—"}</p>
+                      <div className="space-y-8">
+                        {(isEditingReport ? [editableReport] : labReports).map((report) => (
+                          <div key={report.id} className="bg-[var(--color-bg-app)] p-5 rounded-xl border-2 border-[var(--color-border-default)] shadow-sm">
+                            <h4 className="text-lg font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)] mb-4 pb-3 border-b-2 border-dashed border-[var(--color-border-default)]">
+                              Report Date: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                              {Object.entries(report)
+                                .filter(([key]) => !["id", "user", "report_date", "report_file"].includes(key))
+                                .map(([key, value]) => (
+                                  <ContentCard key={key} className="bg-[var(--color-bg-surface)]">
+                                    <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{key.replace(/_/g, " ")}</p>
+                                    {isEditingReport ? (
+                                      <input
+                                        type="text"
+                                        value={editableReport[key] ?? ""}
+                                        onChange={(e) => handleReportInputChange(key, e.target.value)}
+                                        className="text-2xl font-bold text-[var(--color-text-strong)] mt-1 bg-transparent w-full focus:outline-none"
+                                      />
+                                    ) : (
+                                      <p className="text-2xl font-bold text-[var(--color-text-strong)] mt-1">{value ?? "—"}</p>
+                                    )}
+                                  </ContentCard>
+                                ))}
+                              {report.report_file && !isEditingReport && (
+                                <a href={report.report_file} target="_blank" rel="noopener noreferrer" download className="bg-[var(--color-primary-bg-subtle)] border-2 border-dashed border-[var(--color-primary)]/30 rounded-lg p-3 transition-all duration-300 hover:shadow-lg hover:bg-[var(--color-primary)] hover:text-white hover:border-solid text-[var(--color-primary)] flex flex-col justify-center items-center gap-2 text-center group">
+                                  <FileDown className="w-10 h-10 transition-transform duration-300 group-hover:scale-110" />
+                                  <span className="font-bold text-lg">Download Report</span>
+                                </a>
+                              )}
+                            </div>
+                            {/* --- [NEW] Save/Cancel controls for Lab Report --- */}
+                            {isEditingReport && (
+                              <div className="flex justify-end items-center mt-6 gap-3 border-t-2 border-dashed border-[var(--color-border-default)] pt-4">
+                                <button
+                                  onClick={handleCancelReportEdit}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
+                                >
+                                  <FaTimes /> Cancel
+                                </button>
+                                <button
+                                  onClick={handleSaveReport}
+                                  disabled={isSavingReport}
+                                  className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
+                                >
+                                  {isSavingReport ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  </ContentCard>
-                ))}
-              {report.report_file && !isEditingReport && (
-                <a href={report.report_file} target="_blank" rel="noopener noreferrer" download className="bg-[var(--color-primary-bg-subtle)] border-2 border-dashed border-[var(--color-primary)]/30 rounded-lg p-3 transition-all duration-300 hover:shadow-lg hover:bg-[var(--color-primary)] hover:text-white hover:border-solid text-[var(--color-primary)] flex flex-col justify-center items-center gap-2 text-center group">
-                  <FileDown className="w-10 h-10 transition-transform duration-300 group-hover:scale-110" />
-                  <span className="font-bold text-lg">Download Report</span>
-                </a>
-              )}
-            </div>
-            {/* --- [NEW] Save/Cancel controls for Lab Report --- */}
-            {isEditingReport && (
-              <div className="flex justify-end items-center mt-6 gap-3 border-t-2 border-dashed border-[var(--color-border-default)] pt-4">
-                <button
-                  onClick={handleCancelReportEdit}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
-                >
-                  <FaTimes /> Cancel
-                </button>
-                <button
-                  onClick={handleSaveReport}
-                  disabled={isSavingReport}
-                  className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
-                >
-                  {isSavingReport ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
+                  </div>
+                )}
                 {/* Other tabs remain the same logically, just with updated styling where applicable */}
                 {activeTab === "meals" && (
                   <div>
@@ -1522,11 +1522,11 @@ const handleGenerateDiet = async () => {
                           {currentMealDays.map((date) => {
                             const mealsForDay = mealGroups[date];
                             const isActive = activeLogDate === date;
-                             const localDate = new Date(date);
-    const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-    const day = String(localDate.getDate()).padStart(2, '0');
-    const formattedDateForKey = `${year}-${month}-${day}`; 
+                            const localDate = new Date(date);
+                            const year = localDate.getFullYear();
+                            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(localDate.getDate()).padStart(2, '0');
+                            const formattedDateForKey = `${year}-${month}-${day}`;
                             const summary = dailySummaries[formattedDateForKey];
                             const isLoadingSummary =
                               loadingSummaries[formattedDateForKey];
@@ -1541,11 +1541,10 @@ const handleGenerateDiet = async () => {
                                 >
                                   <div className="flex items-center gap-4">
                                     <CalendarCheck
-                                      className={`text-xl ${
-                                        isActive
+                                      className={`text-xl ${isActive
                                           ? "text-[var(--color-primary)]"
                                           : "text-[var(--color-text-muted)]"
-                                      }`}
+                                        }`}
                                     />
                                     <h3 className="font-bold font-[var(--font-primary)] text-lg text-left text-[var(--color-text-strong)]">
                                       {date}
@@ -1556,18 +1555,16 @@ const handleGenerateDiet = async () => {
                                       {mealsForDay.length} items
                                     </span>
                                     <FaChevronDown
-                                      className={`transform transition-transform duration-300 text-[var(--color-text-muted)] ${
-                                        isActive
+                                      className={`transform transition-transform duration-300 text-[var(--color-text-muted)] ${isActive
                                           ? "rotate-180 text-[var(--color-primary)]"
                                           : ""
-                                      }`}
+                                        }`}
                                     />
                                   </div>
                                 </button>
                                 <div
-                                  className={`${
-                                    isActive ? "max-h-[2000px]" : "max-h-0"
-                                  } overflow-hidden transition-[max-height,padding] duration-700 ease-in-out`}
+                                  className={`${isActive ? "max-h-[2000px]" : "max-h-0"
+                                    } overflow-hidden transition-[max-height,padding] duration-700 ease-in-out`}
                                 >
                                   <div className="pb-4 px-4">
                                     <div className="border-t-2 border-dashed border-[var(--color-border-default)] pt-4">
@@ -1685,25 +1682,24 @@ const handleGenerateDiet = async () => {
                                                 >
                                                   <td className="py-4 pl-4 pr-3 sm:pl-6">
                                                     <span
-                                                      className={`inline-flex items-center gap-2 px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${
-                                                        mealTypeStyles[
-                                                          item.meal_type
-                                                            ?.toLowerCase()
-                                                            .replace(
-                                                              / /g,
-                                                              "-"
-                                                            ) || "uncategorized"
+                                                      className={`inline-flex items-center gap-2 px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${mealTypeStyles[
+                                                        item.meal_type
+                                                          ?.toLowerCase()
+                                                          .replace(
+                                                            / /g,
+                                                            "-"
+                                                          ) || "uncategorized"
                                                         ]
-                                                      }`}
+                                                        }`}
                                                     >
                                                       {
                                                         mealTypeIcons[
-                                                          item.meal_type
-                                                            ?.toLowerCase()
-                                                            .replace(
-                                                              / /g,
-                                                              "-"
-                                                            ) || "uncategorized"
+                                                        item.meal_type
+                                                          ?.toLowerCase()
+                                                          .replace(
+                                                            / /g,
+                                                            "-"
+                                                          ) || "uncategorized"
                                                         ]
                                                       }{" "}
                                                       {item.meal_type?.replace(
@@ -1817,23 +1813,22 @@ const handleGenerateDiet = async () => {
                             </div>
                           </div>
                         )}
-                                          <div
+                        <div
                           title={
                             !isProfileComplete // <-- Use the new variable
                               ? "Patient profile must be complete to generate a diet."
                               : hasPendingOrApprovedPlan
-                              ? "Cannot generate while a plan is pending or approved."
-                              : "Generate a new AI diet plan"
+                                ? "Cannot generate while a plan is pending or approved."
+                                : "Generate a new AI diet plan"
                           }
                         >
                           <button
                             onClick={handleGenerateDiet}
                             disabled={!isProfileComplete || hasPendingOrApprovedPlan || isGenerating} // <-- Use the new variable
-                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-44 ${
-                              !isProfileComplete || hasPendingOrApprovedPlan || isGenerating // <-- Use the new variable
+                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-44 ${!isProfileComplete || hasPendingOrApprovedPlan || isGenerating // <-- Use the new variable
                                 ? "bg-[var(--color-bg-interactive-subtle)] opacity-60 cursor-not-allowed text-[var(--color-text-muted)]"
                                 : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:-translate-y-0.5"
-                            }`}
+                              }`}
                           >
                             {isGenerating ? (
                               <FaSpinner className="animate-spin" />
@@ -1845,146 +1840,146 @@ const handleGenerateDiet = async () => {
                               : "Generate New Plan"}
                           </button>
                         </div>
-            </div>
-        </div>
+                      </div>
+                    </div>
 
-             {/* --- [UPDATED] Multi-stage conditional rendering for messages --- */}
+                    {/* --- [UPDATED] Multi-stage conditional rendering for messages --- */}
 
-        {/* Condition 1: Profile is NOT complete (Hard Lock) */}
-        {!isProfileComplete ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative flex items-center gap-5 p-5 overflow-hidden rounded-xl border border-transparent bg-[var(--color-bg-surface)]/60 backdrop-blur-md shadow-lg"
-          >
-            <div className="relative z-10 flex-shrink-0 p-3 bg-[var(--color-bg-surface)] rounded-full shadow-md">
-              <AlertTriangle className="h-8 w-8 text-[var(--color-warning-text-strong)]" />
-            </div>
-            <div className="relative z-10 flex-grow">
-              <h3 className="text-lg font-extrabold text-[var(--color-text-strong)]">Action Required</h3>
-              <p className="mt-1 text-sm font-semibold text-[var(--color-text-default)]">AI Diet Generation is locked.</p>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                Please ensure the patient's <strong>Profile</strong> is fully completed to unlock this feature.
-                For more accurate diet , make sure patient's <strong>Lap Reports</strong> are also uploaded
-              </p>
-            </div>
-          </motion.div>
+                    {/* Condition 1: Profile is NOT complete (Hard Lock) */}
+                    {!isProfileComplete ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="relative flex items-center gap-5 p-5 overflow-hidden rounded-xl border border-transparent bg-[var(--color-bg-surface)]/60 backdrop-blur-md shadow-lg"
+                      >
+                        <div className="relative z-10 flex-shrink-0 p-3 bg-[var(--color-bg-surface)] rounded-full shadow-md">
+                          <AlertTriangle className="h-8 w-8 text-[var(--color-warning-text-strong)]" />
+                        </div>
+                        <div className="relative z-10 flex-grow">
+                          <h3 className="text-lg font-extrabold text-[var(--color-text-strong)]">Action Required</h3>
+                          <p className="mt-1 text-sm font-semibold text-[var(--color-text-default)]">AI Diet Generation is locked.</p>
+                          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                            Please ensure the patient's <strong>Profile</strong> is fully completed to unlock this feature.
+                            For more accurate diet , make sure patient's <strong>Lap Reports</strong> are also uploaded
+                          </p>
+                        </div>
+                      </motion.div>
 
-        /* Condition 2: Profile complete, NO lab reports (Styled Suggestion Card) */
-        ) : !hasLabReports ? (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            // --- [NEW STYLING] "Prism Card" styling for a premium, modern feel ---
-            className="relative flex items-center gap-5 p-5 overflow-hidden rounded-xl border border-transparent hover:border-[var(--color-info-text)]/40 bg-[var(--color-bg-surface)]/60 backdrop-blur-md shadow-lg hover:shadow-xl shadow-black/5 transition-all duration-300"
-          >
-            {/* --- Animated Background Blobs for the Aurora Effect --- */}
-            <div
-              style={{ animationDelay: '0s' }}
-              className="absolute -top-10 -right-20 w-72 h-72 animate-blob rounded-full bg-[var(--color-info-text)] mix-blend-multiply filter opacity-20"
-            ></div>
-            <div
-              style={{ animationDelay: '2s' }}
-              className="absolute -bottom-8 -left-16 w-72 h-72 animate-blob rounded-full bg-[var(--color-primary)]/70 mix-blend-multiply filter opacity-20"
-            ></div>
+                      /* Condition 2: Profile complete, NO lab reports (Styled Suggestion Card) */
+                    ) : !hasLabReports ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        // --- [NEW STYLING] "Prism Card" styling for a premium, modern feel ---
+                        className="relative flex items-center gap-5 p-5 overflow-hidden rounded-xl border border-transparent hover:border-[var(--color-info-text)]/40 bg-[var(--color-bg-surface)]/60 backdrop-blur-md shadow-lg hover:shadow-xl shadow-black/5 transition-all duration-300"
+                      >
+                        {/* --- Animated Background Blobs for the Aurora Effect --- */}
+                        <div
+                          style={{ animationDelay: '0s' }}
+                          className="absolute -top-10 -right-20 w-72 h-72 animate-blob rounded-full bg-[var(--color-info-text)] mix-blend-multiply filter opacity-20"
+                        ></div>
+                        <div
+                          style={{ animationDelay: '2s' }}
+                          className="absolute -bottom-8 -left-16 w-72 h-72 animate-blob rounded-full bg-[var(--color-primary)]/70 mix-blend-multiply filter opacity-20"
+                        ></div>
 
-            {/* --- Icon with a floating, styled container --- */}
-            <div className="relative z-10 flex-shrink-0 p-3 bg-[var(--color-bg-surface)] rounded-full shadow-md shadow-black/10 ring-2 ring-white/10">
-              <Zap className="h-8 w-8 text-[var(--color-info-text)]" />
-            </div>
+                        {/* --- Icon with a floating, styled container --- */}
+                        <div className="relative z-10 flex-shrink-0 p-3 bg-[var(--color-bg-surface)] rounded-full shadow-md shadow-black/10 ring-2 ring-white/10">
+                          <Zap className="h-8 w-8 text-[var(--color-info-text)]" />
+                        </div>
 
-            {/* --- Text content with updated message --- */}
-            <div className="relative z-10 flex-grow">
-              <h3 className="text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)]">
-                Ready to Generate Diet Plan
-              </h3>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)] leading-relaxed">
-                You can generate a plan using the patient's profile. For <strong>better results and accuracy</strong>, we strongly recommend adding lab reports if they are available.
-              </p>
-            </div>
-          </motion.div>
+                        {/* --- Text content with updated message --- */}
+                        <div className="relative z-10 flex-grow">
+                          <h3 className="text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+                            Ready to Generate Diet Plan
+                          </h3>
+                          <p className="mt-1 text-sm text-[var(--color-text-muted)] leading-relaxed">
+                            You can generate a plan using the patient's profile. For <strong>better results and accuracy</strong>, we strongly recommend adding lab reports if they are available.
+                          </p>
+                        </div>
+                      </motion.div>
 
-        /* Condition 3: Both profile and lab reports exist (Show AI suggestions) */
-        ) : (
-          suggestionCards.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.4 }}
-              className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] p-4 sm:p-6 rounded-xl space-y-4"
-            >
-              <h3 className="text-lg font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)] flex items-center gap-2">
-                <Zap size={20} className="text-[var(--color-primary)]" />
-                AI-Powered Suggestions for <span>{profile.full_name}</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {suggestionCards.map((card) => (
-                  <motion.div
-                    key={card.key}
-                    whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                    className={`group relative p-5 rounded-xl border-2 transition-all duration-300
+                      /* Condition 3: Both profile and lab reports exist (Show AI suggestions) */
+                    ) : (
+                      suggestionCards.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.1, duration: 0.4 }}
+                          className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] p-4 sm:p-6 rounded-xl space-y-4"
+                        >
+                          <h3 className="text-lg font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)] flex items-center gap-2">
+                            <Zap size={20} className="text-[var(--color-primary)]" />
+                            AI-Powered Suggestions for <span>{profile.full_name}</span>
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {suggestionCards.map((card) => (
+                              <motion.div
+                                key={card.key}
+                                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                                className={`group relative p-5 rounded-xl border-2 transition-all duration-300
                       bg-[var(--color-bg-surface)] 
                       border-[var(--color-border-default)]
                       border-l-4 border-l-[var(--color-primary)] 
                       hover:shadow-xl hover:shadow-gray-200/50
                       ${card.theme.border}`}
-                  >
-                    <div
-                      className={`inline-flex p-3 mb-4 rounded-lg transition-all duration-300
+                              >
+                                <div
+                                  className={`inline-flex p-3 mb-4 rounded-lg transition-all duration-300
                         bg-[var(--color-bg-interactive-subtle)]
                         ${card.theme.iconBg}`}
-                    >
-                      {React.cloneElement(card.icon, {
-                        className: `w-7 h-7 transition-colors duration-300 
+                                >
+                                  {React.cloneElement(card.icon, {
+                                    className: `w-7 h-7 transition-colors duration-300 
                           text-[var(--color-text-strong)] 
                           ${card.theme.iconText}`,
-                      })}
-                    </div>
-                    <div>
-                      <h4 className={`text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)] transition-colors duration-300 ${card.theme.titleText}`}>
-                        {card.title}
-                      </h4>
-                      <p className="mt-2 text-sm text-[var(--color-text-muted)] leading-relaxed">{card.description}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )
-        )}
+                                  })}
+                                </div>
+                                <div>
+                                  <h4 className={`text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)] transition-colors duration-300 ${card.theme.titleText}`}>
+                                    {card.title}
+                                  </h4>
+                                  <p className="mt-2 text-sm text-[var(--color-text-muted)] leading-relaxed">{card.description}</p>
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )
+                    )}
 
-{currentPlan?.status === "generating" && (
-  <div className="p-10 text-center bg-[var(--color-bg-app)] rounded-xl border-2 border-dashed border-[var(--color-border-default)]">
-    <FaSpinner className="animate-spin text-4xl text-[var(--color-primary)] mx-auto mb-4" />
-    <p className="font-semibold text-lg text-[var(--color-text-strong)]">
-      AI is generating the diet plan...
-    </p>
-  </div>
-)}
-{currentPlan?.status === "failed" && (
-  <div className="p-8 text-center bg-red-50 border border-red-200 rounded-xl">
-    <AlertTriangle className="mx-auto text-red-500 text-3xl mb-3" />
-    <p className="font-semibold text-red-600 mb-4">
-      AI failed to generate the plan.
-    </p>
-    <button
-      onClick={handleGenerateDiet}
-      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-    >
-      Retry
-    </button>
-  </div>
-)}
+                    {currentPlan?.status === "generating" && (
+                      <div className="p-10 text-center bg-[var(--color-bg-app)] rounded-xl border-2 border-dashed border-[var(--color-border-default)]">
+                        <FaSpinner className="animate-spin text-4xl text-[var(--color-primary)] mx-auto mb-4" />
+                        <p className="font-semibold text-lg text-[var(--color-text-strong)]">
+                          AI is generating the diet plan...
+                        </p>
+                      </div>
+                    )}
+                    {currentPlan?.status === "failed" && (
+                      <div className="p-8 text-center bg-red-50 border border-red-200 rounded-xl">
+                        <AlertTriangle className="mx-auto text-red-500 text-3xl mb-3" />
+                        <p className="font-semibold text-red-600 mb-4">
+                          AI failed to generate the plan.
+                        </p>
+                        <button
+                          onClick={handleGenerateDiet}
+                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
 
 
                     {isPlanRenderable ? (
 
                       diets.map((diet) => {
-  // --- THIS IS THE FIX ---
-  // We now explicitly filter the keys to only include ones that start with "Day"
-  const planDays = Object.keys(diet.meals || {}).filter(key => 
-    key.toLowerCase().startsWith('day ')
-  );
+                        // --- THIS IS THE FIX ---
+                        // We now explicitly filter the keys to only include ones that start with "Day"
+                        const planDays = Object.keys(diet.meals || {}).filter(key =>
+                          key.toLowerCase().startsWith('day ')
+                        );
                         const activeDay =
                           activeDayPerDiet[diet.id] ||
                           (planDays.length > 0 ? planDays[0] : null);
@@ -2014,13 +2009,12 @@ const handleGenerateDiet = async () => {
                               </div>
                               <div className="flex items-center gap-4">
                                 <span
-                                  className={`px-3 py-1 text-xs font-bold rounded-full capitalize ${
-                                    diet.status === "approved"
+                                  className={`px-3 py-1 text-xs font-bold rounded-full capitalize ${diet.status === "approved"
                                       ? "bg-[var(--color-success-bg-subtle)] text-[var(--color-success-text)]"
                                       : diet.status === "pending"
-                                      ? "bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)]"
-                                      : "bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)]"
-                                  }`}
+                                        ? "bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)]"
+                                        : "bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)]"
+                                    }`}
                                 >
                                   {diet.status}
                                 </span>
@@ -2040,35 +2034,35 @@ const handleGenerateDiet = async () => {
                                     )}
                                   </button>
                                 )}
-                                
+
                               </div>
                               {diet.status !== "archived" && diet.status !== "rejected" ? (
-    <button
-      onClick={() => handleArchivePlan(diet.id)}
-      disabled={isArchiving === diet.id}
-      className="p-2 text-sm text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] rounded-full hover:bg-[var(--color-info-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-      title="Archive Plan"
-      aria-label={`Archive plan ${diet.id}`}
-    >
-      {isArchiving === diet.id ? <FaSpinner className="animate-spin" /> : <FaArchive />}
-    </button>
-  ) : null}
+                                <button
+                                  onClick={() => handleArchivePlan(diet.id)}
+                                  disabled={isArchiving === diet.id}
+                                  className="p-2 text-sm text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] rounded-full hover:bg-[var(--color-info-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Archive Plan"
+                                  aria-label={`Archive plan ${diet.id}`}
+                                >
+                                  {isArchiving === diet.id ? <FaSpinner className="animate-spin" /> : <FaArchive />}
+                                </button>
+                              ) : null}
 
-  {/* If plan IS archived, show Restore button */}
-  {diet.status === "archived" && (
-    <button
-      onClick={() => handleRestorePlan(diet.id)}
-      disabled={isArchiving === diet.id}
-      className="p-2 text-sm text-[var(--color-success-text)] bg-[var(--color-success-bg-subtle)] rounded-full hover:bg-[var(--color-success-bg)] hover:text-[var(--color-success-text)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-      title="Restore Plan"
-      aria-label={`Restore plan ${diet.id}`}
-    >
-      {isArchiving === diet.id ? <FaSpinner className="animate-spin" /> : <FaUndo />}
-    </button>
-  )}
-</div>
-                           
-                            
+                              {/* If plan IS archived, show Restore button */}
+                              {diet.status === "archived" && (
+                                <button
+                                  onClick={() => handleRestorePlan(diet.id)}
+                                  disabled={isArchiving === diet.id}
+                                  className="p-2 text-sm text-[var(--color-success-text)] bg-[var(--color-success-bg-subtle)] rounded-full hover:bg-[var(--color-success-bg)] hover:text-[var(--color-success-text)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Restore Plan"
+                                  aria-label={`Restore plan ${diet.id}`}
+                                >
+                                  {isArchiving === diet.id ? <FaSpinner className="animate-spin" /> : <FaUndo />}
+                                </button>
+                              )}
+                            </div>
+
+
 
                             {planDays.length > 0 && (
                               <div className="flex flex-wrap gap-2 border-b-2 border-[var(--color-border-default)] pb-4">
@@ -2082,11 +2076,10 @@ const handleGenerateDiet = async () => {
                                       }));
                                       setEditingDay(null);
                                     }}
-                                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-all capitalize ${
-                                      activeDay === day
+                                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-all capitalize ${activeDay === day
                                         ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] shadow-md"
                                         : "bg-[var(--color-bg-app)] text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)]"
-                                    }`}
+                                      }`}
                                   >
                                     {day.replace(/_/g, " ")}
                                   </button>
@@ -2131,104 +2124,103 @@ const handleGenerateDiet = async () => {
                                           Fats(g)
                                         </th>
                                         {!isCurrentPlanApproved && (
-      <th className="py-2 px-3 text-center font-semibold text-[var(--color-text-muted)] w-20">
-        Actions
-      </th>
-    )}
+                                          <th className="py-2 px-3 text-center font-semibold text-[var(--color-text-muted)] w-20">
+                                            Actions
+                                          </th>
+                                        )}
                                       </tr>
                                     </thead>
-                                                                        <tbody>
-            {(() => {
-              // Create a quick lookup map with normalized keys from the current diet data.
-              // This handles any key format from the API ("Early-Morning", "breakfast", etc.).
-              const mealLookup = Object.entries(diet.meals[activeDay] || {}).reduce((acc, [key, value]) => {
-                const normalized = key.replace(/-/g, " ").toLowerCase();
-                // Store the data AND the original key for editing state management
-                acc[normalized] = { ...value, originalKey: key }; 
-                return acc;
-              }, {});
+                                    <tbody>
+                                      {(() => {
+                                        // Create a quick lookup map with normalized keys from the current diet data.
+                                        // This handles any key format from the API ("Early-Morning", "breakfast", etc.).
+                                        const mealLookup = Object.entries(diet.meals[activeDay] || {}).reduce((acc, [key, value]) => {
+                                          const normalized = key.replace(/-/g, " ").toLowerCase();
+                                          // Store the data AND the original key for editing state management
+                                          acc[normalized] = { ...value, originalKey: key };
+                                          return acc;
+                                        }, {});
 
-              // Now, map over our *display order* and use the lookup map for a perfect match.
-              return DIET_PLAN_MEAL_ORDER.map((canonicalMealType) => {
-                const normalizedKey = canonicalMealType.toLowerCase();
-                const meal = mealLookup[normalizedKey]; // Direct, unambiguous lookup
+                                        // Now, map over our *display order* and use the lookup map for a perfect match.
+                                        return DIET_PLAN_MEAL_ORDER.map((canonicalMealType) => {
+                                          const normalizedKey = canonicalMealType.toLowerCase();
+                                          const meal = mealLookup[normalizedKey]; // Direct, unambiguous lookup
 
-                // If no meal of this type exists in the data, don't render a row.
-                if (!meal) {
-                  return null;
-                }
+                                          // If no meal of this type exists in the data, don't render a row.
+                                          if (!meal) {
+                                            return null;
+                                          }
 
-                // A meal was found, so we can get its original key for the input handler.
-                const originalKeyForState = meal.originalKey;
-                const inputClass =
-                  "w-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded px-2 py-1 text-sm focus:ring-1 focus:ring-[var(--color-primary)] focus:outline-none";
-                
-                return (
-                  <tr
-                    key={canonicalMealType} // Use the clean, canonical name for the React key
-                    className="border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-app)]/50"
-                  >
-                    <td className="py-3 px-3 capitalize font-semibold text-[var(--color-text-strong)]">
-                      {canonicalMealType}
-                    </td>
-                    <td className="py-3 px-3">
-  {isEditingThisDay ? (
-    <input
-      type="text"
-      value={
-        editStates[diet.id]?.[activeDay]?.[originalKeyForState]?.food_name ??
-        meal.food_name ??
-        ""
-      }
-      onChange={(e) =>
-        handleInputChange(
-          diet.id,
-          activeDay,
-          originalKeyForState,
-          "food_name",
-          e.target.value
-        )
-      }
-      // Add the disabled attribute here VVV
-      disabled={diet.status === 'approved'}
-      className={`${inputClass} ${diet.status === 'approved' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-    />
-  ) : (
-    meal.food_name || ""
-  )}
-</td>
-                    <td className="py-3 px-3">{meal.Calories ?? "-"}</td>
-                    <td className="py-3 px-3">{meal.Carbs ?? "-"}</td>
-                    <td className="py-3 px-3">{meal.Fiber ?? "-"}</td>
-                    <td className="py-3 px-3">{meal.Protein ?? "-"}</td>
-                    <td className="py-3 px-3">{meal.Sugar ?? "-"}</td>
-                    <td className="py-3 px-3">{meal.Fats ?? "-"}</td>
-                   {!isCurrentPlanApproved && (
-  <td className="py-3 px-3 text-center">
-    {!isEditingThisDay && diet.status !== "rejected" && (
-      <button
-        onClick={() =>
-          setEditingDay({
-            dietId: diet.id,
-            day: activeDay,
-          })
-        }
-        className="text-[var(--color-text-default)] hover:text-[var(--color-primary)] transition-colors"
-        title={`Edit ${
-          activeDay.charAt(0).toUpperCase() +
-          activeDay.slice(1)
-        }'s Plan`}
-      >
-        <FaPencilAlt />
-      </button>
-    )}
-  </td>
-)}
-                  </tr>
-                );
-              });
-            })()}
-          </tbody>
+                                          // A meal was found, so we can get its original key for the input handler.
+                                          const originalKeyForState = meal.originalKey;
+                                          const inputClass =
+                                            "w-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded px-2 py-1 text-sm focus:ring-1 focus:ring-[var(--color-primary)] focus:outline-none";
+
+                                          return (
+                                            <tr
+                                              key={canonicalMealType} // Use the clean, canonical name for the React key
+                                              className="border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-app)]/50"
+                                            >
+                                              <td className="py-3 px-3 capitalize font-semibold text-[var(--color-text-strong)]">
+                                                {canonicalMealType}
+                                              </td>
+                                              <td className="py-3 px-3">
+                                                {isEditingThisDay ? (
+                                                  <input
+                                                    type="text"
+                                                    value={
+                                                      editStates[diet.id]?.[activeDay]?.[originalKeyForState]?.food_name ??
+                                                      meal.food_name ??
+                                                      ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      handleInputChange(
+                                                        diet.id,
+                                                        activeDay,
+                                                        originalKeyForState,
+                                                        "food_name",
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    // Add the disabled attribute here VVV
+                                                    disabled={diet.status === 'approved'}
+                                                    className={`${inputClass} ${diet.status === 'approved' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                                  />
+                                                ) : (
+                                                  meal.food_name || ""
+                                                )}
+                                              </td>
+                                              <td className="py-3 px-3">{meal.Calories ?? "-"}</td>
+                                              <td className="py-3 px-3">{meal.Carbs ?? "-"}</td>
+                                              <td className="py-3 px-3">{meal.Fiber ?? "-"}</td>
+                                              <td className="py-3 px-3">{meal.Protein ?? "-"}</td>
+                                              <td className="py-3 px-3">{meal.Sugar ?? "-"}</td>
+                                              <td className="py-3 px-3">{meal.Fats ?? "-"}</td>
+                                              {!isCurrentPlanApproved && (
+                                                <td className="py-3 px-3 text-center">
+                                                  {!isEditingThisDay && diet.status !== "rejected" && (
+                                                    <button
+                                                      onClick={() =>
+                                                        setEditingDay({
+                                                          dietId: diet.id,
+                                                          day: activeDay,
+                                                        })
+                                                      }
+                                                      className="text-[var(--color-text-default)] hover:text-[var(--color-primary)] transition-colors"
+                                                      title={`Edit ${activeDay.charAt(0).toUpperCase() +
+                                                        activeDay.slice(1)
+                                                        }'s Plan`}
+                                                    >
+                                                      <FaPencilAlt />
+                                                    </button>
+                                                  )}
+                                                </td>
+                                              )}
+                                            </tr>
+                                          );
+                                        });
+                                      })()}
+                                    </tbody>
                                     {/* --- [NEW] Table footer for displaying daily totals --- */}
                                     {dailyTotals && (
                                       <tfoot className="bg-[var(--color-bg-app)] border-t-2 border-[var(--color-border-default)]">
@@ -2268,52 +2260,52 @@ const handleGenerateDiet = async () => {
 
                             <div className="pt-4 space-y-4">
                               {isEditingThisDay && (
-  <div className="flex items-center gap-4 p-4 bg-[var(--color-bg-app)] rounded-lg">
-    <p className="text-sm font-semibold text-[var(--color-text-strong)] flex-grow">
-      {/* Add a message if the plan is approved */}
-      {diet.status === 'approved' ? (
-        <span className="text-[var(--color-success-text)]">
-          This plan is approved and cannot be edited.
-        </span>
-      ) : (
-        <>
-          Editing plan for{" "}
-          <span className="capitalize">
-            {activeDay?.replace(/_/g, " ")}
-          </span>.
-        </>
-      )}
-    </p>
-    <button
-      onClick={() =>
-        handleCancelEdit(diet.id, activeDay)
-      }
-      className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
-    >
-      <FaTimes /> 
-      {/* Change text based on context */}
-      {diet.status === 'approved' ? 'Close' : 'Cancel'}
-    </button>
-    
-    {/* Conditionally render the Save button VVV */}
-    {diet.status !== 'approved' && (
-      <button
-        onClick={() =>
-          handleSave(diet.id, activeDay)
-        }
-        disabled={isSaving}
-        className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
-      >
-        {isSaving ? (
-          <FaSpinner className="animate-spin" />
-        ) : (
-          <FaSave />
-        )}{" "}
-        Save
-      </button>
-    )}
-  </div>
-)}
+                                <div className="flex items-center gap-4 p-4 bg-[var(--color-bg-app)] rounded-lg">
+                                  <p className="text-sm font-semibold text-[var(--color-text-strong)] flex-grow">
+                                    {/* Add a message if the plan is approved */}
+                                    {diet.status === 'approved' ? (
+                                      <span className="text-[var(--color-success-text)]">
+                                        This plan is approved and cannot be edited.
+                                      </span>
+                                    ) : (
+                                      <>
+                                        Editing plan for{" "}
+                                        <span className="capitalize">
+                                          {activeDay?.replace(/_/g, " ")}
+                                        </span>.
+                                      </>
+                                    )}
+                                  </p>
+                                  <button
+                                    onClick={() =>
+                                      handleCancelEdit(diet.id, activeDay)
+                                    }
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
+                                  >
+                                    <FaTimes />
+                                    {/* Change text based on context */}
+                                    {diet.status === 'approved' ? 'Close' : 'Cancel'}
+                                  </button>
+
+                                  {/* Conditionally render the Save button VVV */}
+                                  {diet.status !== 'approved' && (
+                                    <button
+                                      onClick={() =>
+                                        handleSave(diet.id, activeDay)
+                                      }
+                                      disabled={isSaving}
+                                      className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
+                                    >
+                                      {isSaving ? (
+                                        <FaSpinner className="animate-spin" />
+                                      ) : (
+                                        <FaSave />
+                                      )}{" "}
+                                      Save
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                               {diet.status === "pending" && (
                                 <div className="p-4 bg-[var(--color-info-bg-subtle)] border-2 border-[var(--color-info-text)]/20 rounded-lg space-y-3">
                                   <h4 className="font-semibold text-[var(--color-info-text)]">
