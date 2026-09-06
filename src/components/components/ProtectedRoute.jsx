@@ -1,12 +1,11 @@
-// src/components/auth/ProtectedRoute.jsx
-
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Loader } from "lucide-react"; // Using a consistent, clean loader icon
+import { Loader } from "lucide-react";
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
 
   // A full-page, themed, and animated loading indicator
   if (loading) {
@@ -20,9 +19,9 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     );
   }
 
-  // Redirect to home if not logged in.
+  // Redirect to login if not logged in.
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Check for the user's role.
@@ -30,7 +29,17 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
   // Redirect to an "Unauthorized" page if the role doesn't match.
   if (requiredRole && userRole !== requiredRole.toLowerCase()) {
-    return <Navigate to="/unauthorized" replace />;
+    return (
+      <Navigate
+        to="/unauthorized"
+        replace
+        state={{
+          from: location.pathname,
+          requiredRole,
+          userRole,
+        }}
+      />
+    );
   }
 
   // If all checks pass, render the child components.
