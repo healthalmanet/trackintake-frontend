@@ -5,6 +5,7 @@ import {
   setToken as storeToken,
   removeToken,
 } from "../../services/tokenService";
+import { jwtDecode } from "jwt-decode";
 
 const AuthContext = createContext();
 
@@ -23,11 +24,51 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const existingToken = getToken();
+    const existingRefresh = localStorage.getItem("refreshToken");
+    const storedUser = localStorage.getItem("user");
+
     if (existingToken) {
+      let isTokenValid = true;
+      try {
+        const decodedAccess = jwtDecode(existingToken);
+        const isAccessExpired = decodedAccess.exp && decodedAccess.exp * 1000 < Date.now();
+
+        if (isAccessExpired) {
+          // Check if refresh token is available and not expired
+          if (existingRefresh) {
+            try {
+              const decodedRefresh = jwtDecode(existingRefresh);
+              const isRefreshExpired = decodedRefresh.exp && decodedRefresh.exp * 1000 < Date.now();
+              if (isRefreshExpired) {
+                isTokenValid = false;
+              }
+            } catch {
+              // Could not decode refresh token
+              isTokenValid = false;
+            }
+          } else {
+            isTokenValid = false;
+          }
+        }
+      } catch (err) {
+        console.warn("Invalid access token:", err);
+        isTokenValid = false;
+      }
+
+      if (!isTokenValid) {
+        removeToken();
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        localStorage.removeItem("userRole");
+        setTokenState(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       setTokenState(existingToken);
     }
 
-    const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
@@ -86,6 +127,7 @@ const logout = async () => {
     removeToken(); // clear access token
     localStorage.removeItem("refreshToken"); // ✅ remove refresh token
     localStorage.removeItem("user");
+    localStorage.removeItem("userRole");
 
     setTokenState(null);
     setUser(null);

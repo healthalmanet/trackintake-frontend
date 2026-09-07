@@ -43,3 +43,9 @@ export const payConsultationFee = async (consultType) => {
   });
   return res.data;
 };
+
+// Billing history fetch karo
+export const getBillingHistory = async () => {
+  const res = await axiosInstance.get('/subscriptions/billing-history/');
+  return res.data;
+};

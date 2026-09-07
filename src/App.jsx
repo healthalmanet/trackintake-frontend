@@ -45,6 +45,7 @@ import { FoodSuggestionToast } from "./components/FoodSuggestionToast";
 import { FoodSuggestionsDrawer } from "./components/components/FoodSuggestionsDrawer";
 import Career from "./pages/Career";
 import Chatbot from "./components/ChatBot";
+import axiosInstance from "./api/axiosInstance";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // ── Stable no-op callbacks defined OUTSIDE the component ────────
@@ -85,14 +86,9 @@ function App() {
   // ── Trigger suggest-foods API on dashboard load ───────────────
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "user") return;
-    const token = localStorage.getItem("token");
-    if (!token) return;
     console.log("🔍 Calling suggest-foods API..."); // debug log
-    fetch(`${API_BASE}/suggest-foods/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(d => console.log("📊 suggest-foods delivery:", d.delivery)) // debug log
+    axiosInstance.get("/suggest-foods/")
+      .then(res => console.log("📊 suggest-foods delivery:", res.data?.delivery))
       .catch(() => { });
   }, [isAuthenticated, user]);
 
@@ -112,7 +108,7 @@ function App() {
 
   const getRedirectPath = () => {
     const role = user?.role?.toLowerCase();
-    if (!role) return "/";
+    if (!role) return "/dashboard";
     switch (role) {
       case "owner":
       case "operator":
