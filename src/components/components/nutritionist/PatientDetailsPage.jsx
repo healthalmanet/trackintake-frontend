@@ -327,8 +327,10 @@ const PatientDetailsPage = () => {
         const isArchived = plan.is_deleted || plan.status === 'archived';
         const isLatest = latestPlanForDisplay && plan.id === latestPlanForDisplay.id;
         const startDate = new Date((plan.for_week_starting || plan.created_at?.slice(0, 10)) + "T00:00:00");
+        const planDaysCount = plan.meals ? Object.keys(plan.meals).filter(k => k.toLowerCase().startsWith('day ')).length : 0;
+        const durationDays = planDaysCount > 0 ? planDaysCount : 3;
         const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 14);
+        endDate.setDate(startDate.getDate() + (durationDays - 1));
 
         const dateRangeStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
@@ -339,7 +341,7 @@ const PatientDetailsPage = () => {
         else if (isLatest && plan.status === 'approved') statusTag = "Current Active";
         else if (plan.status === 'approved') statusTag = "Past Approved";
 
-        const label = `${dateRangeStr} · ${statusTag}`;
+        const label = `${dateRangeStr} (${durationDays}-Day) · ${statusTag}`;
         return { id: plan.id, label, status: plan.status, is_deleted: isArchived };
       });
       setPlanOptions(options);
@@ -1968,11 +1970,12 @@ const PatientDetailsPage = () => {
                           editingDay?.dietId === diet.id &&
                           editingDay?.day === activeDay;
 
+                        const durationDays = planDays.length > 0 ? planDays.length : 3;
                         const startDate = diet.for_week_starting
                           ? new Date(diet.for_week_starting + "T00:00:00")
                           : null;
                         const endDate = startDate
-                          ? new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000)
+                          ? new Date(startDate.getTime() + (durationDays - 1) * 24 * 60 * 60 * 1000)
                           : null;
                         const dateRangeStr =
                           startDate && !isNaN(startDate.getTime()) && endDate && !isNaN(endDate.getTime())
@@ -2011,7 +2014,7 @@ const PatientDetailsPage = () => {
                                     Effective: {dateRangeStr}
                                   </h3>
                                   <span className="text-xs px-2 py-0.5 font-semibold rounded bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)]">
-                                    15-Day Plan
+                                    {durationDays}-Day Plan
                                   </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
