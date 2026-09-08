@@ -86,6 +86,18 @@ export const createUserPatient = (userData) => {
   return axiosInstance.post('/nutritionist/create-patient/', userData, fileUploadConfig);
 };
 
+// ✅ Download XLSX template with column titles & 10 sample patient records
+export const downloadPatientTemplate = () => {
+  return axiosInstance.get('/nutritionist/download-patient-template/', {
+    responseType: 'blob',
+  });
+};
+
+// ✅ Bulk upload patients via Excel (.xlsx / .xls)
+export const bulkUploadPatients = (formData) => {
+  return axiosInstance.post('/nutritionist/bulk-upload-patients/', formData, fileUploadConfig);
+};
+
 // ✅ Lab Report Functions scoped to a patient under the nutritionist
 export const getAllLabReports = (patientId) => {
   return axiosInstance.get(`/nutritionist/patients/${patientId}/lab-reports/`);
