@@ -41,6 +41,7 @@ import {
   Copy,
   CheckCheck,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";

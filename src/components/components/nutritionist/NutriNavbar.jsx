@@ -136,7 +136,13 @@ const NutriNavbar = () => {
         }
     };
 
-    const navLinks = [{ to: "/nutritionist", label: "Home" }, { to: "/nutritionist/search", label: "Nutrition Search" }, { to: "/nutritionist/chat", label: "Chat" }, { to: "/nutritionist/availability", label: "Availability" }];
+    const navLinks = [
+        { to: "/nutritionist", label: "Home" },
+        { to: "/nutritionist/search", label: "Nutrition Search" },
+        { to: "/nutritionist/chat", label: "Chat" },
+        { to: "/nutritionist/availability", label: "Availability" },
+        { to: "/nutritionist/subscription", label: "Subscription" }
+    ];
 
     return (
         <>

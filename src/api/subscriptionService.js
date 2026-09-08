@@ -6,6 +6,12 @@ export const getPlans = async () => {
   return res.data;
 };
 
+// ✅ Nutritionist plans fetch karo
+export const getNutritionistPlans = async () => {
+  const res = await axiosInstance.get('/subscriptions/plans/?type=nutritionist');
+  return res.data;
+};
+
 // ✅ Order create karo
 export const createOrder = async (planId) => {
   const res = await axiosInstance.post('/subscriptions/create-order/', {

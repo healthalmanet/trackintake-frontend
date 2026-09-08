@@ -13,6 +13,7 @@ import AddAvailability from "../components/components/nutritionist/AddAvailabili
 
 
 import NutritionSearchLayout from "../components/components/nutritionist/NutritionSearchLayout";
+import NutritionistSubscription from "../components/components/nutritionist/NutritionistSubscription";
 
 const NutritionistPage = () => {
 
@@ -30,6 +31,7 @@ const handleOpenNutritionSearch = () => setShowNutrition(true);
       <Route path="chat" element={<Chat/>}/>
       <Route path="search" element={<NutritionSearchLayout/>}/>
       <Route path="availability" element={<AddAvailability />} />
+      <Route path="subscription" element={<NutritionistSubscription />} />
 
 
     </Routes>
