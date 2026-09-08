@@ -310,35 +310,37 @@ const PatientDetailsPage = () => {
 
       console.log('[FETCH-A] Inside fetchAndSetAllPlans. Raw API Response:', JSON.parse(JSON.stringify(dietRes.data)));
 
-      const allDietsData = (dietRes.data.results || []).sort(
-        (a, b) => new Date(b.for_week_starting) - new Date(a.for_week_starting)
+      const allDietsData = (dietRes.data.results || dietRes.data || []).sort(
+        (a, b) => new Date(b.for_week_starting || b.created_at) - new Date(a.for_week_starting || a.created_at)
       );
       setAllDietPlans(allDietsData);
 
-      // --- [MODIFIED] Logic to find the latest non-archived, non-rejected plan for display ---
+      // Find the latest non-archived, non-rejected plan for display
       const latestPlanForDisplay = allDietsData.find(
-        (diet) => diet.status !== "rejected" && diet.status !== "archived"
-      );
+        (diet) => !diet.is_deleted && diet.status !== "rejected"
+      ) || allDietsData[0] || null;
 
       console.log('[FETCH-B] Inside fetchAndSetAllPlans. Identified latest plan for display:', JSON.parse(JSON.stringify(latestPlanForDisplay)));
 
-
-      // Filter for displayable plans in the dropdown: approved, pending, and now archived
+      // Filter for displayable plans in the dropdown with clear date ranges and accurate status tags
       const options = allDietsData.map((plan) => {
-        let label = `${new Date(
-          plan.for_week_starting + "T00:00:00"
-        ).toLocaleDateString()} (${plan.status})`;
+        const isArchived = plan.is_deleted || plan.status === 'archived';
+        const isLatest = latestPlanForDisplay && plan.id === latestPlanForDisplay.id;
+        const startDate = new Date((plan.for_week_starting || plan.created_at?.slice(0, 10)) + "T00:00:00");
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 14);
 
-        if (latestPlanForDisplay && plan.id === latestPlanForDisplay.id) {
-          label = `${new Date(
-            plan.for_week_starting + "T00:00:00"
-          ).toLocaleDateString()} - Current`;
-        } else if (plan.status === 'archived') {
-          label = `${new Date(
-            plan.for_week_starting + "T00:00:00"
-          ).toLocaleDateString()} (Archived)`;
-        }
-        return { id: plan.id, label: label, status: plan.status }; // Add status to option
+        const dateRangeStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+        let statusTag = "Approved";
+        if (isArchived) statusTag = "Archived";
+        else if (plan.status === 'pending' || plan.status === 'generating') statusTag = "Pending Review";
+        else if (plan.status === 'rejected') statusTag = "Rejected";
+        else if (isLatest && plan.status === 'approved') statusTag = "Current Active";
+        else if (plan.status === 'approved') statusTag = "Past Approved";
+
+        const label = `${dateRangeStr} · ${statusTag}`;
+        return { id: plan.id, label, status: plan.status, is_deleted: isArchived };
       });
       setPlanOptions(options);
       return { latestPlan: latestPlanForDisplay, allDietsData };
@@ -704,24 +706,7 @@ const PatientDetailsPage = () => {
   };
 
   const handleDeletePlan = async (dietId) => {
-    if (window.confirm("Are you sure? This cannot be undone.")) {
-      setDeletingPlanId(dietId);
-      try {
-        await reviewDietPlan(
-          dietId,
-          "rejected",
-          "Plan deleted by nutritionist."
-        );
-        toast.success("Plan deleted.");
-        const { latestPlan } = await fetchAndSetAllPlans();
-        setDiets(latestPlan ? [latestPlan] : []);
-        setSelectedPlanId(latestPlan ? latestPlan.id : null);
-      } catch (err) {
-        toast.error("Failed to delete plan.");
-      } finally {
-        setDeletingPlanId(null);
-      }
-    }
+    await handleArchivePlan(dietId);
   };
 
   const handleArchivePlan = async (dietId) => {
@@ -1043,11 +1028,10 @@ const PatientDetailsPage = () => {
     bedtime: <Soup size={18} />,
     uncategorized: <Utensils size={18} />,
   };
-  const hasPendingOrApprovedPlan = allDietPlans.some(
+  const hasPendingPlan = allDietPlans.some(
     (diet) =>
-      diet.status === "pending" ||
-      diet.status === "approved" ||
-      diet.status === "generating"
+      !diet.is_deleted &&
+      (diet.status === "pending" || diet.status === "generating")
   );
 
   const currentPlan = diets[0];
@@ -1812,17 +1796,17 @@ const PatientDetailsPage = () => {
                         )}
                         <div
                           title={
-                            !isProfileComplete // <-- Use the new variable
+                            !isProfileComplete
                               ? "Patient profile must be complete to generate a diet."
-                              : hasPendingOrApprovedPlan
-                                ? "Cannot generate while a plan is pending or approved."
+                              : hasPendingPlan
+                                ? "Cannot generate while a plan is pending review or generating."
                                 : "Generate a new AI diet plan"
                           }
                         >
                           <button
                             onClick={handleGenerateDiet}
-                            disabled={!isProfileComplete || hasPendingOrApprovedPlan || isGenerating} // <-- Use the new variable
-                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-44 ${!isProfileComplete || hasPendingOrApprovedPlan || isGenerating // <-- Use the new variable
+                            disabled={!isProfileComplete || hasPendingPlan || isGenerating}
+                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-44 ${!isProfileComplete || hasPendingPlan || isGenerating
                                 ? "bg-[var(--color-bg-interactive-subtle)] opacity-60 cursor-not-allowed text-[var(--color-text-muted)]"
                                 : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:-translate-y-0.5"
                               }`}
@@ -1984,45 +1968,133 @@ const PatientDetailsPage = () => {
                           editingDay?.dietId === diet.id &&
                           editingDay?.day === activeDay;
 
+                        const startDate = diet.for_week_starting
+                          ? new Date(diet.for_week_starting + "T00:00:00")
+                          : null;
+                        const endDate = startDate
+                          ? new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000)
+                          : null;
+                        const dateRangeStr =
+                          startDate && !isNaN(startDate.getTime()) && endDate && !isNaN(endDate.getTime())
+                            ? `${startDate.toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })} – ${endDate.toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}`
+                            : diet.for_week_starting || "Active Plan";
+                        const createdDateStr = diet.created_at
+                          ? new Date(diet.created_at).toLocaleDateString(
+                              undefined,
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )
+                          : null;
+
                         return (
                           <div
                             key={diet.id}
                             className="bg-[var(--color-bg-surface)] p-6 rounded-xl border-2 border-[var(--color-border-default)] space-y-4 shadow-sm"
                           >
-                            <div className="flex flex-col sm:flex-row justify-between items-start gap-3 pb-4 border-b-2 border-dashed border-[var(--color-border-default)]">
-                              <div>
-                                <h3 className="text-lg font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)]">
-                                  Plan for week starting:{" "}
-                                  {new Date(
-                                    diet.for_week_starting + "T00:00:00"
-                                  ).toLocaleDateString()}
-                                </h3>
-                                <p className="text-sm text-[var(--color-text-muted)]">
-                                  Generated by:{" "}
-                                  <strong className="capitalize">
-                                    {diet.generated_by || "Manual"}
-                                  </strong>
-                                </p>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b-2 border-dashed border-[var(--color-border-default)]">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-lg font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)]">
+                                    Effective: {dateRangeStr}
+                                  </h3>
+                                  <span className="text-xs px-2 py-0.5 font-semibold rounded bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)]">
+                                    15-Day Plan
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
+                                  <span>
+                                    Generated by:{" "}
+                                    <strong className="capitalize text-[var(--color-text-default)]">
+                                      {diet.generated_by || "AI System"}
+                                    </strong>
+                                  </span>
+                                  {createdDateStr && (
+                                    <span>
+                                      Created:{" "}
+                                      <strong className="text-[var(--color-text-default)]">
+                                        {createdDateStr}
+                                      </strong>
+                                    </span>
+                                  )}
+                                  {diet.nutritionist_comment && diet.status === "rejected" && (
+                                    <span className="text-[var(--color-danger-text)] italic">
+                                      Reason: "{diet.nutritionist_comment}"
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-3 self-end md:self-center">
                                 <span
-                                  className={`px-3 py-1 text-xs font-bold rounded-full capitalize ${diet.status === "approved"
+                                  className={`px-3 py-1 text-xs font-bold rounded-full capitalize ${
+                                    diet.is_deleted
+                                      ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                      : diet.status === "approved"
                                       ? "bg-[var(--color-success-bg-subtle)] text-[var(--color-success-text)]"
                                       : diet.status === "pending"
-                                        ? "bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)]"
-                                        : "bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)]"
-                                    }`}
+                                      ? "bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)]"
+                                      : "bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)]"
+                                  }`}
                                 >
-                                  {diet.status}
+                                  {diet.is_deleted
+                                    ? "Archived"
+                                    : diet.status === "approved"
+                                    ? "Approved & Active"
+                                    : diet.status === "pending"
+                                    ? "Pending Review"
+                                    : diet.status}
                                 </span>
-                                {diet.status !== "rejected" && (
+
+                                {!diet.is_deleted ? (
+                                  <button
+                                    onClick={() => handleArchivePlan(diet.id)}
+                                    disabled={isArchiving === diet.id}
+                                    className="p-2 text-sm text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] rounded-lg hover:bg-[var(--color-info-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Archive Plan"
+                                    aria-label={`Archive plan ${diet.id}`}
+                                  >
+                                    {isArchiving === diet.id ? (
+                                      <FaSpinner className="animate-spin" />
+                                    ) : (
+                                      <FaArchive />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleRestorePlan(diet.id)}
+                                    disabled={isArchiving === diet.id}
+                                    className="p-2 text-sm text-[var(--color-success-text)] bg-[var(--color-success-bg-subtle)] rounded-lg hover:bg-[var(--color-success-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Restore Plan"
+                                    aria-label={`Restore plan ${diet.id}`}
+                                  >
+                                    {isArchiving === diet.id ? (
+                                      <FaSpinner className="animate-spin" />
+                                    ) : (
+                                      <FaUndo />
+                                    )}
+                                  </button>
+                                )}
+
+                                {!diet.is_deleted && diet.status !== "rejected" && (
                                   <button
                                     onClick={() => handleDeletePlan(diet.id)}
                                     disabled={
                                       deletingPlanId === diet.id || isReviewing
                                     }
-                                    className="p-2 text-sm text-[var(--color-danger-text)] bg-[var(--color-danger-bg-subtle)] rounded-full hover:bg-[var(--color-danger-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Delete Plan"
+                                    className="p-2 text-sm text-[var(--color-danger-text)] bg-[var(--color-danger-bg-subtle)] rounded-lg hover:bg-[var(--color-danger-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Delete / Archive Plan"
                                   >
                                     {deletingPlanId === diet.id ? (
                                       <FaSpinner className="animate-spin" />
@@ -2031,32 +2103,7 @@ const PatientDetailsPage = () => {
                                     )}
                                   </button>
                                 )}
-
                               </div>
-                              {diet.status !== "archived" && diet.status !== "rejected" ? (
-                                <button
-                                  onClick={() => handleArchivePlan(diet.id)}
-                                  disabled={isArchiving === diet.id}
-                                  className="p-2 text-sm text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] rounded-full hover:bg-[var(--color-info-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Archive Plan"
-                                  aria-label={`Archive plan ${diet.id}`}
-                                >
-                                  {isArchiving === diet.id ? <FaSpinner className="animate-spin" /> : <FaArchive />}
-                                </button>
-                              ) : null}
-
-                              {/* If plan IS archived, show Restore button */}
-                              {diet.status === "archived" && (
-                                <button
-                                  onClick={() => handleRestorePlan(diet.id)}
-                                  disabled={isArchiving === diet.id}
-                                  className="p-2 text-sm text-[var(--color-success-text)] bg-[var(--color-success-bg-subtle)] rounded-full hover:bg-[var(--color-success-bg)] hover:text-[var(--color-success-text)] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Restore Plan"
-                                  aria-label={`Restore plan ${diet.id}`}
-                                >
-                                  {isArchiving === diet.id ? <FaSpinner className="animate-spin" /> : <FaUndo />}
-                                </button>
-                              )}
                             </div>
 
 

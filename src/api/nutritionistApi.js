@@ -67,7 +67,12 @@ export const reviewDietPlan = (dietId, action, comment) => {
 };
 
 export const submitFeedbackForML = (dietId, feedback, approved) => {
-  return axiosInstance.post(`/nutritionist/diet-plans/${dietId}/feedback/`, { feedback, approved });
+  return axiosInstance.post(`/nutritionist/diet-plans/${dietId}/feedback/`, {
+    notes: feedback,
+    feedback: feedback,
+    approved_for_retraining: Boolean(approved),
+    approved: Boolean(approved),
+  });
 };
 
 // In nutritionistApi.js
