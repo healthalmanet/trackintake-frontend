@@ -593,7 +593,7 @@ const NutritionistDashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-app)] font-[var(--font-primary)]">
+    <div className="bg-[var(--color-bg-app)] font-[var(--font-primary)]">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -601,9 +601,6 @@ const NutritionistDashboard = () => {
             "font-[var(--font-secondary)] !bg-[var(--color-bg-surface)] !text-[var(--color-text-default)] !border-2 !border-[var(--color-border-default)] !shadow-lg",
         }}
       />
-      <div className="sticky top-0 z-40 bg-[var(--color-bg-surface-glass)] backdrop-blur-md shadow-sm">
-        <NutriNavbar />
-      </div>
 
       <main className="text-[var(--color-text-default)] p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         <motion.header

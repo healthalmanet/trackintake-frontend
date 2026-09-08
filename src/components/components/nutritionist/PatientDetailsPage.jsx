@@ -1093,10 +1093,7 @@ const PatientDetailsPage = () => {
     );
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-app)] font-[var(--font-primary)]">
-      <div className="sticky top-0 z-40 bg-[var(--color-bg-surface-glass)] backdrop-blur-md shadow-sm">
-        <NutriNavbar />
-      </div>
+    <div className="bg-[var(--color-bg-app)] font-[var(--font-primary)]">
       <ToastContainer position="top-right" autoClose={4000} theme="light" />
       <main className="text-[var(--color-text-default)] p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         <motion.header

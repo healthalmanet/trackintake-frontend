@@ -1697,35 +1697,6 @@ const AddAvailability = () => {
         <PatientModal slot={selectedSlot} onClose={() => setSelectedSlot(null)} />
       )}
 
-      {/* Sticky top bar */}
-      <div className="sticky top-0 z-40 px-6 py-4 flex items-center justify-between"
-        style={{
-          background: "rgba(255,253,249,0.88)",
-          backdropFilter: "blur(18px)",
-          borderBottom: "1px solid var(--color-border-default)",
-        }}>
-        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-muted)" }}>
-          <button onClick={() => navigate("/nutritionist")}
-            className="flex items-center gap-1.5 font-medium transition-colors hover:text-[var(--color-primary)]"
-            style={{ fontFamily: "var(--font-secondary)" }}>
-            <Home size={15} /> Home
-          </button>
-          <ChevronRight size={14} />
-          <span className="font-semibold"
-            style={{ color: "var(--color-text-strong)", fontFamily: "var(--font-primary)" }}>
-            Availability
-          </span>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center av-shimmer-btn">
-            <CalendarDays size={15} color="white" />
-          </div>
-          <span className="av-subheading text-base" style={{ color: "var(--color-text-strong)" }}>
-            Availability Manager
-          </span>
-        </div>
-      </div>
-
       <div className="max-w-5xl mx-auto px-6 py-10">
 
         {/* Hero heading */}

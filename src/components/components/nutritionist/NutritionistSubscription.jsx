@@ -176,11 +176,7 @@ const NutritionistSubscription = () => {
   }, [billingHistory, searchTerm]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-app)] font-[var(--font-secondary)] text-[var(--color-text-default)]">
-      <div className="sticky top-0 z-40 bg-[var(--color-bg-surface-glass)] backdrop-blur-md shadow-sm">
-        <NutriNavbar />
-      </div>
-
+    <div className="bg-[var(--color-bg-app)] font-[var(--font-secondary)] text-[var(--color-text-default)]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 animate-fade-in-up">
         {/* ======================================================== */}
         {/* 🌟 HERO BANNER                                           */}

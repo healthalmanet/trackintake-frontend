@@ -2,12 +2,21 @@ import React from 'react';
 import { Facebook, Twitter, Instagram, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-const quickLinks = [
+const userQuickLinks = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Tools", path: "/dashboard/tools" },
   { label: "Profile", path: "/dashboard/user-profile" },
   { label: "Health", path: "/dashboard/health-section" },
+];
+
+const nutritionistQuickLinks = [
+  { label: "Home", path: "/nutritionist" },
+  { label: "Nutrition Search", path: "/nutritionist/search" },
+  { label: "Patient Chat", path: "/nutritionist/chat" },
+  { label: "Manage Availability", path: "/nutritionist/availability" },
+  { label: "Subscription", path: "/nutritionist/subscription" },
 ];
 
 const legalLinks = [
@@ -18,6 +27,10 @@ const legalLinks = [
 ];
 
 const Footer = () => {
+  const { user } = useAuth();
+  const isNutritionist = user?.role === "nutritionist";
+  const linksToDisplay = isNutritionist ? nutritionistQuickLinks : userQuickLinks;
+
   return (
     <footer className="bg-[var(--color-bg-surface)] text-[var(--color-text-default)] font-[var(--font-secondary)] border-t-2 border-[var(--color-border-default)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -57,7 +70,7 @@ const Footer = () => {
           <div>
             <h4 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-primary)] mb-4">Quick Links</h4>
             <ul className="space-y-3">
-              {quickLinks.map((item, i) => (
+              {linksToDisplay.map((item, i) => (
                 <li key={i}>
                   <Link
                     to={item.path}
