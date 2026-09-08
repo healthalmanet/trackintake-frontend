@@ -9,6 +9,7 @@ import NutritionPopup from "../components/components/nutritionist/NutritionPopup
 import AddAvailability from "../components/components/nutritionist/AddAvailability";
 import NutritionSearchLayout from "../components/components/nutritionist/NutritionSearchLayout";
 import NutritionistSubscription from "../components/components/nutritionist/NutritionistSubscription";
+import NutritionistProfile from "../components/components/nutritionist/NutritionistProfile";
 import NutriNavbar from "../components/components/nutritionist/NutriNavbar";
 import Footer from "../components/components/Footer";
 
@@ -35,6 +36,7 @@ const NutritionistPage = () => {
           <Route path="search" element={<NutritionSearchLayout />} />
           <Route path="availability" element={<AddAvailability />} />
           <Route path="subscription" element={<NutritionistSubscription />} />
+          <Route path="profile" element={<NutritionistProfile />} />
         </Routes>
       </div>
 

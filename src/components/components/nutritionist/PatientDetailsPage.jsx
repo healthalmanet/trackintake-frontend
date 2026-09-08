@@ -315,9 +315,9 @@ const PatientDetailsPage = () => {
       );
       setAllDietPlans(allDietsData);
 
-      // Find the latest non-archived, non-rejected plan for display
+      // Find the latest non-archived, non-rejected, non-failed plan for display
       const latestPlanForDisplay = allDietsData.find(
-        (diet) => !diet.is_deleted && diet.status !== "rejected"
+        (diet) => !diet.is_deleted && diet.status !== "rejected" && diet.status !== "failed"
       ) || allDietsData[0] || null;
 
       console.log('[FETCH-B] Inside fetchAndSetAllPlans. Identified latest plan for display:', JSON.parse(JSON.stringify(latestPlanForDisplay)));
@@ -338,8 +338,10 @@ const PatientDetailsPage = () => {
         if (isArchived) statusTag = "Archived";
         else if (plan.status === 'pending' || plan.status === 'generating') statusTag = "Pending Review";
         else if (plan.status === 'rejected') statusTag = "Rejected";
+        else if (plan.status === 'failed') statusTag = "Failed";
         else if (isLatest && plan.status === 'approved') statusTag = "Current Active";
         else if (plan.status === 'approved') statusTag = "Past Approved";
+        else statusTag = plan.status ? plan.status.charAt(0).toUpperCase() + plan.status.slice(1) : "Unknown";
 
         const label = `${dateRangeStr} (${durationDays}-Day) · ${statusTag}`;
         return { id: plan.id, label, status: plan.status, is_deleted: isArchived };
@@ -682,6 +684,12 @@ const PatientDetailsPage = () => {
     );
     if (planToDisplay) {
       setDiets([planToDisplay]);
+      const planDays = Object.keys(planToDisplay.meals || {}).filter(k =>
+        k.toLowerCase().startsWith('day ')
+      );
+      if (planDays.length > 0) {
+        setActiveDayPerDiet((prev) => ({ ...prev, [planToDisplay.id]: planDays[0] }));
+      }
       setComment("");
       setEditingDay(null);
     }

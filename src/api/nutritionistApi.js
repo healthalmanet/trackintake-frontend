@@ -170,3 +170,14 @@ export const archiveDietPlan = (dietId) =>
 // restoreDietPlan.js
 export const restoreDietPlan = (dietId) =>
   axiosInstance.patch(`/nutritionist/diet-plans/${dietId}/restore/`);
+
+// Nutritionist Self Profile & Password API calls
+export const getNutritionistProfile = () =>
+  axiosInstance.get('/nutritionist/me/profile/');
+
+export const updateNutritionistProfile = (data) =>
+  axiosInstance.patch('/nutritionist/me/profile/', data);
+
+export const changeNutritionistPassword = (data) =>
+  axiosInstance.post('/nutritionist/me/change-password/', data);
+
