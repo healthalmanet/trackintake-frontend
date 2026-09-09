@@ -156,8 +156,8 @@ export const generateDietPlan = (patientId) => {
     return axiosInstance.post('/messages/send/', { receiver: receiverId, text: text });
   };
 
-  export const getMessages = () => {
-    return axiosInstance.get('/messages/');
+  export const getMessages = (params = {}) => {
+    return axiosInstance.get('/messages/', { params });
   };
 
   export const markMessageAsRead = (payload) => {
