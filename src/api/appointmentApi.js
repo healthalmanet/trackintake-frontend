@@ -1,13 +1,16 @@
 import axiosInstance from "./axiosInstance";
 
 /**
- * Get available slots for a nutritionist on a given date
+ * Get available slots for a nutritionist on a given date (and optional appointment_type)
  */
-export const getAvailableSlots = (nutritionistId, date) => {
+export const getAvailableSlots = (nutritionistId, date, appointmentType = null) => {
   return axiosInstance.get(
     `/appointments/nutritionist/${nutritionistId}/slots/`,
     {
-      params: { date },
+      params: {
+        date,
+        ...(appointmentType ? { appointment_type: appointmentType } : {}),
+      },
     }
   );
 };
