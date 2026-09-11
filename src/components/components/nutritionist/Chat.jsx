@@ -347,8 +347,7 @@ const Chat = () => {
     if (error) return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>;
 
     return (
-        <div className="flex flex-col h-screen bg-[var(--color-bg-app)] font-[var(--font-primary)]">
-            <div className="sticky top-0 z-40 bg-[var(--color-bg-surface-glass)] backdrop-blur-md shadow-sm"><NutriNavbar /></div>
+        <div className="flex flex-col h-[calc(100vh-65px)] bg-[var(--color-bg-app)] font-[var(--font-primary)]">
             <div className="flex flex-1 overflow-hidden">
                 <aside className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-surface)] border-r border-[var(--color-border-default)] transition-transform duration-300 ease-in-out md:w-1/3 md:relative md:translate-x-0 lg:w-1/4 ${isChatVisible ? '-translate-x-full' : 'translate-x-0'}`}>
                     <header className="p-4 border-b border-[var(--color-border-default)] flex-shrink-0">

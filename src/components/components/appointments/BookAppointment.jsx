@@ -13,7 +13,7 @@ const BookAppointment = ({ onBooked }) => {
   const { user } = useAuth();
 
   const [appointmentCategory, setAppointmentCategory] = useState("IN_HOUSE");
-  const [appointmentType, setAppointmentType] = useState("IN_PERSON");
+  const [appointmentType, setAppointmentType] = useState("VIRTUAL");
 
   const [experts, setExperts] = useState([]);
   const [expertId, setExpertId] = useState("");
@@ -75,7 +75,7 @@ const BookAppointment = ({ onBooked }) => {
     if (!nutritionistId || !date) return;
 
     try {
-      const res = await getAvailableSlots(nutritionistId, date);
+      const res = await getAvailableSlots(nutritionistId, date, appointmentType);
       const data = Array.isArray(res.data)
         ? res.data
         : res.data?.results || [];
@@ -122,43 +122,70 @@ const BookAppointment = ({ onBooked }) => {
     }
   };
   const handleConsultPayment = async () => {
-  try {
-    const orderData = await payConsultationFee(consultType);
+    try {
+      setLoading(true);
+      const orderData = await payConsultationFee(consultType);
 
-    const rzp = new window.Razorpay({
-      key: orderData.key,
-      amount: orderData.amount,
-      order_id: orderData.order_id,
-      name: "TrackIntake",
-      description: "Consultation Fee",
-      handler: async (response) => {
-        try {
-          await verifyPayment(response);
+      if (!window.Razorpay) {
+        toast.error("Payment gateway is loading. Please try again in a moment.");
+        setLoading(false);
+        return;
+      }
 
-          // ✅ Payment ke baad dobara booking karo
-          await bookAppointment({
-            slot_id: pendingSlotId,
-            appointment_category: appointmentCategory,
-            appointment_type: appointmentType,
-            expert_id: appointmentCategory === "EXPERT" ? expertId : null,
-          });
+      const rzp = new window.Razorpay({
+        key: orderData.key,
+        amount: orderData.amount,
+        order_id: orderData.order_id,
+        name: "TrackIntake",
+        description: "Nutritionist Virtual Consultation Fee",
+        handler: async (response) => {
+          try {
+            setLoading(true);
+            await verifyPayment(response);
 
-          toast.success("Appointment booked successfully!");
-          setShowConsultPayment(false);
-          await fetchSlots();
-          onBooked?.();
-        } catch (err) {
-          toast.error("Payment done but booking failed. Contact support.");
-        }
-      },
-      theme: { color: "#ff7a18" }
-    });
-    rzp.open();
+            // ✅ Payment verified: complete slot booking
+            await bookAppointment({
+              slot_id: pendingSlotId,
+              appointment_category: appointmentCategory,
+              appointment_type: appointmentType,
+              expert_id: appointmentCategory === "EXPERT" ? expertId : null,
+            });
 
-  } catch (err) {
-    toast.error("Payment failed. Try again.");
-  }
-};
+            toast.success("Payment successful! Virtual appointment confirmed.");
+            setShowConsultPayment(false);
+            setPendingSlotId(null);
+            await fetchSlots();
+            onBooked?.();
+          } catch (err) {
+            console.error("Post-payment booking error:", err);
+            const msg = err.response?.data?.message || err.response?.data?.detail || "Payment verified, but booking failed. Please refresh or contact support.";
+            toast.error(msg);
+          } finally {
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          }
+        },
+        theme: { color: "#2563eb" }
+      });
+
+      rzp.on("payment.failed", (res) => {
+        toast.error(res.error?.description || "Payment failed. Please try again.");
+        setLoading(false);
+      });
+
+      rzp.open();
+
+    } catch (err) {
+      console.error("Consultation fee order creation failed:", err);
+      const msg = err.response?.data?.error || err.response?.data?.detail || "Could not initiate payment. Please try again.";
+      toast.error(msg);
+      setLoading(false);
+    }
+  };
 
   // ===============================
   // Ad Component - Simple with content only
@@ -451,38 +478,14 @@ const BookingForm = ({
             </div>
           </div>
 
-          {/* Appointment Type */}
-          <div className="space-y-2">
-            <label className="block text-xs sm:text-sm font-medium text-[var(--color-text-strong)]">
-              Appointment Type
-            </label>
-            <div className="flex gap-2 sm:gap-3">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setAppointmentType("IN_PERSON")}
-                className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 text-xs sm:text-sm transition-all duration-300 ${
-                  appointmentType === "IN_PERSON"
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]"
-                    : "border-[var(--color-border-default)] text-[var(--color-text-default)] hover:border-[var(--color-primary)]"
-                }`}
-              >
-                <Building2 size={16} />
-                <span>In Person</span>
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setAppointmentType("VIRTUAL")}
-                className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 text-xs sm:text-sm transition-all duration-300 ${
-                  appointmentType === "VIRTUAL"
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]"
-                    : "border-[var(--color-border-default)] text-[var(--color-text-default)] hover:border-[var(--color-primary)]"
-                }`}
-              >
-                <Video size={16} />
-                <span>Virtual</span>
-              </motion.button>
+          {/* Notice: Online Virtual Consultation */}
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50/80 border border-blue-200/80 text-blue-800">
+            <div className="p-1.5 rounded-lg bg-blue-600 text-white flex-shrink-0">
+              <Video size={14} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-blue-900">Virtual Video Consultation</p>
+              <p className="text-[11px] text-blue-700">Conducted online via Zoom video meeting</p>
             </div>
           </div>
 

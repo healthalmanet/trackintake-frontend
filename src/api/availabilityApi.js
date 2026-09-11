@@ -1,9 +1,9 @@
 import axiosInstance from "./axiosInstance";
 
-export const getMySlots = (date) => {
+export const getMySlots = (params = {}) => {
   return axiosInstance.get(
-    "/appointments/nutritionist/me/slots/",
-    { params: { date } }
+    "/appointments/nutritionist/my-slots/",
+    { params }
   );
 };
 
@@ -16,7 +16,7 @@ export const addAvailability = (data) => {
 
 export const deleteAvailability = (id) => {
   return axiosInstance.delete(
-    `/appointments/nutritionist/me/slots/${id}/`
+    `/appointments/nutritionist/slots/${id}/delete/`
   );
 };
 

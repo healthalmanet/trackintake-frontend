@@ -67,7 +67,12 @@ export const reviewDietPlan = (dietId, action, comment) => {
 };
 
 export const submitFeedbackForML = (dietId, feedback, approved) => {
-  return axiosInstance.post(`/nutritionist/diet-plans/${dietId}/feedback/`, { feedback, approved });
+  return axiosInstance.post(`/nutritionist/diet-plans/${dietId}/feedback/`, {
+    notes: feedback,
+    feedback: feedback,
+    approved_for_retraining: Boolean(approved),
+    approved: Boolean(approved),
+  });
 };
 
 // In nutritionistApi.js
@@ -84,6 +89,18 @@ export const getDietRecommendationUsers = (page = 1, pageSize = 10) => {
 // ✅ File upload case, uses the special config
 export const createUserPatient = (userData) => {
   return axiosInstance.post('/nutritionist/create-patient/', userData, fileUploadConfig);
+};
+
+// ✅ Download XLSX template with column titles & 10 sample patient records
+export const downloadPatientTemplate = () => {
+  return axiosInstance.get('/nutritionist/download-patient-template/', {
+    responseType: 'blob',
+  });
+};
+
+// ✅ Bulk upload patients via Excel (.xlsx / .xls)
+export const bulkUploadPatients = (formData) => {
+  return axiosInstance.post('/nutritionist/bulk-upload-patients/', formData, fileUploadConfig);
 };
 
 // ✅ Lab Report Functions scoped to a patient under the nutritionist
@@ -139,8 +156,8 @@ export const generateDietPlan = (patientId) => {
     return axiosInstance.post('/messages/send/', { receiver: receiverId, text: text });
   };
 
-  export const getMessages = () => {
-    return axiosInstance.get('/messages/');
+  export const getMessages = (params = {}) => {
+    return axiosInstance.get('/messages/', { params });
   };
 
   export const markMessageAsRead = (payload) => {
@@ -153,3 +170,14 @@ export const archiveDietPlan = (dietId) =>
 // restoreDietPlan.js
 export const restoreDietPlan = (dietId) =>
   axiosInstance.patch(`/nutritionist/diet-plans/${dietId}/restore/`);
+
+// Nutritionist Self Profile & Password API calls
+export const getNutritionistProfile = () =>
+  axiosInstance.get('/nutritionist/me/profile/');
+
+export const updateNutritionistProfile = (data) =>
+  axiosInstance.patch('/nutritionist/me/profile/', data);
+
+export const changeNutritionistPassword = (data) =>
+  axiosInstance.post('/nutritionist/me/change-password/', data);
+

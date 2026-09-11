@@ -5,6 +5,8 @@ import {
   getAssignedPatients,
   // searchUsersByName is deprecated in favor of a unified fetch
   getPatientProfile,
+  downloadPatientTemplate,
+  bulkUploadPatients,
 } from "../../../api/nutritionistApi";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,6 +23,25 @@ import {
   User,
   TestTube2,
   Upload, // <-- Import Upload icon
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  FileUp,
+  FileText,
+  HelpCircle,
+  Sparkles,
+  Layers,
+  Check,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  KeyRound,
+  Copy,
+  CheckCheck,
+  ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -127,6 +148,15 @@ const NutritionistDashboard = () => {
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [addPatientMode, setAddPatientMode] = useState("single"); // "single" or "bulk"
+  const [bulkFile, setBulkFile] = useState(null);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
+  const [resultsTab, setResultsTab] = useState("errors"); // "errors" or "created"
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [showFieldGuide, setShowFieldGuide] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
   const [newPatient, setNewPatient] = useState({ lab_report: {} });
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -421,6 +451,108 @@ const NutritionistDashboard = () => {
     }
   };
 
+  // --- Download Excel Template ---
+  const handleDownloadTemplate = async () => {
+    setIsDownloadingTemplate(true);
+    const toastId = toast.loading("Generating patient template with 10 examples...");
+    try {
+      const response = await downloadPatientTemplate();
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "trackintake_patient_import_template.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel template downloaded successfully!", { id: toastId });
+    } catch (err) {
+      console.error("Error downloading template:", err);
+      toast.error("Failed to download template. Please try again.", { id: toastId });
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
+  // --- Handle Bulk File Upload ---
+  const handleBulkUpload = async (e) => {
+    e.preventDefault();
+    if (!bulkFile) {
+      toast.error("Please select an Excel (.xlsx/.xls) file to upload.");
+      return;
+    }
+
+    setIsBulkUploading(true);
+    const toastId = toast.loading("Processing bulk patient file (validating & creating accounts)...");
+    const formData = new FormData();
+    formData.append("file", bulkFile);
+
+    try {
+      const res = await bulkUploadPatients(formData);
+      const data = res.data;
+      setBulkUploadResult(data);
+
+      if (data.created_count > 0) {
+        toast.success(`Successfully imported ${data.created_count} patient(s)!`, {
+          id: toastId,
+          duration: 5000,
+        });
+
+        // Prepend created patients to state & trigger background refresh
+        if (data.created_patients && data.created_patients.length > 0) {
+          setPatients((prev) => {
+            const newPatientsFormatted = data.created_patients.map((p) => ({
+              ...p,
+              profile: {
+                goal: p.goal,
+                date_of_birth: p.date_of_birth,
+              },
+            }));
+            return [...newPatientsFormatted, ...prev];
+          });
+        }
+        fetchPatients();
+      } else {
+        toast.error("No patients were created. Please check the error summary below.", {
+          id: toastId,
+        });
+      }
+    } catch (err) {
+      console.error("Error in bulk upload:", err.response?.data || err);
+      const errDetail =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        "Failed to process bulk upload. Please check file format and try again.";
+      toast.error(errDetail, { id: toastId, duration: 6000 });
+      if (err.response?.data?.errors) {
+        setBulkUploadResult(err.response.data);
+      }
+    } finally {
+      setIsBulkUploading(false);
+    }
+  };
+
+  const handleFileChange = (file) => {
+    if (!file) return;
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (ext !== "xlsx" && ext !== "xls") {
+      toast.error("Invalid file format! Please upload an Excel (.xlsx or .xls) file.");
+      return;
+    }
+    setBulkFile(file);
+    setBulkUploadResult(null);
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText("Default@123");
+    setCopiedPassword(true);
+    toast.success("Default password 'Default@123' copied to clipboard!");
+    setTimeout(() => setCopiedPassword(false), 2500);
+  };
+
 
   // --- [UNCHANGED] Helper Functions ---
   const calculateAge = (dob) => {
@@ -461,7 +593,7 @@ const NutritionistDashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-app)] font-[var(--font-primary)]">
+    <div className="bg-[var(--color-bg-app)] font-[var(--font-primary)]">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -469,9 +601,6 @@ const NutritionistDashboard = () => {
             "font-[var(--font-secondary)] !bg-[var(--color-bg-surface)] !text-[var(--color-text-default)] !border-2 !border-[var(--color-border-default)] !shadow-lg",
         }}
       />
-      <div className="sticky top-0 z-40 bg-[var(--color-bg-surface-glass)] backdrop-blur-md shadow-sm">
-        <NutriNavbar />
-      </div>
 
       <main className="text-[var(--color-text-default)] p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         <motion.header
@@ -559,23 +688,470 @@ const NutritionistDashboard = () => {
                 className="bg-[var(--color-bg-surface)] p-6 sm:p-8 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-2 border-[var(--color-border-default)] custom-scrollbar"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex justify-between items-start mb-6  bg-[var(--color-bg-surface)] py-4 z-10 -mx-8 px-8 -mt-6 pt-6">
+                <div className="flex justify-between items-start mb-4 bg-[var(--color-bg-surface)] py-4 z-10 -mx-8 px-8 -mt-6 pt-6 border-b border-[var(--color-border-default)]">
                   <div>
-                    <h2 className="text-3xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
-                      Add New Patient
+                    <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] flex items-center gap-3">
+                      {addPatientMode === "single" ? (
+                        <>
+                          <UserPlus className="text-[var(--color-primary)]" size={28} />
+                          <span>Add New Patient</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileSpreadsheet className="text-emerald-500" size={28} />
+                          <span>Bulk Patient Onboarding</span>
+                        </>
+                      )}
                     </h2>
-                    <p className="text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1">
-                      Fill in the details to onboard a new patient.
+                    <p className="text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1 text-sm sm:text-base">
+                      {addPatientMode === "single"
+                        ? "Fill in the details below to onboard a single patient."
+                        : "Upload an Excel spreadsheet (.xlsx) to onboard up to 1,000+ patients at once."}
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowForm(false)}
+                    onClick={() => {
+                      setShowForm(false);
+                      setBulkFile(null);
+                      setBulkUploadResult(null);
+                    }}
                     className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-primary)] transition-colors"
                     aria-label="Close"
                   >
                     <X size={24} />
                   </button>
                 </div>
+
+                {/* Tab Switcher */}
+                <div className="flex p-1.5 bg-[var(--color-bg-app)] rounded-2xl border border-[var(--color-border-default)] mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setAddPatientMode("single")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                      addPatientMode === "single"
+                        ? "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] shadow-sm border border-[var(--color-border-default)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
+                  >
+                    <User size={18} className={addPatientMode === "single" ? "text-[var(--color-primary)]" : ""} />
+                    <span>Single Patient</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddPatientMode("bulk")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-200 relative ${
+                      addPatientMode === "bulk"
+                        ? "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] shadow-sm border border-[var(--color-border-default)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
+                  >
+                    <FileSpreadsheet size={18} className="text-emerald-500" />
+                    <span>Bulk Upload (.xlsx)</span>
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold px-2 py-0.5 rounded-full">
+                      <Sparkles size={11} /> 1000s at once
+                    </span>
+                  </button>
+                </div>
+
+                {addPatientMode === "bulk" ? (
+                  <div className="space-y-6 font-[var(--font-secondary)]">
+                    {/* Step 1: Download Template */}
+                    <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-2 border-emerald-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl border border-emerald-500/30 flex-shrink-0 shadow-inner">
+                          <FileSpreadsheet size={34} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider bg-emerald-600 text-white px-2.5 py-0.5 rounded-md shadow-sm">
+                              Step 1
+                            </span>
+                            <h3 className="text-lg font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                              Download Official Excel Template
+                            </h3>
+                          </div>
+                          <p className="text-sm text-[var(--color-text-muted)] mt-1.5 max-w-xl leading-relaxed">
+                            Pre-configured with all backend columns & includes <strong>10 realistic example patients</strong>. Open in Excel or Google Sheets, remove the sample rows, enter your patients (10, 100, or 1000s), and upload!
+                          </p>
+                          <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-[var(--color-text-default)] font-medium">
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                              <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> 10 Sample Rows Included
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                              <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> Required Fields Marked (*)
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                              <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> Field Guide Sheet
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDownloadTemplate}
+                        disabled={isDownloadingTemplate}
+                        className="w-full md:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed flex-shrink-0"
+                      >
+                        {isDownloadingTemplate ? (
+                          <ButtonSpinner />
+                        ) : (
+                          <Download size={18} />
+                        )}
+                        <span>{isDownloadingTemplate ? "Downloading..." : "Download Template (.xlsx)"}</span>
+                      </button>
+                    </div>
+
+                    {/* Default Account Password Banner */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border-2 border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                      <div className="flex items-start gap-3.5">
+                        <div className="p-2.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl flex-shrink-0 mt-0.5 sm:mt-0">
+                          <KeyRound size={22} />
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <h4 className="font-bold text-sm sm:text-base text-[var(--color-text-strong)]">
+                              Default Patient Login Password:
+                            </h4>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-amber-500/40 text-[var(--color-text-strong)] font-mono font-bold text-sm shadow-sm">
+                              <span>Default@123</span>
+                              <button
+                                type="button"
+                                onClick={handleCopyPassword}
+                                className="text-amber-600 dark:text-amber-400 hover:text-amber-700 p-0.5 rounded transition-colors"
+                                title="Copy default password"
+                              >
+                                {copiedPassword ? <CheckCheck size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-[var(--color-text-muted)] mt-1.5 leading-relaxed">
+                            Patients can log in to TrackIntake using their registered <strong>Email</strong> and <code className="font-bold text-amber-700 dark:text-amber-300">Default@123</code> (unless specified in the Excel sheet). They can change their password anytime after logging in.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 font-semibold bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 flex-shrink-0 self-end sm:self-center">
+                        <ShieldCheck size={16} />
+                        <span>Pre-configured</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Guide & Required Fields Accordion */}
+                    <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
+                      <div 
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => setShowFieldGuide(!showFieldGuide)}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <HelpCircle size={18} className="text-[var(--color-primary)]" />
+                          <span className="font-semibold text-sm text-[var(--color-text-strong)]">
+                            Required vs Optional Columns Guide
+                          </span>
+                          <span className="text-xs bg-red-500/10 text-red-600 dark:text-red-400 font-bold px-2 py-0.5 rounded-full border border-red-500/20">
+                            Full Name * & Email * Mandatory
+                          </span>
+                        </div>
+                        <button type="button" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]">
+                          {showFieldGuide ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </button>
+                      </div>
+
+                      {showFieldGuide && (
+                        <div className="mt-4 pt-4 border-t border-[var(--color-border-default)] grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-[var(--color-text-default)]">
+                          <div className="p-3 bg-[var(--color-bg-surface)] rounded-lg border border-[var(--color-border-default)] space-y-1.5">
+                            <h4 className="font-bold text-red-600 dark:text-red-400 uppercase tracking-wide flex items-center gap-1.5">
+                              <AlertCircle size={14} /> Mandatory Columns
+                            </h4>
+                            <p><strong>Full Name *</strong>: Patient's name (e.g. Aarav Sharma)</p>
+                            <p><strong>Email *</strong>: Unique email for each patient account</p>
+                          </div>
+                          <div className="p-3 bg-[var(--color-bg-surface)] rounded-lg border border-[var(--color-border-default)] space-y-1.5">
+                            <h4 className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
+                              <CheckCircle2 size={14} /> Optional Columns & Choices
+                            </h4>
+                            <p><strong>Gender</strong>: male, female, or other</p>
+                            <p><strong>Activity Level</strong>: sedentary, lightly_active, moderately_active, very_active, extra_active</p>
+                            <p><strong>Primary Goal</strong>: lose_weight, maintain, gain_weight</p>
+                            <p><strong>Diet Type</strong>: vegetarian, non_vegetarian, vegan, eggetarian, keto, other</p>
+                            <p><strong>Medical Conditions</strong>: Yes / No (Diabetic, Hypertensive, Heart, Thyroid, Arthritis, Gastric)</p>
+                            <p><strong>Lab Report Biomarkers</strong>: Fasting Sugar, Postprandial, HbA1c, BP, Cholesterol, Vitamins, etc.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Step 2: Drag and Drop Upload Area */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider bg-[var(--color-primary)] text-white px-2 py-0.5 rounded-md">
+                          Step 2
+                        </span>
+                        <h3 className="text-lg font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                          Upload Filled Spreadsheet (.xlsx / .xls)
+                        </h3>
+                      </div>
+
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDragOver(true);
+                        }}
+                        onDragLeave={() => setIsDragOver(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDragOver(false);
+                          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                            handleFileChange(e.dataTransfer.files[0]);
+                          }
+                        }}
+                        className={`relative p-8 rounded-2xl border-2 border-dashed transition-all duration-300 text-center flex flex-col items-center justify-center gap-3 cursor-pointer ${
+                          isDragOver
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)] scale-[0.99]"
+                            : bulkFile
+                            ? "border-emerald-500/50 bg-emerald-500/5"
+                            : "border-[var(--color-border-default)] hover:border-[var(--color-primary)] bg-[var(--color-bg-app)]"
+                        }`}
+                        onClick={() => document.getElementById("bulk-file-input")?.click()}
+                      >
+                        <input
+                          id="bulk-file-input"
+                          type="file"
+                          accept=".xlsx,.xls"
+                          className="sr-only"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              handleFileChange(e.target.files[0]);
+                            }
+                          }}
+                        />
+
+                        {bulkFile ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="p-3.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                              <FileSpreadsheet size={36} />
+                            </div>
+                            <p className="font-bold text-base text-[var(--color-text-strong)]">{bulkFile.name}</p>
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              {(bulkFile.size / 1024).toFixed(1)} KB • Ready to upload
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBulkFile(null);
+                                setBulkUploadResult(null);
+                              }}
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
+                            >
+                              <Trash2 size={14} /> Remove File
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="p-3.5 bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] rounded-2xl border border-[var(--color-border-default)]">
+                              <FileUp size={36} className="text-[var(--color-primary)]" />
+                            </div>
+                            <p className="font-bold text-base text-[var(--color-text-strong)]">
+                              Click to browse or drag & drop your Excel file here
+                            </p>
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              Supports .xlsx and .xls (supports 10 to 1,000+ patients in one batch)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Upload Submit Button */}
+                      <div className="flex justify-end gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowForm(false);
+                            setBulkFile(null);
+                            setBulkUploadResult(null);
+                          }}
+                          className="px-6 py-3 rounded-xl border-2 border-[var(--color-border-default)] font-semibold text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBulkUpload}
+                          disabled={!bulkFile || isBulkUploading}
+                          className="flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] font-bold transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transform-gpu"
+                        >
+                          {isBulkUploading ? (
+                            <>
+                              <ButtonSpinner />
+                              <span>Processing & Creating Patients...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={18} />
+                              <span>Upload & Create Patients</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Step 3: Results Display */}
+                    {bulkUploadResult && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-6 rounded-2xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] space-y-5 mt-6 shadow-md"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-border-default)] pb-4">
+                          <h4 className="text-lg font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] flex items-center gap-2">
+                            <ClipboardList size={22} className="text-[var(--color-primary)]" />
+                            <span>Bulk Import Results Breakdown</span>
+                          </h4>
+                          <span className="text-xs font-semibold text-[var(--color-text-muted)] bg-[var(--color-bg-app)] px-3 py-1 rounded-full border border-[var(--color-border-default)]">
+                            File: {bulkFile?.name || "Uploaded Spreadsheet"}
+                          </span>
+                        </div>
+
+                        {/* 3 Metric Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-center">
+                          <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] flex flex-col justify-center">
+                            <span className="text-3xl font-extrabold text-[var(--color-text-strong)]">{bulkUploadResult.total_rows || 0}</span>
+                            <p className="text-xs text-[var(--color-text-muted)] font-semibold mt-1 uppercase tracking-wide">Total Rows Analyzed</p>
+                          </div>
+                          <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 flex flex-col justify-center">
+                            <div className="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 size={20} />
+                              <span className="text-3xl font-extrabold">{bulkUploadResult.created_count || 0}</span>
+                            </div>
+                            <p className="text-xs text-emerald-800 dark:text-emerald-300 font-bold mt-1 uppercase tracking-wide">Successfully Created</p>
+                          </div>
+                          <div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/30 flex flex-col justify-center">
+                            <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+                              <AlertTriangle size={20} />
+                              <span className="text-3xl font-extrabold">{bulkUploadResult.failed_count || 0}</span>
+                            </div>
+                            <p className="text-xs text-amber-800 dark:text-amber-300 font-bold mt-1 uppercase tracking-wide">Errors / Skipped Rows</p>
+                          </div>
+                        </div>
+
+                        {/* Result Sub-tabs */}
+                        <div className="flex p-1 bg-[var(--color-bg-app)] rounded-xl border border-[var(--color-border-default)]">
+                          {bulkUploadResult.failed_count > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setResultsTab("errors")}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                                resultsTab === "errors"
+                                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-sm"
+                                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                              }`}
+                            >
+                              ⚠️ View {bulkUploadResult.failed_count} Failed / Skipped Rows & Reasons
+                            </button>
+                          )}
+                          {bulkUploadResult.created_count > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setResultsTab("created")}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                                resultsTab === "created"
+                                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-sm"
+                                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                              }`}
+                            >
+                              ✓ View {bulkUploadResult.created_count} Created Patients
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Errors Tab Content */}
+                        {resultsTab === "errors" && bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] px-1">
+                              <span className="font-semibold uppercase tracking-wider">Excel Row # & Details</span>
+                              <span className="font-semibold uppercase tracking-wider">Exact Failure Reason</span>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto space-y-2 p-3 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] custom-scrollbar">
+                              {bulkUploadResult.errors.map((err, i) => (
+                                <div key={i} className="text-xs p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="px-2 py-1 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs whitespace-nowrap border border-amber-500/30">
+                                      Row {err.row}
+                                    </span>
+                                    <div>
+                                      <p className="font-bold text-[var(--color-text-strong)]">
+                                        {err.name && err.name !== "N/A" ? err.name : "Missing Name"}
+                                      </p>
+                                      <p className="text-[var(--color-text-muted)] text-[11px]">
+                                        {err.email || "Missing Email"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 font-medium text-xs border border-red-500/20 sm:max-w-md">
+                                    <AlertCircle size={14} className="flex-shrink-0" />
+                                    <span>{err.error}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Created Tab Content */}
+                        {resultsTab === "created" && bulkUploadResult.created_patients && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] px-1">
+                              <span className="font-semibold uppercase tracking-wider">Patient Name & Email</span>
+                              <span className="font-semibold uppercase tracking-wider">Goal & Status</span>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto space-y-2 p-3 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] custom-scrollbar">
+                              {bulkUploadResult.created_patients.map((p, i) => (
+                                <div key={i} className="text-xs p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] flex items-center justify-between gap-2 shadow-sm">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                                      {p.full_name?.charAt(0) || "P"}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-[var(--color-text-strong)]">{p.full_name}</p>
+                                      <p className="text-[var(--color-text-muted)] text-[11px]">{p.email}</p>
+                                    </div>
+                                  </div>
+                                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-xs border border-emerald-500/20">
+                                    ✓ Active & Assigned
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bottom Actions */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[var(--color-border-default)]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBulkFile(null);
+                              setBulkUploadResult(null);
+                            }}
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[var(--color-border-default)] text-xs font-semibold text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"
+                          >
+                            Upload Another File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowForm(false);
+                              setBulkFile(null);
+                              setBulkUploadResult(null);
+                            }}
+                            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all duration-200"
+                          >
+                            Done & View Patients Roster
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                ) : (
                 <form
                   onSubmit={handleCreatePatient}
                   className="font-[var(--font-secondary)]"
@@ -886,6 +1462,7 @@ const NutritionistDashboard = () => {
                     </button>
                   </div>
                 </form>
+                )}
               </motion.div>
             </motion.div>
           )}

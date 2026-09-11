@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, BellOff, Trash2, Menu, X } from 'lucide-react';
+import { Bell, MessageSquare, BellOff, Trash2, Menu, X, User } from 'lucide-react';
 import { createPortal } from "react-dom";
 import LogoutButton from "../LogoutButton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -136,7 +136,14 @@ const NutriNavbar = () => {
         }
     };
 
-    const navLinks = [{ to: "/nutritionist", label: "Home" }, { to: "/nutritionist/search", label: "Nutrition Search" }, { to: "/nutritionist/chat", label: "Chat" }, { to: "/nutritionist/availability", label: "Availability" }];
+    const navLinks = [
+        { to: "/nutritionist", label: "Home" },
+        { to: "/nutritionist/search", label: "Nutrition Search" },
+        { to: "/nutritionist/chat", label: "Chat" },
+        { to: "/nutritionist/availability", label: "Availability" },
+        { to: "/nutritionist/subscription", label: "Subscription" },
+        { to: "/nutritionist/profile", label: "Profile" }
+    ];
 
     return (
         <>
@@ -148,6 +155,19 @@ const NutriNavbar = () => {
                     {navLinks.map(({ to, label }) => <NavLink key={to} to={to} end={to === "/nutritionist"} className={({ isActive }) => `font-medium transition-colors duration-300 ${isActive ? "text-[var(--color-primary)] font-semibold" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"}`}>{label}</NavLink>)}
                 </nav>
                 <div className="flex items-center gap-2">
+                    <NavLink
+                        to="/nutritionist/profile"
+                        className={({ isActive }) =>
+                            `p-2 rounded-full transition-all flex items-center justify-center ${
+                                isActive
+                                    ? "bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] ring-2 ring-[var(--color-primary)]"
+                                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)]"
+                            }`
+                        }
+                        title="Nutritionist Profile & Security"
+                    >
+                        <User size={20} />
+                    </NavLink>
                     <div className="relative">
                         <motion.button ref={bellRef} onClick={() => setIsDropdownOpen(p => !p)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="relative p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors">
                             <Bell size={22} />
