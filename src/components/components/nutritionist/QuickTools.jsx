@@ -42,10 +42,10 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
   };
 
   return (
-    <div className="fixed bottom-32 right-5 z-50">
+    <div className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 font-[var(--font-secondary)]">
       <div className="relative group flex items-center">
         {/* Tooltip that appears on hover */}
-        <div className="absolute right-full mr-4 px-3 py-1.5 bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] text-sm font-semibold rounded-lg shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-in-out">
+        <div className="hidden sm:block absolute right-full mr-3 px-3 py-1.5 bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] text-xs font-semibold rounded-xl shadow-lg border border-[var(--color-border-default)] whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-300">
           Quick Toolbox
         </div>
 
@@ -58,7 +58,7 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="absolute right-0 bottom-full mb-4 space-y-3"
+                className="absolute right-0 bottom-full mb-3 space-y-2.5 min-w-[200px]"
               >
                 {/* Smart Assistant Button */}
                 <motion.button
@@ -67,10 +67,12 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                     onOpenAssistant();
                     setIsOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-xl shadow-lg border-2 border-[var(--color-border-default)] hover:bg-[var(--color-primary)] hover:text-[var(--color-text-on-primary)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-2"
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
                 >
-                  <Bot size={20} />
-                  <span>Smart Assistant</span>
+                  <span className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]">
+                    <Bot size={18} />
+                  </span>
+                  <span className="text-sm font-[var(--font-primary)]">Smart Assistant</span>
                 </motion.button>
 
                 {/* Nutrition Search Button */}
@@ -80,13 +82,15 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                     onOpenNutrition();
                     setIsOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-xl shadow-lg border-2 border-[var(--color-border-default)] hover:bg-[var(--color-primary)] hover:text-[var(--color-text-on-primary)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-2"
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
                 >
-                  <Salad size={20} />
-                  <span>Nutrition Search</span>
+                  <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                    <Salad size={18} />
+                  </span>
+                  <span className="text-sm font-[var(--font-primary)]">Nutrition Search</span>
                 </motion.button>
 
-                {/* --- NEW: Chat with Nutritionist Button --- */}
+                {/* Chat with Nutritionist Button (if user role) */}
                 {userRole === 'user' && (
                   <motion.button
                     variants={itemVariants}
@@ -94,10 +98,12 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                       onOpenChat();
                       setIsOpen(false);
                     }}
-                    className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-xl shadow-lg border-2 border-[var(--color-border-default)] hover:bg-[var(--color-primary)] hover:text-[var(--color-text-on-primary)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-2"
+                    className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
                   >
-                    <MessageSquare size={20} />
-                    <span>Chat with Nutritionist</span>
+                    <span className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                      <MessageSquare size={18} />
+                    </span>
+                    <span className="text-sm font-[var(--font-primary)]">Chat with Nutritionist</span>
                   </motion.button>
                 )}
               </motion.div>
@@ -107,9 +113,10 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
           {/* Main Quick Tools Button */}
           <motion.button
             onClick={() => setIsOpen((prev) => !prev)}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-[var(--color-primary)] text-[var(--color-text-on-primary)] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-app)] focus:ring-[var(--color-primary)]"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] w-14 h-14 sm:w-16 sm:h-16 rounded-2xl shadow-2xl flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-[var(--color-primary)]/30 transition-colors"
+            aria-label="Toggle Quick Tools"
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -119,7 +126,7 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                 exit={{ opacity: 0, rotate: 45, scale: 0.8 }}
                 transition={{ duration: 0.2, ease: "easeInOut" }}
               >
-                {isOpen ? <X size={28} /> : <Zap size={28} />}
+                {isOpen ? <X size={26} /> : <Zap size={26} />}
               </motion.div>
             </AnimatePresence>
           </motion.button>

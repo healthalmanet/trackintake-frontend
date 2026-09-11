@@ -635,39 +635,37 @@ const NutritionistDashboard = () => {
                 className="w-full pl-12 pr-12 py-3 border-2 bg-[var(--color-bg-app)] border-[var(--color-border-default)] rounded-xl text-[var(--color-text-strong)] placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-border-hover)] focus:border-[var(--color-border-focus)] outline-none transition-all duration-300 shadow-inner"
               />
             </div>
-            <div className="flex gap-3 w-full sm:w-auto">
-  {/* Manage Availability */}
-  <button
-    onClick={() => navigate("/nutritionist/availability")}
-    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-bold
-      bg-[var(--color-bg-surface)]
-      border-2 border-[var(--color-border-default)]
-      text-[var(--color-text-strong)]
-      hover:border-[var(--color-primary)]
-      hover:text-[var(--color-primary)]
-      hover:shadow-lg
-      transition-all duration-300"
-  >
-    <CalendarDays size={20} />
-    <span>Manage Availability</span>
-  </button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* Manage Availability */}
+              <button
+                onClick={() => navigate("/nutritionist/availability")}
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 rounded-2xl sm:rounded-full font-bold text-sm sm:text-base
+                  bg-[var(--color-bg-surface)]
+                  border-2 border-[var(--color-border-default)]
+                  text-[var(--color-text-strong)]
+                  hover:border-[var(--color-primary)]
+                  hover:text-[var(--color-primary)]
+                  hover:shadow-lg
+                  transition-all duration-300 w-full sm:w-auto"
+              >
+                <CalendarDays size={19} />
+                <span>Manage Availability</span>
+              </button>
 
-  {/* Add New Patient */}
-  <button
-    onClick={() => setShowForm(true)}
-    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-bold
-      bg-[var(--color-primary)]
-      text-[var(--color-text-on-primary)]
-      hover:bg-[var(--color-primary-hover)]
-      hover:shadow-xl
-      transition-all duration-300"
-  >
-    <UserPlus size={20} />
-    <span>Add New Patient</span>
-  </button>
-</div>
-
-            
+              {/* Add New Patient */}
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 rounded-2xl sm:rounded-full font-bold text-sm sm:text-base
+                  bg-[var(--color-primary)]
+                  text-[var(--color-text-on-primary)]
+                  hover:bg-[var(--color-primary-hover)]
+                  hover:shadow-xl
+                  transition-all duration-300 w-full sm:w-auto"
+              >
+                <UserPlus size={19} />
+                <span>Add New Patient</span>
+              </button>
+            </div>
           </div>
         </motion.header>
 
@@ -677,7 +675,7 @@ const NutritionistDashboard = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-[var(--color-bg-backdrop)] backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[var(--color-bg-backdrop)] backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
               onClick={() => setShowForm(false)}
             >
               <motion.div
@@ -685,25 +683,25 @@ const NutritionistDashboard = () => {
                 animate={{ scale: 1, y: 0, opacity: 1 }}
                 exit={{ scale: 0.9, y: 20, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="bg-[var(--color-bg-surface)] p-6 sm:p-8 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-2 border-[var(--color-border-default)] custom-scrollbar"
+                className="bg-[var(--color-bg-surface)] p-4 sm:p-6 md:p-8 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-y-auto relative shadow-2xl border-2 border-[var(--color-border-default)] custom-scrollbar"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex justify-between items-start mb-4 bg-[var(--color-bg-surface)] py-4 z-10 -mx-8 px-8 -mt-6 pt-6 border-b border-[var(--color-border-default)]">
+                <div className="flex justify-between items-start mb-4 bg-[var(--color-bg-surface)] py-3 sm:py-4 z-10 -mx-4 px-4 sm:-mx-8 sm:px-8 -mt-4 sm:-mt-8 pt-4 sm:pt-6 border-b border-[var(--color-border-default)]">
                   <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] flex items-center gap-2.5 sm:gap-3">
                       {addPatientMode === "single" ? (
                         <>
-                          <UserPlus className="text-[var(--color-primary)]" size={28} />
+                          <UserPlus className="text-[var(--color-primary)]" size={26} />
                           <span>Add New Patient</span>
                         </>
                       ) : (
                         <>
-                          <FileSpreadsheet className="text-emerald-500" size={28} />
+                          <FileSpreadsheet className="text-emerald-500" size={26} />
                           <span>Bulk Patient Onboarding</span>
                         </>
                       )}
                     </h2>
-                    <p className="text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1 text-sm sm:text-base">
+                    <p className="text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1 text-xs sm:text-sm md:text-base">
                       {addPatientMode === "single"
                         ? "Fill in the details below to onboard a single patient."
                         : "Upload an Excel spreadsheet (.xlsx) to onboard up to 1,000+ patients at once."}
@@ -715,10 +713,10 @@ const NutritionistDashboard = () => {
                       setBulkFile(null);
                       setBulkUploadResult(null);
                     }}
-                    className="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-primary)] transition-colors"
+                    className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-primary)] transition-colors flex-shrink-0"
                     aria-label="Close"
                   >
-                    <X size={24} />
+                    <X size={22} />
                   </button>
                 </div>
 

@@ -69,12 +69,12 @@ const UserListItem = ({ user, isActive, onClick }) => (
     </motion.li>
 );
 const ChatMessage = ({ message, isNutritionist }) => (
-    <motion.div initial={{ opacity: 0, y: 15, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} layout className={`flex my-2 items-end gap-2 ${isNutritionist ? 'justify-end' : 'justify-start'}`}>
-        <div className={`px-4 py-2.5 rounded-2xl max-w-lg lg:max-w-xl shadow-md font-secondary transition-opacity duration-300 ${isNutritionist ? 'bg-gradient-to-br from-[var(--color-primary-bg-subtle)] to-[var(--color-bg-surface-alt)] text-[var(--color-text-default)] rounded-br-none' : 'bg-[var(--color-bg-surface)] rounded-bl-none border border-[var(--color-border-default)]'} ${message.status === 'sending' ? 'opacity-60' : 'opacity-100'}`}>
-            <p className="text-[var(--color-text-default)] break-words">{message.text}</p>
-            <span className="block mt-1.5 text-xs text-right text-[var(--color-text-subtle)]">{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+    <motion.div initial={{ opacity: 0, y: 15, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} layout className={`flex my-2 items-end gap-2 ${isNutritionist ? 'justify-end' : 'justify-start'}`}>
+        <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] sm:max-w-lg lg:max-w-xl shadow-sm font-[var(--font-secondary)] transition-opacity duration-300 ${isNutritionist ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-br-none font-medium' : 'bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] rounded-bl-none border-2 border-[var(--color-border-default)]'} ${message.status === 'sending' ? 'opacity-60' : 'opacity-100'}`}>
+            <p className="break-words text-xs sm:text-sm">{message.text}</p>
+            <span className={`block mt-1 text-[10px] text-right ${isNutritionist ? 'text-white/80' : 'text-[var(--color-text-muted)]'}`}>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
-        {isNutritionist && message.status === 'failed' && <div className="text-red-500" title="Failed to send"><AlertCircle size={18} /></div>}
+        {isNutritionist && message.status === 'failed' && <div className="text-[var(--color-danger-text)]" title="Failed to send"><AlertCircle size={18} /></div>}
     </motion.div>
 );
 
@@ -358,11 +358,11 @@ const Chat = () => {
                         </div>
                     </header>
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <AnimatePresence mode="wait">{patients.length > 0 ? <motion.ul key="patient-list" variants={listContainerVariants} initial="hidden" animate="visible">{patients.map(p => <UserListItem key={p.id} user={p} isActive={activeUser?.id === p.id} onClick={() => handleUserSelect(p)} />)}</motion.ul> : <div className="flex flex-col items-center justify-center h-full text-center p-4"><Inbox size={48} className="mb-4 text-gray-400" /><h4 className="font-bold">No Patients Found</h4><p className="text-sm text-gray-500">{searchTerm ? "Try a different search term." : "Assigned patients will appear here."}</p></div>}</AnimatePresence>
+                        <AnimatePresence mode="wait">{patients.length > 0 ? <motion.ul key="patient-list" variants={listContainerVariants} initial="hidden" animate="visible">{patients.map(p => <UserListItem key={p.id} user={p} isActive={activeUser?.id === p.id} onClick={() => handleUserSelect(p)} />)}</motion.ul> : <div className="flex flex-col items-center justify-center h-full text-center p-4"><Inbox size={44} className="mb-3 text-[var(--color-text-subtle)]" /><h4 className="font-bold text-[var(--color-text-strong)]">No Patients Found</h4><p className="text-xs text-[var(--color-text-muted)] mt-1">{searchTerm ? "Try a different search term." : "Assigned patients will appear here."}</p></div>}</AnimatePresence>
                     </div>
                 </aside>
                 <main className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-app)] transition-transform duration-300 ease-in-out md:w-2/3 md:relative md:translate-x-0 lg:w-3/4 ${isChatVisible ? 'translate-x-0' : 'translate-x-full absolute'}`}>
-                    {activeUser ? <ChatWindow key={activeUser.id} user={activeUser} nutritionistId={NUTRITIONIST_ID} onNewMessageSent={(text) => handleListUpdate({ sender_id: NUTRITIONIST_ID, receiver_id: activeUser.id, text, timestamp: new Date().toISOString(), is_read: true })} onChatClose={() => setIsChatVisible(false)} /> : <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-gray-500 bg-[var(--color-bg-surface)]"><Inbox size={64} className="mb-4 opacity-40" /><h3 className="text-xl font-bold text-gray-700">Welcome to your Inbox</h3><p>{patients.length > 0 ? "Select a conversation to begin." : "You have no assigned patients yet."}</p></div>}
+                    {activeUser ? <ChatWindow key={activeUser.id} user={activeUser} nutritionistId={NUTRITIONIST_ID} onNewMessageSent={(text) => handleListUpdate({ sender_id: NUTRITIONIST_ID, receiver_id: activeUser.id, text, timestamp: new Date().toISOString(), is_read: true })} onChatClose={() => setIsChatVisible(false)} /> : <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-[var(--color-text-muted)] bg-[var(--color-bg-surface)]"><Inbox size={56} className="mb-3 opacity-30 text-[var(--color-primary)]" /><h3 className="text-xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">Welcome to your Inbox</h3><p className="text-sm mt-1">{patients.length > 0 ? "Select a conversation to begin." : "You have no assigned patients yet."}</p></div>}
                 </main>
             </div>
         </div>
