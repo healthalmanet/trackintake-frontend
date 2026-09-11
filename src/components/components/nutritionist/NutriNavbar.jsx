@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, BellOff, Trash2, Menu, X, User } from 'lucide-react';
+import { Bell, MessageSquare, BellOff, Trash2, Menu, X } from 'lucide-react';
 import { createPortal } from "react-dom";
 import LogoutButton from "../LogoutButton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -54,14 +54,9 @@ const NutriNavbar = () => {
         if (!user) return;
         const fetchInitialUnreadMessages = async () => {
             try {
-                // We still ask for unread, but we won't trust the response.
                 const response = await getMessages({ is_read: 'false' }); 
                 const allFetchedMessages = response.data.results || [];
-
-                // ✅ FINAL FIX #1: Manually filter the results on the frontend.
-                // This guarantees that ONLY unread messages proceed.
                 const unreadMessages = allFetchedMessages.filter(msg => msg.is_read === false);
-
                 const newNotifications = unreadMessages
                     .filter(msg => msg.sender_id !== user.id && !processedNotificationIds.current.has(msg.id));
 
@@ -81,7 +76,6 @@ const NutriNavbar = () => {
     }, [user]);
 
     const handleNewNotification = useCallback((data) => {
-        // This logic is correct because it explicitly checks `is_read === false`
         if (user && data.sender_id !== user.id && data.is_read === false) {
             if (!processedNotificationIds.current.has(data.id)) {
                 processedNotificationIds.current.add(data.id);
@@ -147,56 +141,80 @@ const NutriNavbar = () => {
 
     return (
         <>
-            <header className={`px-6 py-3 flex items-center justify-between sticky top-0 z-40 transition-all duration-300 ease-in-out ${isScrolled ? "bg-[var(--color-bg-surface-glass)] backdrop-blur-lg shadow-md" : "bg-[var(--color-bg-app)]"}`}>
-                <span className="font-extrabold text-3xl tracking-wide font-[var(--font-primary)]">
+            <header className={`px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 flex items-center justify-between sticky top-0 z-40 transition-all duration-300 ease-in-out ${isScrolled ? "bg-[var(--color-bg-surface-glass)] backdrop-blur-lg shadow-md border-b border-[var(--color-border-default)]" : "bg-[var(--color-bg-app)]"}`}>
+                <NavLink to="/nutritionist" className="font-extrabold text-2xl sm:text-3xl tracking-wide font-[var(--font-primary)] flex-shrink-0">
                     <span className="text-[var(--color-primary)]">Track</span><span className="text-[var(--color-text-strong)]">Intake</span>
-                </span>
-                <nav className="hidden md:flex items-center gap-8">
-                    {navLinks.map(({ to, label }) => <NavLink key={to} to={to} end={to === "/nutritionist"} className={({ isActive }) => `font-medium transition-colors duration-300 ${isActive ? "text-[var(--color-primary)] font-semibold" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"}`}>{label}</NavLink>)}
+                </NavLink>
+
+                {/* Desktop Navigation */}
+                <nav className="hidden md:flex items-center gap-4 lg:gap-7 xl:gap-8">
+                    {navLinks.map(({ to, label }) => (
+                        <NavLink 
+                            key={to} 
+                            to={to} 
+                            end={to === "/nutritionist"} 
+                            className={({ isActive }) => `text-sm lg:text-base font-medium transition-colors duration-200 py-1 ${isActive ? "text-[var(--color-primary)] font-bold border-b-2 border-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"}`}
+                        >
+                            {label}
+                        </NavLink>
+                    ))}
                 </nav>
-                <div className="flex items-center gap-2">
-                    <NavLink
-                        to="/nutritionist/profile"
-                        className={({ isActive }) =>
-                            `p-2 rounded-full transition-all flex items-center justify-center ${
-                                isActive
-                                    ? "bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] ring-2 ring-[var(--color-primary)]"
-                                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)]"
-                            }`
-                        }
-                        title="Nutritionist Profile & Security"
-                    >
-                        <User size={20} />
-                    </NavLink>
+
+                {/* Right Action Icons */}
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                    {/* Notification Bell Dropdown */}
                     <div className="relative">
-                        <motion.button ref={bellRef} onClick={() => setIsDropdownOpen(p => !p)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="relative p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors">
-                            <Bell size={22} />
-                            {hasUnread && <span className="absolute top-1.5 right-1.5 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-[var(--color-primary-hover)] ring-2 ring-white" /></span>}
+                        <motion.button 
+                            ref={bellRef} 
+                            onClick={() => setIsDropdownOpen(p => !p)} 
+                            whileHover={{ scale: 1.05 }} 
+                            whileTap={{ scale: 0.95 }} 
+                            className="relative p-2 sm:p-2.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"
+                            aria-label="Notifications"
+                        >
+                            <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
+                            {hasUnread && (
+                                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 sm:h-3 sm:w-3">
+                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-75" />
+                                    <span className="relative inline-flex h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-[var(--color-primary-hover)] ring-2 ring-white" />
+                                </span>
+                            )}
                         </motion.button>
                         <AnimatePresence>
                             {isDropdownOpen && (
-                                <motion.div ref={dropdownRef} variants={dropdownVariants} initial="hidden" animate="visible" exit="exit" className="absolute top-full left-1/2 md:left-auto md:right-4 -translate-x-1/2 md:translate-x-0 mt-3 w-[90vw] sm:w-80 md:w-96 bg-[var(--color-bg-surface)] rounded-2xl shadow-2xl border border-[var(--color-border-default)] overflow-hidden font-[var(--font-secondary)] z-50">
-                                    <div className="flex justify-between items-center p-4 border-b border-[var(--color-border-default)]">
-                                        <h3 className="font-semibold text-lg text-[var(--color-text-strong)]">Notifications</h3>
-                                        {notifications.length > 0 && <button onClick={handleClearAll} className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1"><Trash2 size={14} /> Clear All</button>}
+                                <motion.div 
+                                    ref={dropdownRef} 
+                                    variants={dropdownVariants} 
+                                    initial="hidden" 
+                                    animate="visible" 
+                                    exit="exit" 
+                                    className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 md:w-96 max-w-sm bg-[var(--color-bg-surface)] rounded-3xl shadow-2xl border-2 border-[var(--color-border-default)] overflow-hidden font-[var(--font-secondary)] z-50"
+                                >
+                                    <div className="flex justify-between items-center p-3.5 sm:p-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
+                                        <h3 className="font-semibold text-base sm:text-lg text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</h3>
+                                        {notifications.length > 0 && (
+                                            <button onClick={handleClearAll} className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1">
+                                                <Trash2 size={13} /> Clear All
+                                            </button>
+                                        )}
                                     </div>
                                     <motion.div variants={listVariants} initial="hidden" animate="visible" className="max-h-[300px] overflow-y-auto custom-scrollbar">
                                         {notifications.length > 0 ? (
                                             notifications.map((notif) => (
-                                                <motion.div key={notif.id} variants={itemVariants} onClick={() => handleNotificationClick(notif)} whileHover={{ backgroundColor: 'var(--color-bg-interactive-subtle)', x: 2 }} className="flex items-start gap-4 p-4 cursor-pointer border-b border-[var(--color-border-default)] last:border-b-0">
-                                                    <div className="p-2.5 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-full mt-1"><MessageSquare size={20} /></div>
-                                                    <div className="flex-1">
-                                                        <p className="font-semibold text-sm text-[var(--color-text-strong)]">{notif.sender_name || 'New Message'}</p>
-                                                        <p className="text-sm text-[var(--color-text-default)] leading-snug">{notif.text}</p>
-                                                        <p className="text-xs text-[var(--color-text-muted)] mt-1.5">{timeSince(new Date(notif.timestamp))}</p>
+                                                <motion.div key={notif.id} variants={itemVariants} onClick={() => handleNotificationClick(notif)} whileHover={{ backgroundColor: 'var(--color-bg-interactive-subtle)', x: 2 }} className="flex items-start gap-3 p-3.5 sm:p-4 cursor-pointer border-b border-[var(--color-border-default)] last:border-b-0 transition-colors">
+                                                    <div className="p-2 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-xl mt-0.5 flex-shrink-0"><MessageSquare size={17} /></div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold text-xs sm:text-sm text-[var(--color-text-strong)] font-[var(--font-primary)] truncate">{notif.sender_name || 'New Message'}</p>
+                                                        <p className="text-xs sm:text-sm text-[var(--color-text-default)] leading-snug line-clamp-2">{notif.text}</p>
+                                                        <p className="text-[11px] text-[var(--color-text-muted)] mt-1">{timeSince(new Date(notif.timestamp))}</p>
                                                     </div>
                                                 </motion.div>
                                             ))
                                         ) : (
-                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-10 text-sm text-[var(--color-text-muted)]">
-                                                <BellOff size={40} className="mb-3 text-[var(--color-text-subtle)]" />
-                                                <p className="font-semibold text-md text-[var(--color-text-default)]">All caught up!</p>
-                                                <p>New notifications will appear here.</p>
+                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8 sm:p-10 text-sm text-[var(--color-text-muted)]">
+                                                <BellOff size={34} className="mb-2.5 text-[var(--color-text-subtle)]" />
+                                                <p className="font-semibold text-sm sm:text-base text-[var(--color-text-strong)] font-[var(--font-primary)]">All caught up!</p>
+                                                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">New notifications will appear here.</p>
                                             </motion.div>
                                         )}
                                     </motion.div>
@@ -204,22 +222,78 @@ const NutriNavbar = () => {
                             )}
                         </AnimatePresence>
                     </div>
-                    <div className="flex items-center gap-1"><LogoutButton /></div>
-                    <div className="md:hidden"><button onClick={() => setIsMobileMenuOpen(true)} className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"><Menu size={24} /></button></div>
+
+                    {/* Logout Button */}
+                    <div className="flex items-center">
+                        <LogoutButton />
+                    </div>
+
+                    {/* Mobile Menu Hamburger */}
+                    <div className="md:hidden">
+                        <button 
+                            onClick={() => setIsMobileMenuOpen(true)} 
+                            className="p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors" 
+                            aria-label="Open navigation menu"
+                        >
+                            <Menu size={22} />
+                        </button>
+                    </div>
                 </div>
             </header>
-            {isClient && createPortal(<AnimatePresence>{isMobileMenuOpen && (
-                <>
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden" />
-                    <motion.div variants={mobileMenuVariants} initial="hidden" animate="visible" exit="exit" className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-white shadow-2xl z-50 p-6 flex flex-col md:hidden">
-                        <div className="flex items-center justify-between mb-8">
-                            <span className="font-extrabold text-2xl tracking-wide"><span className="text-[var(--color-primary)]">Track</span><span className="text-[var(--color-text-strong)]">Intake</span></span>
-                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"><X size={24} /></button>
-                        </div>
-                        <nav className="flex flex-col space-y-4">{navLinks.map(({ to, label }) => <NavLink key={to} to={to} end={to === "/nutritionist"} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `block py-2 text-lg font-medium transition-colors duration-300 ${isActive ? "text-[var(--color-primary)] font-semibold" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"}`}>{label}</NavLink>)}</nav>
-                    </motion.div>
-                </>
-            )}</AnimatePresence>, document.body)}
+
+            {/* Mobile Navigation Drawer */}
+            {isClient && createPortal(
+                <AnimatePresence>
+                    {isMobileMenuOpen && (
+                        <>
+                            <motion.div 
+                                initial={{ opacity: 0 }} 
+                                animate={{ opacity: 1 }} 
+                                exit={{ opacity: 0 }} 
+                                onClick={() => setIsMobileMenuOpen(false)} 
+                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden" 
+                            />
+                            <motion.div 
+                                variants={mobileMenuVariants} 
+                                initial="hidden" 
+                                animate="visible" 
+                                exit="exit" 
+                                className="fixed top-0 right-0 h-full w-[80%] max-w-sm bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-l-2 border-[var(--color-border-default)] shadow-2xl z-50 p-6 flex flex-col md:hidden overflow-y-auto font-[var(--font-secondary)]"
+                            >
+                                <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--color-border-default)]">
+                                    <span className="font-extrabold text-2xl tracking-wide font-[var(--font-primary)]">
+                                        <span className="text-[var(--color-primary)]">Track</span><span className="text-[var(--color-text-strong)]">Intake</span>
+                                    </span>
+                                    <button 
+                                        onClick={() => setIsMobileMenuOpen(false)} 
+                                        className="p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors" 
+                                        aria-label="Close menu"
+                                    >
+                                        <X size={22} />
+                                    </button>
+                                </div>
+                                <nav className="flex flex-col space-y-2 flex-1">
+                                    {navLinks.map(({ to, label }) => (
+                                        <NavLink 
+                                            key={to} 
+                                            to={to} 
+                                            end={to === "/nutritionist"} 
+                                            onClick={() => setIsMobileMenuOpen(false)} 
+                                            className={({ isActive }) => `block px-4 py-3 rounded-2xl text-base font-medium transition-all duration-200 ${isActive ? "bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] font-bold border border-[var(--color-border-hover)]" : "text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-text-strong)]"}`}
+                                        >
+                                            {label}
+                                        </NavLink>
+                                    ))}
+                                </nav>
+                                <div className="pt-4 border-t border-[var(--color-border-default)] mt-auto flex justify-center">
+                                    <LogoutButton />
+                                </div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>, 
+                document.body
+            )}
         </>
     );
 };

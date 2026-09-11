@@ -25,15 +25,15 @@ const NutritionPopup = ({ onClose, isVisible }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-6 right-6 w-[90vw] max-w-md h-[85vh] max-h-[600px] z-50 bg-[var(--color-bg-surface)] rounded-2xl border-2 border-[var(--color-border-default)] shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-[calc(100vw-2rem)] sm:w-[90vw] sm:max-w-md h-[85vh] max-h-[620px] z-50 bg-[var(--color-bg-surface)] rounded-3xl border-2 border-[var(--color-border-default)] shadow-2xl flex flex-col overflow-hidden font-[var(--font-secondary)]"
           >
             {/* Header */}
-            <div className="flex justify-between items-center px-4 py-3 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)] flex-shrink-0">
+            <div className="flex justify-between items-center px-4 py-3.5 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)] flex-shrink-0">
               <div className="flex items-center gap-3">
-                <span className="text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] p-2 rounded-lg">
+                <span className="text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] p-2 rounded-xl">
                     <Salad className="w-5 h-5" />
                 </span>
-                <h2 className="font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] text-lg">
+                <h2 className="font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] text-base sm:text-lg">
                   Nutrition Search
                 </h2>
               </div>

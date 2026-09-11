@@ -1138,15 +1138,15 @@ const PatientDetailsPage = () => {
               </div>
             </div>
             {targetNutrients && (
-              <div className="w-full lg:w-auto mt-4 lg:mt-0 p-4 bg-white border border-[var(--color-border-default)] rounded-xl shadow-sm">
+              <div className="w-full lg:w-auto mt-4 lg:mt-0 p-4 bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-sm">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-4 border-b border-dashed border-[var(--color-border-default)] pb-3">
-                  <Flame className="text-orange-500 w-8 h-8 transition-transform duration-300 hover:scale-110" />
+                  <Flame className="text-[var(--color-primary)] w-8 h-8 transition-transform duration-300 hover:scale-110" />
                   <div>
-                    <h3 className="text-xs font-semibold uppercase text-[var(--color-text-muted)] tracking-wider">
+                    <h3 className="text-xs font-semibold uppercase text-[var(--color-text-muted)] tracking-wider font-[var(--font-secondary)]">
                       Target Calories
                     </h3>
-                    <p className="text-2xl font-bold text-[var(--color-text-strong)] leading-tight">
+                    <p className="text-2xl font-bold text-[var(--color-text-strong)] leading-tight font-[var(--font-primary)]">
                       {Math.round(targetNutrients.recommended_calories)}{" "}
                       <span className="text-base font-semibold text-[var(--color-primary)] ml-1">kcal</span>
                     </p>
@@ -1200,10 +1200,10 @@ const PatientDetailsPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}
-          className="bg-[var(--color-bg-surface)] rounded-2xl border-2 border-[var(--color-border-default)] shadow-xl p-2 sm:p-4"
+          className="bg-[var(--color-bg-surface)] rounded-3xl border-2 border-[var(--color-border-default)] shadow-xl p-3 sm:p-6"
         >
           <nav className="relative mb-6">
-            <div className="flex justify-center sm:justify-start border-b-2 border-[var(--color-border-default)] overflow-x-auto">
+            <div className="flex justify-start border-b-2 border-[var(--color-border-default)] overflow-x-auto no-scrollbar gap-1 sm:gap-2">
               {TABS.map((tab, index) => (
                 <button
                   key={tab.key}

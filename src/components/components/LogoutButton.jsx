@@ -29,8 +29,9 @@ function LogoutButton() {
       whileTap={{ scale: 0.95 }}
       className="
         group
-        flex items-center justify-center gap-2
-        px-5 py-2
+        flex items-center justify-center gap-1.5 sm:gap-2
+        px-3 sm:px-5 py-1.5 sm:py-2
+        text-xs sm:text-sm
         font-[var(--font-primary)] font-semibold rounded-full 
         transition-all duration-300 ease-in-out
         text-[var(--color-primary)] 
@@ -43,7 +44,7 @@ function LogoutButton() {
       "
     >
       <LogOut 
-        className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" 
+        className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-300 group-hover:translate-x-1" 
       />
       Logout
     </motion.button>

@@ -10,12 +10,12 @@ import {
 
 // Reusable Input Components for cleaner code
 const FormSection = ({ title, icon, children }) => (
-  <div className="bg-bg-surface p-6 md:p-8 rounded-2xl border border-border-default shadow-sm mb-8">
+  <div className="bg-[var(--color-bg-surface)] p-5 sm:p-6 md:p-8 rounded-3xl border-2 border-[var(--color-border-default)] shadow-sm mb-8">
     <div className="flex items-center gap-3 mb-6">
-      <div className="bg-bg-surface-alt p-2 rounded-full text-primary">
+      <div className="bg-[var(--color-primary-bg-subtle)] p-2.5 rounded-2xl text-[var(--color-primary)]">
         {icon}
       </div>
-      <h2 className="text-xl md:text-2xl font-primary font-semibold text-text-strong">{title}</h2>
+      <h2 className="text-xl md:text-2xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">{title}</h2>
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
       {children}
@@ -25,9 +25,9 @@ const FormSection = ({ title, icon, children }) => (
 
 const InputField = ({ name, label, type, register, errors, placeholder, Icon }) => (
   <div className="flex flex-col">
-    <label htmlFor={name} className="mb-1.5 font-medium text-text-muted">{label}</label>
+    <label htmlFor={name} className="mb-1.5 font-medium text-xs sm:text-sm text-[var(--color-text-muted)]">{label}</label>
     <div className="relative">
-      {Icon && <Icon className="absolute top-1/2 left-3 -translate-y-1/2 text-text-subtle" />}
+      {Icon && <Icon className="absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--color-text-subtle)]" />}
       <input
         id={name}
         type={type}
@@ -36,44 +36,44 @@ const InputField = ({ name, label, type, register, errors, placeholder, Icon }) 
             valueAsNumber: type === 'number',
             ...(type === 'number' && { min: { value: 0, message: "Value cannot be negative" } })
          })}
-        className={`w-full ${Icon ? 'pl-9' : 'pl-4'} pr-4 py-2.5 rounded-lg font-secondary bg-bg-app border border-border-default focus:ring-2 focus:ring-border-hover focus:border-border-focus outline-none transition-all duration-300 placeholder:text-text-subtle text-text-default`}
+        className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-2.5 rounded-xl font-[var(--font-secondary)] text-sm bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] focus:ring-2 focus:ring-[var(--color-border-hover)] focus:border-[var(--color-border-focus)] outline-none transition-all duration-300 placeholder:text-[var(--color-text-subtle)] text-[var(--color-text-strong)]`}
       />
     </div>
-    {errors[name] && <span className="text-danger-text text-sm mt-1">{errors[name].message}</span>}
+    {errors[name] && <span className="text-[var(--color-danger-text)] text-xs mt-1">{errors[name].message}</span>}
   </div>
 );
 
 const SelectField = ({ name, label, register, errors, children }) => (
   <div className="flex flex-col">
-    <label htmlFor={name} className="mb-1.5 font-medium text-text-muted">{label}</label>
+    <label htmlFor={name} className="mb-1.5 font-medium text-xs sm:text-sm text-[var(--color-text-muted)]">{label}</label>
     <select
       id={name}
       {...register(name)}
-      className="w-full pl-4 pr-10 py-2.5 rounded-lg font-secondary bg-bg-app border border-border-default focus:ring-2 focus:ring-border-hover focus:border-border-focus outline-none transition-all duration-300 appearance-none bg-no-repeat bg-right"
+      className="w-full pl-4 pr-10 py-2.5 rounded-xl font-[var(--font-secondary)] text-sm bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-border-hover)] focus:border-[var(--color-border-focus)] outline-none transition-all duration-300 appearance-none bg-no-repeat bg-right"
       style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundSize: '1.5em 1.5em' }}
     >
       {children}
     </select>
-    {errors[name] && <span className="text-danger-text text-sm mt-1">{errors[name].message}</span>}
+    {errors[name] && <span className="text-[var(--color-danger-text)] text-xs mt-1">{errors[name].message}</span>}
   </div>
 );
 
 const CheckboxGrid = ({ title, options, control, errors }) => (
   <div className="md:col-span-2">
-    <h3 className="mb-3 font-medium text-text-muted">{title}</h3>
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 rounded-lg bg-bg-surface-alt border border-border-default">
+    <h3 className="mb-3 font-medium text-xs sm:text-sm text-[var(--color-text-muted)]">{title}</h3>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 p-4 rounded-2xl bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)]">
       {options.map(({ name, label }) => (
         <Controller
           key={name}
           name={name}
           control={control}
           render={({ field }) => (
-            <label className="flex items-center gap-2 text-text-default cursor-pointer">
+            <label className="flex items-center gap-2 text-xs sm:text-sm text-[var(--color-text-default)] cursor-pointer">
               <input
                 type="checkbox"
                 checked={field.value}
                 onChange={field.onChange}
-                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+                className="h-4.5 w-4.5 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
               />
               {label}
             </label>
@@ -176,11 +176,11 @@ const AddPatientForm = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-bg-app p-4 sm:p-6 md:p-8 animate-fade-in-up">
+    <div className="min-h-screen bg-[var(--color-bg-app)] p-4 sm:p-6 md:p-8 animate-fade-in-up font-[var(--font-secondary)]">
       <div className="max-w-5xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-primary font-bold text-text-strong">Add New Patient</h1>
-          <p className="text-text-default mt-2">Fill in the details below to add a new patient to your roster.</p>
+          <h1 className="text-3xl md:text-4xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">Add New Patient</h1>
+          <p className="text-[var(--color-text-default)] mt-2">Fill in the details below to add a new patient to your roster.</p>
         </header>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -262,11 +262,11 @@ const AddPatientForm = () => {
           </FormSection>
           
           {/* --- Form Submission --- */}
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-end mt-6">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 rounded-xl bg-primary text-text-on-primary font-semibold font-primary hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-primary/40 transition-all duration-300 disabled:bg-opacity-70 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-bold font-[var(--font-primary)] hover:bg-[var(--color-primary-hover)] focus:outline-none focus:ring-4 focus:ring-[var(--color-primary)]/30 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
