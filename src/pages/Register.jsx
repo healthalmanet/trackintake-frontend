@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { registerUser, sendOtp, verifyOtp } from "../api/auth";
-import { User, Mail, Lock, CircleCheck, CircleX, User2, KeyRound } from "lucide-react";
+import { User, Mail, Lock, CircleCheck, CircleX, User2, KeyRound, Phone } from "lucide-react";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ const Register = ({ onSwitchToLogin }) => {
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -95,6 +96,7 @@ const Register = ({ onSwitchToLogin }) => {
       await registerUser({
         full_name: fullName,
         email,
+        phone_number: phoneNumber,
         password,
         password2: confirmPassword,
         verification_token: token,
@@ -182,6 +184,22 @@ const Register = ({ onSwitchToLogin }) => {
               required
             />
             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+          </div>
+        </motion.div>
+
+        {/* ── Phone Number ── */}
+        <motion.div variants={itemVariants}>
+          <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Phone Number</label>
+          <div className="relative">
+            <input
+              type="tel"
+              className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg focus:border-[var(--color-primary)] outline-none"
+              placeholder="+91 9876543210"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              disabled={otpSent || loading}
+            />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
           </div>
         </motion.div>
 

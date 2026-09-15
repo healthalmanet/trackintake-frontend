@@ -160,10 +160,14 @@ const UserProfileForm = () => {
     const fetchProfile = async () => {
       try {
         const data = await getUserProfile();
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const defaultPhone = data?.mobile_number || storedUser?.phone_number || "";
+
         if (data && Object.keys(data).length > 1) {
           setFormData({
             ...initialFormData,
             ...data,
+            mobile_number:      data.mobile_number || defaultPhone,
             is_diabetic:        !!data.is_diabetic,
             is_hypertensive:    !!data.is_hypertensive,
             has_heart_condition:!!data.has_heart_condition,
@@ -176,11 +180,18 @@ const UserProfileForm = () => {
           });
           setIsEditing(true);
         } else {
-          setFormData(initialFormData);
+          setFormData({
+            ...initialFormData,
+            mobile_number: defaultPhone,
+          });
           setIsEditing(false);
         }
       } catch {
-        setFormData(initialFormData);
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        setFormData({
+          ...initialFormData,
+          mobile_number: storedUser?.phone_number || "",
+        });
         setIsEditing(false);
       }
     };

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   User,
   Mail,
+  Phone,
   ShieldCheck,
   Key,
   Lock,
@@ -398,6 +399,13 @@ const NutritionistProfile = () => {
                   <Mail size={12} className="text-[var(--color-primary)]" /> Email Address
                 </span>
                 <p className="text-sm font-bold text-[var(--color-text-strong)] truncate">{email}</p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5">
+                  <Phone size={12} className="text-[var(--color-primary)]" /> Phone Number
+                </span>
+                <p className="text-sm font-bold text-[var(--color-text-strong)]">{user.phone_number || "N/A"}</p>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] space-y-1">
