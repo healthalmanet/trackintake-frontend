@@ -370,24 +370,23 @@ const PatientDetailsPage = () => {
       try {
         const today = new Date().toISOString().split("T")[0];
 
-        // --- [REVISED] Fetch the combined profile/report and the full report history separately.
-        const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes] =
+        // --- [REVISED] Fetch profile, lab reports, meals, targets, and diet plans concurrently in parallel.
+        const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes, plansResult] =
           await Promise.all([
-            // This is now our primary source of truth for the display
             getPatientProfile(id).catch((err) => {
               if (err.response && err.response.status === 404) {
                 return { data: { profile: null, latest_lab_report: null } };
               }
               throw err;
             }),
-            // This call is ONLY for populating the dropdown history
             getAllLabReports(id).catch(() => ({ data: { results: [] } })),
             getPatientMeals(id).catch(() => ({ data: { results: [] } })),
             getTargetNutrients(id, today).catch(() => ({ data: null })),
+            fetchAndSetAllPlans().catch(() => ({ latestPlan: null, allDietsData: [] })),
           ]);
 
-        // --- [REVISED] State setting logic based on the new API response ---
-        const { profile, latest_lab_report } = profileAndReportRes.data;
+        // --- [REVISED] State setting logic based on parallel API responses ---
+        const { profile, latest_lab_report } = profileAndReportRes.data || {};
 
         // 1. Set the Basic Profile State
         if (profile) {
@@ -414,8 +413,8 @@ const PatientDetailsPage = () => {
         setMeals(mealsRes?.data?.results || []);
         setTargetNutrients(targetNutrientsRes?.data);
 
-        // Fetch and set the diet plans
-        const { latestPlan } = await fetchAndSetAllPlans();
+        // Set diet plans from parallel result
+        const latestPlan = plansResult?.latestPlan;
         if (latestPlan) {
           setDiets([latestPlan]);
           setSelectedPlanId(latestPlan.id);
