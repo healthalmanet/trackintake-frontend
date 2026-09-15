@@ -31,6 +31,8 @@ import DashboardPlans from "./dashboard/plans";
 import UpgradeCard from "../components/subscription/upgradecard";
 import { getMySubscription } from "../api/subscriptionService";
 
+import SubscriptionGuard from "../components/subscription/SubscriptionGuard";
+
 const DashboardHome = ({
   waterUpdateTrigger,
   mealUpdateTrigger,
@@ -58,34 +60,6 @@ function Dashboard() {
   const [waterUpdateTrigger, setWaterUpdateTrigger] = useState(0);
   const [mealUpdateTrigger, setMealUpdateTrigger] = useState(0);
 
-  // Memoized subscription check to prevent re-triggering useEffect
-  const checkSubscription = useCallback(async () => {
-    // Only do the forced redirect once per browser session to avoid redirect loops
-    // (PathyaTech API can be slow, causing false negatives on first load)
-    if (sessionStorage.getItem("sub_checked")) return;
-    try {
-      const subscription = await getMySubscription();
-      if (subscription && !subscription.has_plan) {
-        sessionStorage.setItem("sub_checked", "1");
-        navigate("/dashboard/plans", {
-          state: { forced: true },
-        });
-      } else {
-        // Subscription found — mark as checked so we don't re-check
-        sessionStorage.setItem("sub_checked", "1");
-      }
-    } catch (err) {
-      console.error("Subscription check failed:", err);
-      // Do NOT redirect on error — PathyaTech API may be slow
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    if (userRole === "user") {
-      checkSubscription();
-    }
-  }, [userRole, checkSubscription]);
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -97,39 +71,48 @@ function Dashboard() {
   return (
     <div>
       <Routes>
+        <Route path="plans" element={<DashboardPlans />} />
         <Route
-          index
+          path="*"
           element={
-            <DashboardHome
-              waterUpdateTrigger={waterUpdateTrigger}
-              mealUpdateTrigger={mealUpdateTrigger}
-              onMealLogged={() => setMealUpdateTrigger((prev) => prev + 1)}
-              onWaterLogged={() => setWaterUpdateTrigger((prev) => prev + 1)}
-            />
+            <SubscriptionGuard role="user">
+              <Routes>
+                <Route
+                  index
+                  element={
+                    <DashboardHome
+                      waterUpdateTrigger={waterUpdateTrigger}
+                      mealUpdateTrigger={mealUpdateTrigger}
+                      onMealLogged={() => setMealUpdateTrigger((prev) => prev + 1)}
+                      onWaterLogged={() => setWaterUpdateTrigger((prev) => prev + 1)}
+                    />
+                  }
+                />
+                <Route path="user-profile" element={<UserProfileForm />} />
+                <Route path="tools" element={<Tools />} />
+                <Route path="tools/bmi" element={<BmiCalculator />} />
+                <Route path="tools/fat-calculator" element={<FatCalculator />} />
+                <Route path="fat-result" element={<FatResult />} />
+                <Route path="tools/meal-log" element={<MealLogger />} />
+                <Route path="tools/nutrition-search" element={<NutritionSearch />} />
+                <Route path="tools/weight-tracker" element={<WeightTracker />} />
+                <Route path="tools/water-tracker" element={<WaterTracker />} />
+                <Route path="tools/custom-reminder" element={<CustomReminder />} />
+                <Route path="health-section" element={<HealthSection />} />
+                <Route path="health-dashboard" element={<HealthDashboard />} />
+                <Route path="lab-reports" element={<LabReports />} />
+                <Route path="add-report" element={<AddReport />} />
+                <Route path="meals" element={<Meals />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="diabetes" element={<HealthDashboard />} />
+                <Route path="blogs-section" element={<BlogsPage />} />
+                <Route path="messages" element={<PatientChat />} />
+                <Route path="appointments" element={<AppointmentPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </SubscriptionGuard>
           }
         />
-        <Route path="user-profile" element={<UserProfileForm />} />
-        <Route path="tools" element={<Tools />} />
-        <Route path="tools/bmi" element={<BmiCalculator />} />
-        <Route path="tools/fat-calculator" element={<FatCalculator />} />
-        <Route path="fat-result" element={<FatResult />} />
-        <Route path="tools/meal-log" element={<MealLogger />} />
-        <Route path="tools/nutrition-search" element={<NutritionSearch />} />
-        <Route path="tools/weight-tracker" element={<WeightTracker />} />
-        <Route path="tools/water-tracker" element={<WaterTracker />} />
-        <Route path="tools/custom-reminder" element={<CustomReminder />} />
-        <Route path="health-section" element={<HealthSection />} />
-        <Route path="health-dashboard" element={<HealthDashboard />} />
-        <Route path="lab-reports" element={<LabReports />} />
-        <Route path="add-report" element={<AddReport />} />
-        <Route path="meals" element={<Meals />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="diabetes" element={<HealthDashboard />} />
-        <Route path="blogs-section" element={<BlogsPage />} />
-        <Route path="messages" element={<PatientChat />} />
-        <Route path="appointments" element={<AppointmentPage />} />
-        <Route path="plans" element={<DashboardPlans />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </div>
   );

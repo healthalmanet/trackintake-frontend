@@ -10,6 +10,8 @@ import QuickTools from "../components/components/nutritionist/QuickTools";
 import SmartAssistant from "../components/components/nutritionist/SmartAssistant";
 import NutritionPopup from "../components/components/nutritionist/NutritionPopup";
 
+import SubscriptionGuard from "../components/subscription/SubscriptionGuard";
+
 // Lazy-load heavy sub-routes to split JS bundles (PatientDetails, Subscription, Chat, Profile, Availability)
 const PatientDetailsPage = lazy(() => import("../components/components/nutritionist/PatientDetailsPage"));
 const Chat = lazy(() => import("../components/components/nutritionist/Chat"));
@@ -45,13 +47,22 @@ const NutritionistPage = () => {
       <div className="flex-1">
         <Suspense fallback={<PageFallbackLoader />}>
           <Routes>
-            <Route path="/" element={<NutritionistDashboard />} />
-            <Route path="patient/:id" element={<PatientDetailsPage />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="search" element={<NutritionSearchLayout />} />
-            <Route path="availability" element={<AddAvailability />} />
             <Route path="subscription" element={<NutritionistSubscription />} />
-            <Route path="profile" element={<NutritionistProfile />} />
+            <Route
+              path="*"
+              element={
+                <SubscriptionGuard role="nutritionist">
+                  <Routes>
+                    <Route index element={<NutritionistDashboard />} />
+                    <Route path="patient/:id" element={<PatientDetailsPage />} />
+                    <Route path="chat" element={<Chat />} />
+                    <Route path="search" element={<NutritionSearchLayout />} />
+                    <Route path="availability" element={<AddAvailability />} />
+                    <Route path="profile" element={<NutritionistProfile />} />
+                  </Routes>
+                </SubscriptionGuard>
+              }
+            />
           </Routes>
         </Suspense>
       </div>
