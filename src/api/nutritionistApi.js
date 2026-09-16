@@ -181,3 +181,10 @@ export const updateNutritionistProfile = (data) =>
 export const changeNutritionistPassword = (data) =>
   axiosInstance.post('/nutritionist/me/change-password/', data);
 
+// Admin Pricing Approval API calls
+export const getAdminNutritionistPricingRequests = (statusFilter = 'pending') =>
+  axiosInstance.get(`/admin/nutritionist-pricing/?status=${statusFilter}`);
+
+export const approveAdminNutritionistPricing = (profileId, data) =>
+  axiosInstance.post(`/admin/nutritionist-pricing/${profileId}/approve/`, data);
+

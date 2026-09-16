@@ -26,6 +26,15 @@ axiosRetry(axiosInstance, {
     axiosRetry.isNetworkError(error) || error.response?.status >= 500,
 });
 
+// REQUEST INTERCEPTOR: Allow FormData multipart boundary
+axiosInstance.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+    delete config.headers["content-type"];
+  }
+  return config;
+});
+
 // --- Auth APIs ---
 
 export const loginUser = (loginData) => {
