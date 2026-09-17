@@ -131,6 +131,7 @@ const logout = async () => {
 
     setTokenState(null);
     setUser(null);
+    window.location.href = "/";
   }
 };
 

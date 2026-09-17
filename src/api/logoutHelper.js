@@ -7,7 +7,7 @@ export const forceLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("userRole");
     removeToken();
-    window.location.href = "/login";
+    window.location.href = "/";
   } catch (err) {
     console.error("Force logout error:", err);
   }

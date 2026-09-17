@@ -30,9 +30,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import { ProfileDropdown } from "./components/components/ProfileDropdown";
 import QuickTools from "./components/components/nutritionist/QuickTools";
-import SmartAssistant from "./components/components/nutritionist/SmartAssistant";
-import NutritionPopup from "./components/components/nutritionist/NutritionPopup";
-import ChatPopUp from "./components/components/messages/ChatPopUp";
+import FloatingQuickToolbox from "./components/components/nutritionist/FloatingQuickToolbox";
 import SocialAuthHandler from "./components/components/SocialAuthHandler";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import PrivacyPolicy from "./pages/dashboard/PrivacyPolicy";
@@ -56,9 +54,8 @@ const noop = () => { };
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
 
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [showNutrition, setShowNutrition] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isToolboxOpen, setIsToolboxOpen] = useState(false);
+  const [toolboxTab, setToolboxTab] = useState("assistant");
   const [suggestion, setSuggestion] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerInitData, setDrawerInitData] = useState(null);
@@ -178,22 +175,25 @@ function App() {
       {isAuthenticated && user?.role === "user" && (
         <>
           <QuickTools
-            onOpenAssistant={handleOpenAssistant}
-            onOpenNutrition={handleOpenNutritionSearch}
-            onOpenChat={() => setIsChatOpen(true)}
+            onOpenAssistant={() => {
+              setToolboxTab("assistant");
+              setIsToolboxOpen(true);
+            }}
+            onOpenNutrition={() => {
+              setToolboxTab("nutrition");
+              setIsToolboxOpen(true);
+            }}
+            onOpenChat={() => {
+              setToolboxTab("chat");
+              setIsToolboxOpen(true);
+            }}
             userRole={user?.role}
           />
-          <SmartAssistant
-            isVisible={isAssistantOpen}
-            onClose={() => setIsAssistantOpen(false)}
-          />
-          <NutritionPopup
-            isVisible={showNutrition}
-            onClose={() => setShowNutrition(false)}
-          />
-          <ChatPopUp
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
+          <FloatingQuickToolbox
+            isOpen={isToolboxOpen}
+            onClose={() => setIsToolboxOpen(false)}
+            initialTab={toolboxTab}
+            userRole={user?.role}
           />
           <FoodSuggestionToast
             suggestion={suggestion}

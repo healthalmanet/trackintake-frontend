@@ -33,9 +33,8 @@ const Unauthorized = () => {
     return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login", { replace: true });
+  const handleLogout = () => {
+    logout();
   };
 
   const containerVariants = {

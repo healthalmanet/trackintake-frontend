@@ -90,22 +90,22 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                   <span className="text-sm font-[var(--font-primary)]">Nutrition Search</span>
                 </motion.button>
 
-                {/* Chat with Nutritionist Button (if user role) */}
-                {userRole === 'user' && (
-                  <motion.button
-                    variants={itemVariants}
-                    onClick={() => {
-                      onOpenChat();
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
-                  >
-                    <span className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
-                      <MessageSquare size={18} />
-                    </span>
-                    <span className="text-sm font-[var(--font-primary)]">Chat with Nutritionist</span>
-                  </motion.button>
-                )}
+                {/* Quick Messages / Chat Button */}
+                <motion.button
+                  variants={itemVariants}
+                  onClick={() => {
+                    onOpenChat();
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
+                >
+                  <span className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                    <MessageSquare size={18} />
+                  </span>
+                  <span className="text-sm font-[var(--font-primary)]">
+                    {userRole === "nutritionist" ? "Quick Patient Messages" : "Chat with Nutritionist"}
+                  </span>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>

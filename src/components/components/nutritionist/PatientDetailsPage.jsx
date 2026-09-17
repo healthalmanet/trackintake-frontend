@@ -13,17 +13,21 @@ import "react-toastify/dist/ReactToastify.css";
 // Replace your existing lucide-react imports with this single block
 // At the top of PatientDetailsPage.jsx
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 // --- [CORRECTED] Consolidated lucide-react imports ---
 import {
   Utensils, CalendarCheck, Flame, Zap, Wheat, Droplets, Leaf, Drumstick, Apple,
   Sandwich, Salad, Soup, FileDown, MessageSquare, Heart, Sun, Ban, Anchor, AlertTriangle,
+  Clock, Video, Building2, Calendar, FileText, CheckCircle2, XCircle, Info, Edit3, Star,
+  Sparkles, Plus, Trash2, Copy, RotateCcw, Check, PlusCircle, Pencil, X, Loader2, RefreshCw
 } from "lucide-react";
 
 // --- [CORRECTED] Complete react-icons/fa imports ---
 import {
   FaUser, FaEnvelope, FaVenusMars, FaBirthdayCake, FaFileMedicalAlt, FaCheck,
   FaTimes, FaSave, FaPlus, FaThumbsUp, FaThumbsDown, FaBullseye, FaAllergies,
-  FaChevronDown, FaSpinner, FaPencilAlt, FaTrashAlt, FaArchive, FaUndo
+  FaChevronDown, FaSpinner, FaPencilAlt, FaTrashAlt, FaArchive, FaUndo, FaClock
 } from "react-icons/fa";
 
 import {
@@ -43,6 +47,8 @@ import {
   archiveDietPlan,
   restoreDietPlan
 } from "../../../api/nutritionistApi";
+import { getPatientAppointmentHistory } from "../../../api/appointmentApi";
+import AppointmentDetailModal from "../appointments/AppointmentDetailModal";
 import {
   PROFILE_STRUCTURE_TEMPLATE, goals, activityLevels, dietTypeOptions, themedSelectStyles, allergyOptions,        // <-- ADD THIS
   medicalConditions,
@@ -50,8 +56,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import NutriNavbar from "./NutriNavbar";
 import QuickTools from "./QuickTools";
-import NutritionPopup from "./NutritionPopup";
-import SmartAssistant from "./SmartAssistant";
+import FloatingQuickToolbox from "./FloatingQuickToolbox";
 
 
 // --- All sub-components remain unchanged ---
@@ -135,8 +140,27 @@ const PatientDetailsPage = () => {
   const [planOptions, setPlanOptions] = useState([]);
   const [editingDay, setEditingDay] = useState(null);
   const [deletingPlanId, setDeletingPlanId] = useState(null);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [showNutrition, setShowNutrition] = useState(false);
+  const [toolboxOpen, setToolboxOpen] = useState(false);
+  const [toolboxTab, setToolboxTab] = useState("chat");
+  const [toolboxMinimized, setToolboxMinimized] = useState(false);
+
+  const handleOpenAssistant = () => {
+    setToolboxTab("assistant");
+    setToolboxOpen(true);
+    setToolboxMinimized(false);
+  };
+
+  const handleOpenNutritionSearch = () => {
+    setToolboxTab("nutrition");
+    setToolboxOpen(true);
+    setToolboxMinimized(false);
+  };
+
+  const handleOpenQuickChat = () => {
+    setToolboxTab("chat");
+    setToolboxOpen(true);
+    setToolboxMinimized(false);
+  };
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editableProfile, setEditableProfile] = useState(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -160,6 +184,25 @@ const PatientDetailsPage = () => {
   const [selectedReportId, setSelectedReportId] = useState("");
   const [labReports, setLabReports] = useState([]);
   const [loadingReport, setLoadingReport] = useState(false);
+
+  // States for Appointments & History tab
+  const [patientAppointments, setPatientAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [selectedApptDetailId, setSelectedApptDetailId] = useState(null);
+
+  const fetchAppointments = useCallback(async () => {
+    if (!id) return;
+    setLoadingAppointments(true);
+    try {
+      const res = await getPatientAppointmentHistory(id);
+      const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+      setPatientAppointments(list);
+    } catch (err) {
+      console.error("Failed to load patient appointments:", err);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  }, [id]);
   const [isArchiving, setIsArchiving] = useState(null);
 
   console.log('[RENDER] Page rendering. Current "diets" state:', JSON.parse(JSON.stringify(diets)));
@@ -212,87 +255,358 @@ const PatientDetailsPage = () => {
     return labReports && labReports.length > 0;
   }, [labReports]);
 
-  // --- [ENHANCED] Memoized logic for generating conditional suggestion cards ---
-  const suggestionCards = useMemo(() => {
-    const suggestions = [];
+  // --- [NEW] LLM-Powered & Editable AI Suggestions System ---
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [copiedSuggestionKey, setCopiedSuggestionKey] = useState(null);
+  const [suggestionModal, setSuggestionModal] = useState({
+    isOpen: false,
+    isNew: false,
+    index: null,
+    form: {
+      title: "",
+      category: "Dietary Strategy",
+      description: "",
+      iconType: "Sparkles",
+    },
+  });
+
+  // Helper to construct clinical fallback suggestions based on profile & labs (Always 4 distinct clinical pillars)
+  const getSmartFallbackSuggestions = useCallback((prof, rep) => {
+    if (!prof) return [];
+    const list = [];
+
+    // Pillar 1: Glycemic & Metabolic Strategy
+    const isHighSugar = prof.is_diabetic || (rep && (rep.hba1c > 6.5 || rep.fasting_blood_sugar > 125));
+    list.push({
+      id: "sug_glycemic",
+      key: "glycemic",
+      iconType: "Leaf",
+      category: "Metabolic & Glycemic",
+      title: isHighSugar ? "Glycemic Control & Low-GI Fiber" : "Complex Carbohydrate & Fiber Focus",
+      description: isHighSugar
+        ? `Elevated glycemic indicators detected${rep?.hba1c ? ` (HbA1c ${rep.hba1c}%, Fasting ${rep.fasting_blood_sugar || "elevated"} mg/dL)` : ""}. Prioritize low-glycemic complex carbs (millets, oats, chia seeds, cruciferous greens) and strictly eliminate simple refined sugars.`
+        : `Maintain optimal insulin sensitivity and sustained energy with 30g+ daily dietary fiber from whole grains, legumes, and seeds. Avoid ultra-processed refined carbs.`,
+    });
+
+    // Pillar 2: Cardiovascular Health & Lipid Balance
+    const isHighCardio = prof.is_hypertensive || (rep && (rep.ldl_cholesterol > 130 || rep.triglycerides > 150));
+    list.push({
+      id: "sug_cardio",
+      key: "cardio",
+      iconType: "Heart",
+      category: "Cardiovascular Health",
+      title: isHighCardio ? "Lipid Management & Sodium Control" : "Cardioprotective Unsaturated Fats",
+      description: isHighCardio
+        ? `Cardiovascular risk indicators observed${rep?.ldl_cholesterol ? ` (LDL: ${rep.ldl_cholesterol} mg/dL, Triglycerides: ${rep.triglycerides} mg/dL)` : ""}. Restrict saturated fats. Increase rich Omega-3 fatty acids (flaxseed, chia, walnuts) and keep daily sodium < 2000mg.`
+        : `Support endothelial health and cardiovascular longevity with heart-healthy monounsaturated fats (extra virgin olive oil, nuts, seeds) and potassium-rich whole foods.`,
+    });
+
+    // Pillar 3: Protein Targets & Caloric Energy Distribution
+    const goal = prof.goal || "Maintain Weight";
+    const bmi = prof.bmi ? prof.bmi.toFixed(1) : null;
+    let proteinTitle = "Balanced Macronutrient Target";
+    let proteinDesc = `Prescribe 1.0–1.2g protein/kg body weight with a 50% complex carbs, 25% lean protein, 25% healthy fats ratio to sustain metabolic homeostasis.`;
+
+    if (goal === "Lose Weight" || (bmi && Number(bmi) > 25)) {
+      proteinTitle = "Caloric Deficit & Satiety Protein";
+      proteinDesc = `Prescribe a moderate 350–500 kcal daily deficit with 1.2–1.5g protein/kg to safeguard lean muscle mass while accelerating adipose reduction and appetite satiety.`;
+    } else if (goal === "Build Muscle") {
+      proteinTitle = "High Protein & Anabolic Timing";
+      proteinDesc = `Target 1.6–2.0g protein/kg daily with post-workout carbohydrate replenishment. Ensure balanced leucine-rich meals evenly spaced every 3–4 hours.`;
+    }
+    list.push({
+      id: "sug_protein",
+      key: "protein",
+      iconType: goal === "Lose Weight" ? "Target" : goal === "Build Muscle" ? "Flame" : "Sparkles",
+      category: "Energy Balance & Macros",
+      title: proteinTitle,
+      description: proteinDesc,
+    });
+
+    // Pillar 4: Micronutrients, Mineral Fortification & Hydration
+    const hasDeficiency = rep && (rep.vitamin_d3 < 25 || rep.vitamin_b12 < 250 || rep.hemoglobin < 12 || rep.uric_acid > 6.5);
+    let microTitle = "Cellular Hydration & Micronutrients";
+    let microDesc = `Ensure 2.5–3.0L structured daily hydration. Integrate antioxidant-dense rainbow vegetables, berries, and citrus for immune optimization and cellular recovery.`;
+
+    if (hasDeficiency) {
+      microTitle = "Targeted Micronutrient & Mineral Support";
+      const notes = [];
+      if (rep.vitamin_d3 && rep.vitamin_d3 < 25) notes.push(`Vitamin D3 low (${rep.vitamin_d3} ng/mL)`);
+      if (rep.vitamin_b12 && rep.vitamin_b12 < 250) notes.push(`B12 low (${rep.vitamin_b12} pg/mL)`);
+      if (rep.hemoglobin && rep.hemoglobin < 12) notes.push(`Hb low (${rep.hemoglobin} g/dL)`);
+      if (rep.uric_acid && rep.uric_acid > 6.5) notes.push(`Uric acid high (${rep.uric_acid} mg/dL - low purine needed)`);
+      microDesc = `Clinical lab markers indicate attention needed: ${notes.join(", ")}. Prioritize fortified sources, iron-rich greens with vitamin C, and clinician-guided supplementation.`;
+    }
+    list.push({
+      id: "sug_micros",
+      key: "micros",
+      iconType: rep?.hemoglobin < 12 ? "Anchor" : rep?.uric_acid > 6.5 ? "Ban" : "Sun",
+      category: "Micronutrients & Recovery",
+      title: microTitle,
+      description: microDesc,
+    });
+
+    return list;
+  }, []);
+
+  // Initialize suggestions from local storage or default synthesis
+  useEffect(() => {
+    if (!id) return;
+    const storageKey = `trackintake_ai_suggestions_${id}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 4) {
+          setAiSuggestions(parsed);
+          return;
+        }
+      } catch {
+        // continue
+      }
+    }
+    // If not saved or less than 4, generate initial smart 4 suggestions
+    if (profile && profile.full_name) {
+      const initialList = getSmartFallbackSuggestions(profile, labReports?.[0]);
+      setAiSuggestions(initialList);
+    }
+  }, [id, profile, labReports, getSmartFallbackSuggestions]);
+
+  // Persist suggestions on change
+  const updateSuggestions = (newList) => {
+    setAiSuggestions(newList);
+    if (id) {
+      localStorage.setItem(`trackintake_ai_suggestions_${id}`, JSON.stringify(newList));
+    }
+  };
+
+  // Generate suggestions via Google Gemini LLM
+  const handleGenerateLLMSuggestions = async () => {
+    setIsGeneratingSuggestions(true);
     const latestReport = labReports?.[0];
 
-    if (!profile || !latestReport) return [];
-
-    // --- The single theme for the hover state, now including title color ---
-    const primaryHoverTheme = {
-      border: 'group-hover:border-[var(--color-primary)]/70',
-      iconBg: 'group-hover:bg-[var(--color-primary-bg-subtle)]',
-      iconText: 'group-hover:text-[var(--color-primary)]',
-      titleText: 'group-hover:text-[var(--color-primary)]', // <--- THE NEW ADDITION
+    const clinicalContext = {
+      patient_name: profile?.full_name || "Patient",
+      age: profile?.age || "N/A",
+      gender: profile?.gender || "N/A",
+      bmi: profile?.bmi?.toFixed(1) || "N/A",
+      primary_goal: profile?.goal || "General Health",
+      activity_level: profile?.activity_level || "Moderate",
+      diet_type: profile?.diet_type || "Standard",
+      allergies: profile?.allergies || "None",
+      is_diabetic: profile?.is_diabetic || false,
+      is_hypertensive: profile?.is_hypertensive || false,
+      medical_history: profile?.medical_history || "None reported",
+      biomarkers: latestReport ? {
+        fasting_glucose: latestReport.fasting_blood_sugar,
+        post_meal_glucose: latestReport.post_meal_blood_sugar,
+        hba1c: latestReport.hba1c,
+        cholesterol: latestReport.total_cholesterol,
+        ldl: latestReport.ldl_cholesterol,
+        hdl: latestReport.hdl_cholesterol,
+        triglycerides: latestReport.triglycerides,
+        hemoglobin: latestReport.hemoglobin,
+        uric_acid: latestReport.uric_acid,
+        vitamin_d3: latestReport.vitamin_d3,
+        vitamin_b12: latestReport.vitamin_b12,
+        tsh: latestReport.tsh,
+      } : "No lab report provided",
     };
 
-    // --- Suggestion 1: Diabetes / High Blood Sugar ---
-    const isDiabeticCondition =
-      profile.is_diabetic ||
-      latestReport.hba1c > 6.5 ||
-      latestReport.fasting_blood_sugar > 125;
+    const prompt = `You are a Senior Clinical Nutritionist. Analyze this patient profile and clinical lab biomarkers:
+${JSON.stringify(clinicalContext, null, 2)}
 
-    if (isDiabeticCondition) {
-      suggestions.push({
-        key: "diabetes", icon: <Leaf />, title: "Low Glycemic & Low Sugar",
-        description: "Focus on complex carbs and fiber. Strictly avoid simple sugars and refined grains to manage blood glucose.",
-        theme: primaryHoverTheme,
-      });
+Provide EXACTLY 4 targeted, actionable, evidence-based clinical diet and nutrition suggestions for this specific patient:
+1. Card 1: Glycemic & Metabolic Strategy (Low GI, carb quality, fiber)
+2. Card 2: Cardiovascular Health & Lipid Management (Sodium, healthy fats, blood pressure)
+3. Card 3: Protein Targets & Caloric Energy Distribution (Based on patient goal, BMI, activity)
+4. Card 4: Micronutrients, Mineral Fortification & Hydration (Vitamins D3/B12, iron, hydration)
+
+You MUST reply ONLY with a valid JSON array of EXACTLY 4 objects. Do not include markdown code block syntax outside the JSON.
+Each object must have this exact structure:
+[
+  {
+    "id": "sug_1",
+    "key": "glycemic",
+    "iconType": "Leaf",
+    "category": "Metabolic & Glycemic",
+    "title": "Concise Clinical Recommendation Title",
+    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
+  },
+  {
+    "id": "sug_2",
+    "key": "cardio",
+    "iconType": "Heart",
+    "category": "Cardiovascular Health",
+    "title": "Concise Clinical Recommendation Title",
+    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
+  },
+  {
+    "id": "sug_3",
+    "key": "protein",
+    "iconType": "Target",
+    "category": "Energy Balance & Macros",
+    "title": "Concise Clinical Recommendation Title",
+    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
+  },
+  {
+    "id": "sug_4",
+    "key": "micros",
+    "iconType": "Sun",
+    "category": "Micronutrients & Recovery",
+    "title": "Concise Clinical Recommendation Title",
+    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
+  }
+]`;
+
+    try {
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDj2OzDZX-nwDUR9EO7Y9g4-11EdCVHlB4");
+      const modelNames = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+      let generatedText = "";
+
+      for (const modelName of modelNames) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent(prompt);
+          const txt = result.response.text();
+          if (txt) {
+            generatedText = txt;
+            break;
+          }
+        } catch (err) {
+          console.warn(`Model ${modelName} failed for suggestions:`, err);
+        }
+      }
+
+      if (generatedText) {
+        let cleanJson = generatedText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleanJson);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          updateSuggestions(parsed);
+          toast.success("4 AI clinical suggestions generated successfully!");
+          return;
+        }
+      }
+      throw new Error("Invalid LLM response format");
+    } catch (err) {
+      console.warn("Gemini generation fallback used:", err);
+      const fallbackList = getSmartFallbackSuggestions(profile, latestReport);
+      updateSuggestions(fallbackList);
+      toast.info("Generated 4 clinical suggestions using biomarker analysis.");
+    } finally {
+      setIsGeneratingSuggestions(false);
+    }
+  };
+
+  const handleOpenAddSuggestion = () => {
+    setSuggestionModal({
+      isOpen: true,
+      isNew: true,
+      index: null,
+      form: {
+        title: "",
+        category: "Clinical Strategy",
+        description: "",
+        iconType: "Sparkles",
+      },
+    });
+  };
+
+  const handleOpenEditSuggestion = (card, idx) => {
+    setSuggestionModal({
+      isOpen: true,
+      isNew: false,
+      index: idx,
+      form: {
+        title: card.title || "",
+        category: card.category || "Clinical Strategy",
+        description: card.description || "",
+        iconType: card.iconType || "Sparkles",
+      },
+    });
+  };
+
+  const handleSaveSuggestionModal = (e) => {
+    e?.preventDefault();
+    const { title, category, description, iconType } = suggestionModal.form;
+    if (!title.trim() || !description.trim()) {
+      toast.error("Please enter both a title and clinical description.");
+      return;
     }
 
-    // --- Suggestion 2: Heart Health / Cholesterol ---
-    const isHeartCondition =
-      profile.is_hypertensive ||
-      latestReport.ldl_cholesterol > 130 ||
-      latestReport.triglycerides > 150;
-
-    if (isHeartCondition) {
-      suggestions.push({
-        key: "heart", icon: <Heart />, title: "Heart-Healthy Diet",
-        description: "Prioritize soluble fiber, omega-3s, and healthy fats. Limit sodium and avoid saturated/trans fats.",
-        theme: primaryHoverTheme,
-      });
+    if (suggestionModal.isNew) {
+      const newCard = {
+        id: `sug_${Date.now()}`,
+        key: `custom_${Date.now()}`,
+        title: title.trim(),
+        category: category.trim() || "Clinical Strategy",
+        description: description.trim(),
+        iconType: iconType || "Sparkles",
+      };
+      updateSuggestions([...aiSuggestions, newCard]);
+      toast.success("Custom clinical suggestion added!");
+    } else {
+      const updated = [...aiSuggestions];
+      updated[suggestionModal.index] = {
+        ...updated[suggestionModal.index],
+        title: title.trim(),
+        category: category.trim() || "Clinical Strategy",
+        description: description.trim(),
+        iconType: iconType || "Sparkles",
+      };
+      updateSuggestions(updated);
+      toast.success("Suggestion updated!");
     }
+    setSuggestionModal({
+      isOpen: false,
+      isNew: false,
+      index: null,
+      form: { title: "", category: "Dietary Strategy", description: "", iconType: "Sparkles" },
+    });
+  };
 
-    // --- Suggestion 3: Anemia / Low Iron ---
-    if (latestReport.hemoglobin && latestReport.hemoglobin < 12) {
-      suggestions.push({
-        key: 'anemia', icon: <Anchor />, title: "Iron-Rich Diet",
-        description: "Low hemoglobin detected. Increase intake of leafy greens, legumes, and lean red meat, paired with Vitamin C.",
-        theme: primaryHoverTheme,
-      });
+  const handleDeleteSuggestion = (idxToDelete) => {
+    const filtered = aiSuggestions.filter((_, i) => i !== idxToDelete);
+    updateSuggestions(filtered);
+    toast.success("Suggestion removed.");
+  };
+
+  const handleCopySuggestionText = (card) => {
+    const textToCopy = `📌 ${card.title} (${card.category || "Recommendation"})\n${card.description}`;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedSuggestionKey(card.id || card.key);
+    toast.success("Suggestion copied to clipboard!");
+    setTimeout(() => setCopiedSuggestionKey(null), 2000);
+  };
+
+  const renderSuggestionIcon = (iconType) => {
+    switch (iconType?.toLowerCase()) {
+      case "leaf":
+      case "diabetes":
+        return <Leaf className="w-5 h-5 text-emerald-600" />;
+      case "heart":
+      case "cardio":
+        return <Heart className="w-5 h-5 text-rose-500" />;
+      case "anchor":
+      case "iron":
+        return <Anchor className="w-5 h-5 text-blue-600" />;
+      case "sun":
+      case "vitamin":
+        return <Sun className="w-5 h-5 text-amber-500" />;
+      case "ban":
+      case "restrict":
+        return <Ban className="w-5 h-5 text-red-500" />;
+      case "target":
+      case "goal":
+        return <FaBullseye className="w-5 h-5 text-indigo-600" />;
+      case "flame":
+      case "muscle":
+        return <Flame className="w-5 h-5 text-orange-500" />;
+      default:
+        return <Sparkles className="w-5 h-5 text-[var(--color-primary)]" />;
     }
-
-    // --- Suggestion 4: Weight Loss Goal ---
-    if (profile.goal === "Lose Weight") {
-      suggestions.push({
-        key: "weightloss", icon: <FaBullseye />, title: "Calorie Deficit & High Protein",
-        description: "Recommend a moderate calorie deficit (~300-500 kcal/day). Emphasize protein for satiety and muscle preservation.",
-        theme: primaryHoverTheme,
-      });
-    }
-
-    // --- Suggestion 5: High Uric Acid (Gout Risk) ---
-    if (latestReport.uric_acid > 6.8) {
-      suggestions.push({
-        key: "gout", icon: <Ban />, title: "Low-Purine Diet Required",
-        description: "High uric acid detected. Limit red meat, organ meats, certain seafood, and high-fructose corn syrup.",
-        theme: primaryHoverTheme,
-      });
-    }
-
-    // --- Suggestion 6: Vitamin Deficiency ---
-    if (latestReport.vitamin_d3 < 20 || latestReport.vitamin_b12 < 200) {
-      suggestions.push({
-        key: 'vitamins', icon: <Sun />, title: "Focus on Vitamin-Rich Foods",
-        description: "Low D3 or B12 detected. Recommend fortified foods, fatty fish, dairy, or potential supplementation.",
-        theme: primaryHoverTheme,
-      });
-    }
-
-    return suggestions;
-  }, [profile, labReports]);
+  };
   const findLatestValidPlan = (allPlans) => {
     if (!allPlans || allPlans.length === 0) return null;
 
@@ -424,6 +738,9 @@ const PatientDetailsPage = () => {
           setDiets([]);
           setSelectedPlanId(null);
         }
+
+        // Fetch appointment history for this patient
+        fetchAppointments();
       } catch (err) {
         console.error("Critical error fetching patient details:", err);
         toast.error("Could not load critical patient data.");
@@ -854,6 +1171,11 @@ const PatientDetailsPage = () => {
 
     setIsGenerating(true);
 
+    // Also trigger 4 AI clinical suggestions generation alongside diet plan
+    if (!isGeneratingSuggestions) {
+      handleGenerateLLMSuggestions();
+    }
+
     try {
       // 1️⃣ Backend returns placeholder plan immediately
       const res = await generateDietPlan(id);
@@ -974,9 +1296,6 @@ const PatientDetailsPage = () => {
     });
   };
 
-  const handleOpenAssistant = () => setIsAssistantOpen(true);
-  const handleOpenNutritionSearch = () => setShowNutrition(true);
-
   // --- [NEW] Calculate daily totals for the active diet plan day ---
   const dailyTotals = useMemo(() => {
     const activeDietPlan = diets[0];
@@ -1009,6 +1328,7 @@ const PatientDetailsPage = () => {
     { key: "reports", label: "Lab Reports", icon: <FaFileMedicalAlt /> },
     { key: "meals", label: "Meal Log", icon: <Utensils /> },
     { key: "diet", label: "Diet Plans", icon: <CalendarCheck /> },
+    { key: "appointments", label: "Appointments & History", icon: <Clock size={16} /> },
   ];
   const mealTypeStyles = {
     "early-morning":
@@ -1850,93 +2170,282 @@ const PatientDetailsPage = () => {
                           <p className="mt-1 text-sm font-semibold text-[var(--color-text-default)]">AI Diet Generation is locked.</p>
                           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                             Please ensure the patient's <strong>Profile</strong> is fully completed to unlock this feature.
-                            For more accurate diet , make sure patient's <strong>Lap Reports</strong> are also uploaded
+                            For more accurate diet, make sure patient's <strong>Lab Reports</strong> are also uploaded.
                           </p>
                         </div>
                       </motion.div>
-
-                      /* Condition 2: Profile complete, NO lab reports (Styled Suggestion Card) */
-                    ) : !hasLabReports ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        // --- [NEW STYLING] "Prism Card" styling for a premium, modern feel ---
-                        className="relative flex items-center gap-5 p-5 overflow-hidden rounded-xl border border-transparent hover:border-[var(--color-info-text)]/40 bg-[var(--color-bg-surface)]/60 backdrop-blur-md shadow-lg hover:shadow-xl shadow-black/5 transition-all duration-300"
-                      >
-                        {/* --- Animated Background Blobs for the Aurora Effect --- */}
-                        <div
-                          style={{ animationDelay: '0s' }}
-                          className="absolute -top-10 -right-20 w-72 h-72 animate-blob rounded-full bg-[var(--color-info-text)] mix-blend-multiply filter opacity-20"
-                        ></div>
-                        <div
-                          style={{ animationDelay: '2s' }}
-                          className="absolute -bottom-8 -left-16 w-72 h-72 animate-blob rounded-full bg-[var(--color-primary)]/70 mix-blend-multiply filter opacity-20"
-                        ></div>
-
-                        {/* --- Icon with a floating, styled container --- */}
-                        <div className="relative z-10 flex-shrink-0 p-3 bg-[var(--color-bg-surface)] rounded-full shadow-md shadow-black/10 ring-2 ring-white/10">
-                          <Zap className="h-8 w-8 text-[var(--color-info-text)]" />
-                        </div>
-
-                        {/* --- Text content with updated message --- */}
-                        <div className="relative z-10 flex-grow">
-                          <h3 className="text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)]">
-                            Ready to Generate Diet Plan
-                          </h3>
-                          <p className="mt-1 text-sm text-[var(--color-text-muted)] leading-relaxed">
-                            You can generate a plan using the patient's profile. For <strong>better results and accuracy</strong>, we strongly recommend adding lab reports if they are available.
-                          </p>
-                        </div>
-                      </motion.div>
-
-                      /* Condition 3: Both profile and lab reports exist (Show AI suggestions) */
                     ) : (
-                      suggestionCards.length > 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 15 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1, duration: 0.4 }}
-                          className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] p-4 sm:p-6 rounded-xl space-y-4"
-                        >
-                          <h3 className="text-lg font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)] flex items-center gap-2">
-                            <Zap size={20} className="text-[var(--color-primary)]" />
-                            AI-Powered Suggestions for <span>{profile.full_name}</span>
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                            {suggestionCards.map((card) => (
-                              <motion.div
-                                key={card.key}
-                                whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                                className={`group relative p-5 rounded-xl border-2 transition-all duration-300
-                      bg-[var(--color-bg-surface)] 
-                      border-[var(--color-border-default)]
-                      border-l-4 border-l-[var(--color-primary)] 
-                      hover:shadow-xl hover:shadow-gray-200/50
-                      ${card.theme.border}`}
-                              >
-                                <div
-                                  className={`inline-flex p-3 mb-4 rounded-lg transition-all duration-300
-                        bg-[var(--color-bg-interactive-subtle)]
-                        ${card.theme.iconBg}`}
+                      <>
+                        {/* If no lab reports, show a helpful tip banner */}
+                        {!hasLabReports && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300 text-xs"
+                          >
+                            <Zap size={16} className="text-amber-500 flex-shrink-0" />
+                            <div>
+                              <span className="font-bold">Lab Reports Tip:</span> AI clinical suggestions and diet plans are tailored using the patient's baseline profile. Adding blood lab reports unlocks deeper biomarker precision.
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {/* 4 Quick AI Clinical Suggestions Section - Always rendered together with the diet plan */}
+                        {aiSuggestions.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1, duration: 0.4 }}
+                            className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] p-4 sm:p-6 rounded-2xl space-y-4 shadow-sm"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[var(--color-border-default)]">
+                              <div>
+                                <h3 className="text-base sm:text-lg font-[var(--font-primary)] font-extrabold text-[var(--color-text-strong)] flex items-center gap-2">
+                                  <Sparkles size={18} className="text-amber-500" />
+                                  <span>AI Clinical Suggestions & Strategy for {profile.full_name}</span>
+                                  <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20">
+                                    4 Quick Suggestions
+                                  </span>
+                                </h3>
+                                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                  4 core clinical pillars synthesized alongside the diet plan from patient vitals and biomarkers.
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  type="button"
+                                  disabled={isGeneratingSuggestions}
+                                  onClick={handleGenerateLLMSuggestions}
+                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all cursor-pointer shadow-xs disabled:opacity-50"
                                 >
-                                  {React.cloneElement(card.icon, {
-                                    className: `w-7 h-7 transition-colors duration-300 
-                          text-[var(--color-text-strong)] 
-                          ${card.theme.iconText}`,
-                                  })}
-                                </div>
-                                <div>
-                                  <h4 className={`text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)] transition-colors duration-300 ${card.theme.titleText}`}>
-                                    {card.title}
-                                  </h4>
-                                  <p className="mt-2 text-sm text-[var(--color-text-muted)] leading-relaxed">{card.description}</p>
-                                </div>
-                              </motion.div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )
+                                  {isGeneratingSuggestions ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                  ) : (
+                                    <RotateCcw size={13} />
+                                  )}
+                                  {isGeneratingSuggestions ? "Analyzing..." : "⚡ Regenerate 4 AI"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={handleOpenAddSuggestion}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-[var(--color-primary)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] transition-all cursor-pointer shadow-2xs"
+                                >
+                                  <Plus size={13} /> Add Custom
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                              {aiSuggestions.map((card, idx) => (
+                                <motion.div
+                                  key={card.id || card.key || idx}
+                                  whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                                  className="group relative p-4 rounded-2xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)]/60 bg-[var(--color-bg-surface)] transition-all duration-200 flex flex-col justify-between shadow-2xs hover:shadow-md"
+                                >
+                                  <div>
+                                    {/* Card Top Row */}
+                                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                                      <div className="flex items-center gap-2">
+                                        <div className="p-2 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
+                                          {renderSuggestionIcon(card.iconType || card.key)}
+                                        </div>
+                                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-bg-app)] px-2 py-0.5 rounded-md border border-[var(--color-border-default)] line-clamp-1">
+                                          {card.category || "Clinical Strategy"}
+                                        </span>
+                                      </div>
+
+                                      {/* Action buttons */}
+                                      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCopySuggestionText(card)}
+                                          title="Copy recommendation"
+                                          className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                                        >
+                                          {copiedSuggestionKey === (card.id || card.key) ? (
+                                            <Check size={13} className="text-emerald-500" />
+                                          ) : (
+                                            <Copy size={13} />
+                                          )}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditSuggestion(card, idx)}
+                                          title="Edit suggestion"
+                                          className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                                        >
+                                          <Pencil size={13} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteSuggestion(idx)}
+                                          title="Remove suggestion"
+                                          className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Title & Description */}
+                                    <h4 className="text-sm font-black font-[var(--font-primary)] text-[var(--color-text-strong)] group-hover:text-[var(--color-primary)] transition-colors mb-1.5">
+                                      {card.title}
+                                    </h4>
+                                    <p className="text-xs text-[var(--color-text-default)] leading-relaxed font-[var(--font-secondary)]">
+                                      {card.description}
+                                    </p>
+                                  </div>
+
+                                  <div className="pt-3 mt-3 border-t border-dashed border-[var(--color-border-default)] flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
+                                    <span className="font-semibold">Quick suggestion</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditSuggestion(card, idx)}
+                                      className="text-[var(--color-primary)] font-bold hover:underline cursor-pointer"
+                                    >
+                                      Modify →
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </>
                     )}
+
+                    {/* Interactive Modal for Adding / Editing Suggestion */}
+                    <AnimatePresence>
+                      {suggestionModal.isOpen && (
+                        <div
+                          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs font-[var(--font-secondary)]"
+                          onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "", iconType: "Sparkles" } })}
+                        >
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.94, y: 15 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.94, y: 15 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-lg bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl p-6 space-y-4"
+                          >
+                            <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border-default)]">
+                              <h3 className="text-base font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)] flex items-center gap-2">
+                                <Sparkles size={16} className="text-[var(--color-primary)]" />
+                                {suggestionModal.isNew ? "Add Custom Clinical Suggestion" : "Edit AI Suggestion"}
+                              </h3>
+                              <button
+                                type="button"
+                                onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "", iconType: "Sparkles" } })}
+                                className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+
+                            <form onSubmit={handleSaveSuggestionModal} className="space-y-3.5">
+                              <div>
+                                <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
+                                  Recommendation Title
+                                </label>
+                                <input
+                                  type="text"
+                                  value={suggestionModal.form.title}
+                                  onChange={(e) =>
+                                    setSuggestionModal((prev) => ({
+                                      ...prev,
+                                      form: { ...prev.form, title: e.target.value },
+                                    }))
+                                  }
+                                  placeholder="e.g., Low Glycemic & High Soluble Fiber Diet"
+                                  className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
+                                    Category
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={suggestionModal.form.category}
+                                    onChange={(e) =>
+                                      setSuggestionModal((prev) => ({
+                                        ...prev,
+                                        form: { ...prev.form, category: e.target.value },
+                                      }))
+                                    }
+                                    placeholder="e.g., Glycemic Management"
+                                    className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
+                                    Icon Type
+                                  </label>
+                                  <select
+                                    value={suggestionModal.form.iconType}
+                                    onChange={(e) =>
+                                      setSuggestionModal((prev) => ({
+                                        ...prev,
+                                        form: { ...prev.form, iconType: e.target.value },
+                                      }))
+                                    }
+                                    className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none font-medium"
+                                  >
+                                    <option value="Sparkles">✨ Sparkles (General)</option>
+                                    <option value="Leaf">🍃 Leaf (Diabetes / Plant)</option>
+                                    <option value="Heart">❤️ Heart (Cardio / Lipids)</option>
+                                    <option value="Anchor">⚓ Anchor (Iron / Hemoglobin)</option>
+                                    <option value="Sun">☀️ Sun (Vitamins)</option>
+                                    <option value="Ban">🚫 Ban (Purine / Restrict)</option>
+                                    <option value="Target">🎯 Target (Weight Goal)</option>
+                                    <option value="Flame">🔥 Flame (Metabolism / Muscle)</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
+                                  Clinical Guidance & Description
+                                </label>
+                                <textarea
+                                  rows={4}
+                                  value={suggestionModal.form.description}
+                                  onChange={(e) =>
+                                    setSuggestionModal((prev) => ({
+                                      ...prev,
+                                      form: { ...prev.form, description: e.target.value },
+                                    }))
+                                  }
+                                  placeholder="Provide specific dietary advice, macro targets, and clinical instructions for this patient..."
+                                  className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none"
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-border-default)]">
+                                <button
+                                  type="button"
+                                  onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "", iconType: "Sparkles" } })}
+                                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all cursor-pointer shadow-xs"
+                                >
+                                  <Check size={13} /> Save Suggestion
+                                </button>
+                              </div>
+                            </form>
+                          </motion.div>
+                        </div>
+                      )}
+                    </AnimatePresence>
 
                     {currentPlan?.status === "generating" && (
                       <div className="p-10 text-center bg-[var(--color-bg-app)] rounded-xl border-2 border-dashed border-[var(--color-border-default)]">
@@ -2473,24 +2982,217 @@ const PatientDetailsPage = () => {
                     )}
                   </div>
                 )}
+
+                {/* ── APPOINTMENTS & HISTORY TAB ── */}
+                {activeTab === "appointments" && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)]">
+                      <div>
+                        <h3 className="text-lg font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                          <Clock className="text-[var(--color-primary)]" size={20} />
+                          Patient Consultations & Appointment History
+                        </h3>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                          Review past and upcoming consultation sessions, manage clinical notes, and track dietary recommendations.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={fetchAppointments}
+                        disabled={loadingAppointments}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all cursor-pointer shadow-2xs self-start sm:self-auto disabled:opacity-50"
+                      >
+                        <RefreshCw size={13} className={loadingAppointments ? "animate-spin" : ""} />
+                        Refresh History
+                      </button>
+                    </div>
+
+                    {loadingAppointments ? (
+                      <div className="py-16 text-center space-y-3">
+                        <div className="w-9 h-9 border-3 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin mx-auto" />
+                        <p className="text-xs text-[var(--color-text-muted)] font-semibold">
+                          Loading patient consultation history...
+                        </p>
+                      </div>
+                    ) : patientAppointments.length === 0 ? (
+                      <div className="text-center py-16 px-4 bg-[var(--color-bg-app)] rounded-2xl border-2 border-dashed border-[var(--color-border-default)]">
+                        <Calendar className="w-10 h-10 mx-auto mb-2 text-[var(--color-text-muted)] opacity-50" />
+                        <h4 className="text-base font-bold text-[var(--color-text-strong)]">
+                          No Appointments Found
+                        </h4>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                          This patient has not booked any consultations yet.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {patientAppointments.map((appt) => {
+                          const slot = appt.slot || {};
+                          const isVirtual = appt.appointment_type === "VIRTUAL";
+                          const isConfirmed = appt.status === "CONFIRMED";
+                          const hasNotes = Boolean(appt.notes || appt.instructions);
+                          const fee = appt.price || (isVirtual ? appt.online_price : appt.offline_price) || slot.price || 0;
+                          const isPayAtClinic = appt.appointment_type === "IN_PERSON" && appt.offline_payment_required === false;
+
+                          return (
+                            <div
+                              key={appt.id}
+                              className="rounded-2xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)] p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all space-y-4"
+                            >
+                              <div>
+                                {/* Top Badges */}
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                                      isVirtual
+                                        ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                        : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    }`}
+                                  >
+                                    {isVirtual ? <Video size={11} /> : <Building2 size={11} />}
+                                    {isVirtual ? "Virtual Consultation" : "In-Clinic Consultation"}
+                                  </span>
+
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                                      isConfirmed ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                                    }`}
+                                  >
+                                    {isConfirmed ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                                    {appt.status}
+                                  </span>
+                                </div>
+
+                                {/* Date & Time */}
+                                <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Clock size={15} className="text-[var(--color-primary)]" />
+                                    <span className="font-extrabold text-sm text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                                      {slot.start_time} – {slot.end_time}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar size={13} className="text-[var(--color-text-muted)]" />
+                                    <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+                                      {slot.date}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Fee & Nutritionist info */}
+                                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                                  <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)]">
+                                    <span className="text-[10px] text-[var(--color-text-muted)] block mb-0.5 font-bold uppercase">Fee</span>
+                                    <span className="font-extrabold text-[var(--color-text-strong)]">₹{fee}</span>
+                                    <span className="text-[10px] text-emerald-600 block">
+                                      {isPayAtClinic ? "Pay at Clinic" : "Paid Online"}
+                                    </span>
+                                  </div>
+
+                                  <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)]">
+                                    <span className="text-[10px] text-[var(--color-text-muted)] block mb-0.5 font-bold uppercase">Specialist</span>
+                                    <span className="font-bold text-[var(--color-text-strong)] truncate block">
+                                      {appt.nutritionist_name || "Nutritionist"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Clinical Notes & Instructions Snippet */}
+                                <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1">
+                                      <FileText size={11} className="text-[var(--color-primary)]" /> Clinical Notes & Advice
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedApptDetailId(appt.id)}
+                                      className="text-[11px] font-bold text-[var(--color-primary)] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                                    >
+                                      <Edit3 size={11} /> {hasNotes ? "Edit Notes" : "+ Add Notes"}
+                                    </button>
+                                  </div>
+
+                                  {appt.notes ? (
+                                    <p className="text-xs text-[var(--color-text-strong)] line-clamp-2 italic">
+                                      "{appt.notes}"
+                                    </p>
+                                  ) : (
+                                    <p className="text-[11px] text-[var(--color-text-muted)] italic">
+                                      No clinical notes added yet. Click to write recommendations.
+                                    </p>
+                                  )}
+
+                                  {appt.instructions && (
+                                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium line-clamp-1 pt-1 border-t border-[var(--color-border-default)]">
+                                      📋 Plan: {appt.instructions}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Patient Feedback Snippet if Available */}
+                                {appt.feedbacks?.length > 0 && (
+                                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1">
+                                        <Star size={11} className="fill-amber-500 text-amber-500" /> Patient Review
+                                      </span>
+                                      <div className="flex items-center gap-0.5 text-xs font-black text-amber-800 dark:text-amber-300">
+                                        ★ {appt.feedbacks[0].rating}.0
+                                      </div>
+                                    </div>
+                                    {appt.feedbacks[0].comment && (
+                                      <p className="text-xs text-[var(--color-text-strong)] italic line-clamp-2">
+                                        "{appt.feedbacks[0].comment}"
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Card Action */}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedApptDetailId(appt.id)}
+                                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-primary-bg-subtle)] hover:text-[var(--color-primary)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                              >
+                                <Info size={13} /> View Full Appointment Details & Edit Notes
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
         </motion.div>
       </main>
+
+      {/* Appointment Details & Notes Modal */}
+      <AppointmentDetailModal
+        appointmentId={selectedApptDetailId}
+        isOpen={Boolean(selectedApptDetailId)}
+        onClose={() => setSelectedApptDetailId(null)}
+        userRole="nutritionist"
+        onNotesSaved={fetchAppointments}
+      />
+
       <QuickTools
         onOpenAssistant={handleOpenAssistant}
         onOpenNutrition={handleOpenNutritionSearch}
+        onOpenChat={handleOpenQuickChat}
       />
 
-      <SmartAssistant
-        isVisible={isAssistantOpen}
-        onClose={() => setIsAssistantOpen(false)}
-      />
-
-      <NutritionPopup
-        isVisible={showNutrition}
-        onClose={() => setShowNutrition(false)}
+      <FloatingQuickToolbox
+        isOpen={toolboxOpen}
+        onClose={() => setToolboxOpen(false)}
+        initialTab={toolboxTab}
+        selectedPatient={profile}
+        isMinimized={toolboxMinimized}
+        setIsMinimized={setToolboxMinimized}
       />
     </div>
   );

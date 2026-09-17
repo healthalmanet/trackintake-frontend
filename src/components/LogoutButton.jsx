@@ -11,8 +11,7 @@ function LogoutButton() {
   const { logout } = useAuth(); // Get logout from context
 
   const handleLogout = () => {
-    logout(); // Call context logout
-    navigate("/", { replace: true });
+    logout();
   };
 
   return (

@@ -9,8 +9,7 @@ import { Clock, ShieldAlert, Lock, ArrowRight } from "lucide-react";
 import NutritionistDashboard from "../components/components/nutritionist/NutritionistDashboard";
 
 import QuickTools from "../components/components/nutritionist/QuickTools";
-import SmartAssistant from "../components/components/nutritionist/SmartAssistant";
-import NutritionPopup from "../components/components/nutritionist/NutritionPopup";
+import FloatingQuickToolbox from "../components/components/nutritionist/FloatingQuickToolbox";
 
 import SubscriptionGuard from "../components/subscription/SubscriptionGuard";
 
@@ -32,14 +31,11 @@ const PageFallbackLoader = () => (
 );
 
 const NutritionistPage = () => {
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [showNutrition, setShowNutrition] = useState(false);
+  const [isToolboxOpen, setIsToolboxOpen] = useState(false);
+  const [toolboxTab, setToolboxTab] = useState("assistant");
   const [isVerified, setIsVerified] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const location = useLocation();
-
-  const handleOpenAssistant = () => setIsAssistantOpen(true);
-  const handleOpenNutritionSearch = () => setShowNutrition(true);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -144,26 +140,29 @@ const NutritionistPage = () => {
       {/* 🦶 Persistent Footer on Nutritionist side */}
       <Footer />
 
-      {/* 🛠️ Floating Tools & Overlays */}
+      {/* 🛠️ Floating Non-Blocking Quick Toolbox */}
       <QuickTools 
-        onOpenAssistant={handleOpenAssistant}
-        onOpenNutrition={handleOpenNutritionSearch}
+        onOpenAssistant={() => {
+          setToolboxTab("assistant");
+          setIsToolboxOpen(true);
+        }}
+        onOpenNutrition={() => {
+          setToolboxTab("nutrition");
+          setIsToolboxOpen(true);
+        }}
+        onOpenChat={() => {
+          setToolboxTab("chat");
+          setIsToolboxOpen(true);
+        }}
         userRole="nutritionist"
       />
 
-      {isAssistantOpen && (
-        <SmartAssistant
-          isVisible={isAssistantOpen}
-          onClose={() => setIsAssistantOpen(false)}
-        />
-      )}
-
-      {showNutrition && (
-        <NutritionPopup
-          isVisible={showNutrition}
-          onClose={() => setShowNutrition(false)}
-        />
-      )}
+      <FloatingQuickToolbox
+        isOpen={isToolboxOpen}
+        onClose={() => setIsToolboxOpen(false)}
+        initialTab={toolboxTab}
+        userRole="nutritionist"
+      />
     </div>
   );
 };

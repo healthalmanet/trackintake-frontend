@@ -19,9 +19,9 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     );
   }
 
-  // Redirect to login if not logged in.
+  // Redirect to home if not logged in.
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to="/" replace state={{ from: location }} />;
   }
 
   // Check for the user's role.
