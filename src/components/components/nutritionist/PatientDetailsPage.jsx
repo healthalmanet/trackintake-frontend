@@ -267,7 +267,6 @@ const PatientDetailsPage = () => {
       title: "",
       category: "Dietary Strategy",
       description: "",
-      iconType: "Sparkles",
     },
   });
 
@@ -508,7 +507,6 @@ Each object must have this exact structure:
         title: "",
         category: "Clinical Strategy",
         description: "",
-        iconType: "Sparkles",
       },
     });
   };
@@ -522,14 +520,13 @@ Each object must have this exact structure:
         title: card.title || "",
         category: card.category || "Clinical Strategy",
         description: card.description || "",
-        iconType: card.iconType || "Sparkles",
       },
     });
   };
 
   const handleSaveSuggestionModal = (e) => {
     e?.preventDefault();
-    const { title, category, description, iconType } = suggestionModal.form;
+    const { title, category, description } = suggestionModal.form;
     if (!title.trim() || !description.trim()) {
       toast.error("Please enter both a title and clinical description.");
       return;
@@ -542,27 +539,27 @@ Each object must have this exact structure:
         title: title.trim(),
         category: category.trim() || "Clinical Strategy",
         description: description.trim(),
-        iconType: iconType || "Sparkles",
       };
       updateSuggestions([...aiSuggestions, newCard]);
       toast.success("Custom clinical suggestion added!");
     } else {
       const updated = [...aiSuggestions];
-      updated[suggestionModal.index] = {
-        ...updated[suggestionModal.index],
-        title: title.trim(),
-        category: category.trim() || "Clinical Strategy",
-        description: description.trim(),
-        iconType: iconType || "Sparkles",
-      };
-      updateSuggestions(updated);
-      toast.success("Suggestion updated!");
+      if (suggestionModal.index !== null && updated[suggestionModal.index]) {
+        updated[suggestionModal.index] = {
+          ...updated[suggestionModal.index],
+          title: title.trim(),
+          category: category.trim() || "Clinical Strategy",
+          description: description.trim(),
+        };
+        updateSuggestions(updated);
+        toast.success("Suggestion updated successfully!");
+      }
     }
     setSuggestionModal({
       isOpen: false,
       isNew: false,
       index: null,
-      form: { title: "", category: "Dietary Strategy", description: "", iconType: "Sparkles" },
+      form: { title: "", category: "Dietary Strategy", description: "" },
     });
   };
 
@@ -580,32 +577,93 @@ Each object must have this exact structure:
     setTimeout(() => setCopiedSuggestionKey(null), 2000);
   };
 
-  const renderSuggestionIcon = (iconType) => {
-    switch (iconType?.toLowerCase()) {
-      case "leaf":
-      case "diabetes":
-        return <Leaf className="w-5 h-5 text-emerald-600" />;
-      case "heart":
-      case "cardio":
-        return <Heart className="w-5 h-5 text-rose-500" />;
-      case "anchor":
-      case "iron":
-        return <Anchor className="w-5 h-5 text-blue-600" />;
-      case "sun":
-      case "vitamin":
-        return <Sun className="w-5 h-5 text-amber-500" />;
-      case "ban":
-      case "restrict":
-        return <Ban className="w-5 h-5 text-red-500" />;
-      case "target":
-      case "goal":
-        return <FaBullseye className="w-5 h-5 text-indigo-600" />;
-      case "flame":
-      case "muscle":
-        return <Flame className="w-5 h-5 text-orange-500" />;
-      default:
-        return <Sparkles className="w-5 h-5 text-[var(--color-primary)]" />;
+  // --- Automatic Intelligent Icon Resolver based on Clinical Logic & Keywords ---
+  const renderSuggestionIcon = (card) => {
+    let text = "";
+    if (typeof card === "object" && card !== null) {
+      text = `${card.category || ""} ${card.title || ""} ${card.description || ""} ${card.key || ""} ${card.iconType || ""}`.toLowerCase();
+    } else {
+      text = String(card || "").toLowerCase();
     }
+
+    // 1. Diabetes / Glycemic / Insulin / Sugar / Fiber / Carbs / Millets / Plant
+    if (/glycemic|diabetes|sugar|glucose|insulin|hba1c|fiber|low-gi|carb|millet|oats|vegetable|metabolic|plant|leaf/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-2xs">
+          <Leaf className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 2. Cardiovascular / Heart / Blood Pressure / Lipids / Cholesterol / Triglycerides / Sodium / Omega
+    if (/cardio|heart|lipid|cholesterol|ldl|hdl|triglyceride|blood pressure|hypertens|sodium|salt|omega|vascular|circulation/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-2xs">
+          <Heart className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 3. Muscle / Hypertrophy / Athletic / Anabolic / Flame / Energy / Workout
+    if (/muscle|hypertrophy|anabolic|workout|training|energy balance|metabolism|flame|burn|exercise/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 shadow-2xs">
+          <Flame className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 4. Weight Goal / Target / Macros / Protein / Calorie Deficit / Satiety
+    if (/weight|target|goal|deficit|calorie|protein|macro|satiety|lose weight|gain weight|bmi/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-2xs">
+          <FaBullseye className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 5. Iron / Hemoglobin / Hematology / Anemia / Blood / Anchor
+    if (/iron|hemoglobin|anemia|hematology|anchor|ferritin|blood/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shadow-2xs">
+          <Anchor className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 6. Vitamins / Minerals / Sun / D3 / B12 / Fortification / Supplements
+    if (/vitamin|d3|b12|micronutrient|sun|mineral|calcium|zinc|fortifi|supplement/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-2xs">
+          <Sun className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 7. Hydration / Water / Fluids
+    if (/hydration|water|fluid|drink|cellular hydration/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 shadow-2xs">
+          <Droplets className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // 8. Restrictions / Uric Acid / Purine / Gout / Ban / Allergies
+    if (/uric|purine|gout|ban|restrict|avoid|eliminat|allerg/.test(text)) {
+      return (
+        <div className="p-2 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shadow-2xs">
+          <Ban className="w-5 h-5" />
+        </div>
+      );
+    }
+
+    // Default: Premium Sparkles
+    return (
+      <div className="p-2 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 shadow-2xs">
+        <Sparkles className="w-5 h-5" />
+      </div>
+    );
   };
   const findLatestValidPlan = (allPlans) => {
     if (!allPlans || allPlans.length === 0) return null;
@@ -2248,9 +2306,7 @@ Each object must have this exact structure:
                                     {/* Card Top Row */}
                                     <div className="flex items-center justify-between gap-2 mb-2.5">
                                       <div className="flex items-center gap-2">
-                                        <div className="p-2 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
-                                          {renderSuggestionIcon(card.iconType || card.key)}
-                                        </div>
+                                        {renderSuggestionIcon(card)}
                                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-bg-app)] px-2 py-0.5 rounded-md border border-[var(--color-border-default)] line-clamp-1">
                                           {card.category || "Clinical Strategy"}
                                         </span>
@@ -2321,7 +2377,7 @@ Each object must have this exact structure:
                       {suggestionModal.isOpen && (
                         <div
                           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs font-[var(--font-secondary)]"
-                          onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "", iconType: "Sparkles" } })}
+                          onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "" } })}
                         >
                           <motion.div
                             initial={{ opacity: 0, scale: 0.94, y: 15 }}
@@ -2337,7 +2393,7 @@ Each object must have this exact structure:
                               </h3>
                               <button
                                 type="button"
-                                onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "", iconType: "Sparkles" } })}
+                                onClick={() => setSuggestionModal({ isOpen: false, isNew: false, index: null, form: { title: "", category: "", description: "" } })}
                                 className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
                               >
                                 <X size={16} />
@@ -2363,49 +2419,25 @@ Each object must have this exact structure:
                                 />
                               </div>
 
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
-                                    Category
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={suggestionModal.form.category}
-                                    onChange={(e) =>
-                                      setSuggestionModal((prev) => ({
-                                        ...prev,
-                                        form: { ...prev.form, category: e.target.value },
-                                      }))
-                                    }
-                                    placeholder="e.g., Glycemic Management"
-                                    className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
-                                    Icon Type
-                                  </label>
-                                  <select
-                                    value={suggestionModal.form.iconType}
-                                    onChange={(e) =>
-                                      setSuggestionModal((prev) => ({
-                                        ...prev,
-                                        form: { ...prev.form, iconType: e.target.value },
-                                      }))
-                                    }
-                                    className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none font-medium"
-                                  >
-                                    <option value="Sparkles">✨ Sparkles (General)</option>
-                                    <option value="Leaf">🍃 Leaf (Diabetes / Plant)</option>
-                                    <option value="Heart">❤️ Heart (Cardio / Lipids)</option>
-                                    <option value="Anchor">⚓ Anchor (Iron / Hemoglobin)</option>
-                                    <option value="Sun">☀️ Sun (Vitamins)</option>
-                                    <option value="Ban">🚫 Ban (Purine / Restrict)</option>
-                                    <option value="Target">🎯 Target (Weight Goal)</option>
-                                    <option value="Flame">🔥 Flame (Metabolism / Muscle)</option>
-                                  </select>
-                                </div>
+                              <div>
+                                <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
+                                  Category / Clinical Pillar
+                                </label>
+                                <input
+                                  type="text"
+                                  value={suggestionModal.form.category}
+                                  onChange={(e) =>
+                                    setSuggestionModal((prev) => ({
+                                      ...prev,
+                                      form: { ...prev.form, category: e.target.value },
+                                    }))
+                                  }
+                                  placeholder="e.g., Glycemic Management / Cardiovascular / Macros"
+                                  className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none"
+                                />
+                                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                                  ✨ Icon is automatically matched based on the clinical category and recommendation text.
+                                </p>
                               </div>
 
                               <div>
