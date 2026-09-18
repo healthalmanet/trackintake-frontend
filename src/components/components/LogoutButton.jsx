@@ -5,21 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { useAuth } from "../context/AuthContext";
+
 function LogoutButton() {
-  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    // Clear all user-related data from local storage
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userRole");
-    
-    // Navigate to the home page
-    navigate("/");
-
-    // Optional: Force a full reload to reset any in-memory state
-    window.location.reload(); 
+    logout();
   };
 
   return (

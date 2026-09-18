@@ -321,25 +321,14 @@ const NutritionistDashboard = () => {
       const res = await getAssignedPatients(query);
       const users = res.data.results || res.data || [];
 
-      const enhancedUsers = await Promise.all(
-        users.map(async (user) => {
-          try {
-            const profileRes = await getPatientProfile(user.id);
-            const profile = profileRes.data.profile || {};
-            return {
-              ...user,
-              goal: profile.goal || "Not Set",
-              date_of_birth: profile.date_of_birth || "",
-              updated_at: profile.updated_at || user.updated_at,
-              created_at: user.created_at,
-              id: user.id, // Explicitly ensure ID is present for sorting
-            };
-          } catch (error) {
-            console.error("Failed to get profile for user:", user.id);
-            return user;
-          }
-        })
-      );
+      const enhancedUsers = users.map((user) => ({
+        ...user,
+        goal: user.goal || "Not Set",
+        date_of_birth: user.date_of_birth || "",
+        updated_at: user.updated_at,
+        created_at: user.created_at,
+        id: user.id,
+      }));
       
       // --- BULLETPROOF SORTING LOGIC ---
       // This is the most reliable way to sort. It prioritizes the creation

@@ -43,10 +43,17 @@ export const verifyPayment = async (paymentData) => {
   return res.data;
 };
 // Consultation fee ka order banao
-export const payConsultationFee = async (consultType) => {
-  const res = await axiosInstance.post('/subscriptions/pay-consultation/', {
-    consult_type: consultType
-  });
+export const payConsultationFee = async (params) => {
+  const payload = typeof params === 'string'
+    ? { consult_type: params }
+    : {
+        consult_type: params?.consultType || params?.consult_type || 'inhouse',
+        slot_id: params?.slotId || params?.slot_id,
+        price: params?.price,
+        appointment_type: params?.appointmentType || params?.appointment_type,
+      };
+
+  const res = await axiosInstance.post('/subscriptions/pay-consultation/', payload);
   return res.data;
 };
 

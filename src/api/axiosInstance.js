@@ -17,12 +17,16 @@ const axiosInstance = axios.create({
 
 });
 
-// REQUEST INTERCEPTOR: Attach token
+// REQUEST INTERCEPTOR: Attach token & allow FormData boundary
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
     }
     return config;
   },

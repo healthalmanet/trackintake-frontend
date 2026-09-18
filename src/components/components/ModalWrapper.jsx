@@ -52,22 +52,22 @@ const ModalWrapper = ({ isOpen, onClose, children, size = 'md' }) => {
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="fixed inset-0 z-50 bg-[var(--color-bg-backdrop)] backdrop-blur-sm flex items-center justify-center px-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
           onClick={handleClose}
         >
           <motion.div
             variants={modalVariants}
-            className={`relative w-full ${sizeClasses[size]} bg-[var(--color-bg-surface)] rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto my-4 border-2 border-[var(--color-border-default)] custom-scrollbar`}
+            className={`relative w-full ${sizeClasses[size] || 'max-w-xl'} bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] p-6 sm:p-8 max-h-[90vh] overflow-y-auto my-auto border border-[var(--color-border-default)] custom-scrollbar font-[var(--font-secondary)]`}
             onClick={(e) => e.stopPropagation()}
           >
             <motion.button
               onClick={handleClose}
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
-              className="absolute top-3 right-3 text-[var(--color-text-muted)] p-1.5 rounded-full hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-danger-text)] transition-colors duration-200"
+              className="absolute top-4 right-4 text-[var(--color-text-muted)] p-2 rounded-full hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-text-strong)] transition-all duration-200 cursor-pointer z-10"
               aria-label="Close modal"
             >
-              <X size={24} />
+              <X size={20} />
             </motion.button>
             {children}
           </motion.div>

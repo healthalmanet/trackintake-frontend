@@ -43,3 +43,25 @@ export const getMyInHouseNutritionist = () =>
 export const getExpertNutritionists = () => {
   return axiosInstance.get("/appointments/expert-nutritionists/");
 };
+
+/**
+ * Get full details of a single appointment (patient or nutritionist)
+ */
+export const getAppointmentDetails = (appointmentId) => {
+  return axiosInstance.get(`/appointments/${appointmentId}/`);
+};
+
+/**
+ * Nutritionist updates clinical notes and dietary instructions on an appointment
+ */
+export const updateAppointmentNotes = (appointmentId, data) => {
+  return axiosInstance.patch(`/appointments/${appointmentId}/notes/`, data);
+};
+
+/**
+ * Fetch all appointments scheduled by a specific patient
+ */
+export const getPatientAppointmentHistory = (patientId) => {
+  return axiosInstance.get(`/appointments/patient-history/${patientId}/`);
+};
+

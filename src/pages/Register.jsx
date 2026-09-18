@@ -1,67 +1,56 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { registerUser, sendOtp, verifyOtp } from "../api/auth";
-import { User, Mail, Lock, CircleCheck, CircleX, User2, ShieldCheck, CreditCard, CheckCircle2 } from "lucide-react";
+import { User, Mail, Lock, CircleCheck, CircleX, User2, KeyRound, Phone, Sparkles } from "lucide-react";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGoogleLogin } from "@react-oauth/google";
-import { loginWithGoogle } from "../api/socialAuth";
 import { useNavigate } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
-import { useAuth } from "../components/context/AuthContext";
-// ─── Constants ────────────────────────────────────────────────────────────────
-const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID;
-const BASE_URL = import.meta.env.VITE_API_URL;
-
-// Plain axios with NO interceptors — used for public endpoints on registration page
-const publicAxios = axios.create({ baseURL: BASE_URL });
-
-// ─── Helper: Load Razorpay script ─────────────────────────────────────────────
-function loadRazorpayScript() {
-  return new Promise((resolve) => {
-    if (document.getElementById("razorpay-script")) return resolve(true);
-    const script = document.createElement("script");
-    script.id = "razorpay-script";
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-}
+import NutritionistRegistrationModal from "../components/components/nutritionist/NutritionistRegistrationModal";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Register = ({ onSwitchToLogin }) => {
   const [role, setRole] = useState("");
+  const [isNutritionistModalOpen, setIsNutritionistModalOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [isOtpVerified, setIsOtpVerified] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(0);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
+
+  // Nutritionist Additional Registration Fields
+  const [isOnlineAvailable, setIsOnlineAvailable] = useState(true);
+  const [isOfflineAvailable, setIsOfflineAvailable] = useState(false);
+  const [offlineLocation, setOfflineLocation] = useState("");
+  const [onlinePrice, setOnlinePrice] = useState("");
+  const [offlinePrice, setOfflinePrice] = useState("");
+  const [offlinePaymentRequired, setOfflinePaymentRequired] = useState(true);
+
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0); // 600s = 10 minutes
+  const [otpError, setOtpError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showChecklist, setShowChecklist] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
-  const [verificationToken, setVerificationToken] = useState(null);
 
-  // ── Plan / Payment state ──────────────────────────────────────────────────
-  const [showPlanModal, setShowPlanModal] = useState(false);
-  const [plans, setPlans] = useState([]);
-  const [plansLoading, setPlansLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  // After successful payment, store IDs so we can send them to registerUser
-  const [paymentData, setPaymentData] = useState(null); // { razorpay_order_id, razorpay_payment_id, razorpay_signature }
-
-  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const clearError = (field) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  };
 
   // ── Password validation ───────────────────────────────────────────────────
   const isLengthValid = password.length >= 8;
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
   const isMatch = confirmPassword !== "" && password === confirmPassword;
-  const isFormValid = isLengthValid && hasSymbol && isMatch && fullName.trim() !== "" && role !== "";
+  const isFormValid = isLengthValid && hasSymbol && isMatch && fullName.trim() !== "" && role !== "" && email.trim() !== "";
 
   // ── OTP timer ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -72,444 +61,458 @@ const Register = ({ onSwitchToLogin }) => {
     return () => clearTimeout(timer);
   }, [otpSent, otpTimer]);
 
-  // ── Reset payment state when role changes ─────────────────────────────────
-  useEffect(() => {
-    setPaymentData(null);
-    setSelectedPlan(null);
-  }, [role]);
+  // Format timer as mm:ss
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
-  // ── OTP handlers ──────────────────────────────────────────────────────────
-  const handleSendOtp = async () => {
-    if (!email) return toast.warn("Please enter your email address.");
+  // ── Validate Form Fields ──
+  const validateForm = () => {
+    const errs = {};
+    if (!role) {
+      errs.role = "Please select whether you want to register as a User or Nutritionist.";
+    }
+    if (!fullName.trim()) {
+      errs.fullName = "Please enter your full name.";
+    } else if (fullName.trim().length < 2) {
+      errs.fullName = "Full name must be at least 2 characters long.";
+    }
+
+    if (!email.trim()) {
+      errs.email = "Please enter your email address.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = "Please enter a valid email address (e.g. name@domain.com).";
+    }
+
+    if (!password) {
+      errs.password = "Please enter a password.";
+    } else if (password.length < 8) {
+      errs.password = "Password must be at least 8 characters long.";
+    } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      errs.password = "Password must contain at least 1 special character (!@#$%^&*).";
+    }
+
+    if (!confirmPassword) {
+      errs.confirmPassword = "Please confirm your password.";
+    } else if (password !== confirmPassword) {
+      errs.confirmPassword = "Passwords do not match. Please re-check.";
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return false;
+    }
+    setFieldErrors({});
+    return true;
+  };
+
+  // ── Request OTP ───────────────────────────────────────────────────────────
+  const handleRequestOtp = async () => {
+    if (!validateForm()) {
+      return toast.warn("Please correct the highlighted fields before requesting OTP.");
+    }
     const normalizedEmail = email.trim().toLowerCase();
-    setEmail(normalizedEmail);
     setOtpLoading(true);
+    setOtpError("");
+    setVerificationToken("");
     try {
       await sendOtp(normalizedEmail);
-      toast.success(`OTP sent to ${normalizedEmail}`);
+      toast.success(`OTP sent to ${normalizedEmail}. Valid for 10 minutes.`);
       setOtpSent(true);
-      setOtpTimer(60);
+      setOtpTimer(600); // 10 minutes
     } catch (error) {
-      toast.error(error?.response?.data?.email?.[0] || "Failed to send OTP.");
+      const errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.message || "Failed to send OTP.";
+      setOtpError(errMsg);
+      setFieldErrors((prev) => ({ ...prev, email: errMsg }));
+      toast.error(errMsg);
     } finally {
       setOtpLoading(false);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp) return toast.warn("Please enter the OTP.");
+  // ── Final Registration Submit ─────────────────────────────────────────────
+  const handleSubmitRegistration = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    if (!otpSent) {
+      // If user clicks Register before OTP is sent, trigger OTP request
+      await handleRequestOtp();
+      return;
+    }
+
+    if (!otp || otp.trim().length === 0) {
+      setOtpError("Please enter the 6-digit OTP sent to your email.");
+      return toast.warn("Please enter the 6-digit OTP sent to your email.");
+    }
+
+    setLoading(true);
+    setOtpError("");
     try {
-      const response = await verifyOtp(email, otp);
-      const token = response?.verification_token || response?.data?.verification_token;
-      if (token) {
-        setVerificationToken(token);
-        setIsOtpVerified(true);
-        toast.success("Email verified successfully!");
+      // Step 1: Verify OTP & get verification token
+      let token = verificationToken;
+      if (!token) {
+        try {
+          const verifyRes = await verifyOtp(email.trim().toLowerCase(), otp.trim());
+          token = verifyRes?.data?.verification_token || verifyRes?.verification_token;
+          if (token) {
+            setVerificationToken(token);
+          }
+        } catch (otpErr) {
+          const msg = otpErr?.response?.data?.error || otpErr?.response?.data?.otp?.[0] || otpErr?.response?.data?.message || "Invalid or expired OTP code. Please check your email.";
+          setOtpError(msg);
+          toast.error(`❌ ${msg}`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (!token) {
+        setOtpError("Verification token missing or expired. Please re-verify.");
+        toast.error("Verification failed. Invalid OTP token.");
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Create account with backend
+      const payload = {
+        full_name: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone_number: phoneNumber.trim(),
+        password,
+        password2: confirmPassword,
+        verification_token: token,
+        role,
+      };
+
+      if (role === "nutritionist") {
+        payload.is_online_available = isOnlineAvailable;
+        payload.is_offline_available = isOfflineAvailable;
+        payload.offline_location = offlineLocation;
+        payload.online_price = onlinePrice ? parseFloat(onlinePrice) : 0;
+        payload.offline_price = offlinePrice ? parseFloat(offlinePrice) : 0;
+        payload.offline_payment_required = offlinePaymentRequired;
+      }
+
+      await registerUser(payload);
+
+      toast.success("🎉 Account created successfully! Please log in.");
+      if (onSwitchToLogin) {
+        onSwitchToLogin();
       } else {
-        toast.error("Verification failed. No token received.");
+        navigate("/login");
       }
     } catch (error) {
-      toast.error(error?.response?.data?.otp?.[0] || "Invalid OTP. Please try again.");
-    }
-  };
+      const errData = error?.response?.data;
+      let message = "Registration failed. Please check your details and try again.";
 
-  // ── Fetch nutritionist plans ───────────────────────────────────────────────
-  const fetchNutritionistPlans = async () => {
-    setPlansLoading(true);
-    try {
-      const res = await publicAxios.get("/subscriptions/plans/?type=nutritionist");
-      setPlans(res.data);
-    } catch {
-      toast.error("Failed to load plans. Please try again.");
-    } finally {
-      setPlansLoading(false);
-    }
-  };
-  const fetchUserPlans = async () => {
-  setPlansLoading(true);
-  try {
-    const res = await publicAxios.get("/subscriptions/plans/?type=patient");
-    setPlans(res.data);
-  } catch {
-    toast.error("Failed to load plans. Please try again.");
-  } finally {
-    setPlansLoading(false);
-  }
-};
-  // ── Open plan modal (triggered from submit when role = nutritionist) ───────
-  const openPlanModal = async () => {
-  setShowPlanModal(true);
-  if (plans.length === 0) {
-    if (role === "nutritionist") await fetchNutritionistPlans();
-    else await fetchUserPlans();
-  }
-};
-
-  // ── Razorpay payment flow ──────────────────────────────────────────────────
-  const handlePurchasePlan = async (plan) => {
-  setSelectedPlan(plan);
-  setPaymentLoading(true);
-
-  const scriptLoaded = await loadRazorpayScript();
-  if (!scriptLoaded) {
-    toast.error("Payment gateway failed to load. Please refresh.");
-    setPaymentLoading(false);
-    return;
-  }
-
-  try {
-    // ✅ Use correct endpoint based on role
-    const endpoint =
-      role === "nutritionist"
-        ? "/subscriptions/nutritionist-registration-order/"
-        : "/subscriptions/user-registration-order/";
-
-    const res = await publicAxios.post(endpoint, {
-      plan_id: plan.id,
-      email,
-      full_name: fullName,
-    });
-
-    const { order_id, amount, currency, key } = res.data;
-
-    const options = {
-      key: key || RAZORPAY_KEY,
-      amount,
-      currency,
-      name: "NutriApp",
-      description: `${plan.name} Plan`,
-      order_id,
-      prefill: { name: fullName, email },
-      theme: { color: "var(--color-primary, #f97316)" },
-      handler: async function (response) {
-          try {
-            await publicAxios.post("/subscriptions/verify-payment/", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-
-            setShowPlanModal(false);
-            toast.success("Payment successful! Creating your account...");
-
-            // ✅ Save payment data so the user doesn't have to pay again if registration fails
-            const currentPaymentData = {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            };
-            setPaymentData(currentPaymentData);
-
-            // ── Auto-register immediately after payment ──
-            try {
-              await registerUser({
-                full_name: fullName,
-                email,
-                password,
-                password2: confirmPassword,
-                verification_token: verificationToken,
-                role,
-                ...currentPaymentData,
-              });
-              toast.success("🎉 Account created successfully! Please log in.");
-              navigate("/login");
-            } catch (regError) {
-              const errData = regError?.response?.data;
-              const message =
-                errData?.payment?.[0] ||
-                errData?.token?.[0] ||
-                errData?.message ||
-                "Registration failed after payment. Please click 'Create Account' to try again.";
-              toast.error(message);
-            }
-
-          } catch {
-            toast.error("Payment verification failed. Please contact support.");
+      if (errData) {
+        if (typeof errData === "string") {
+          message = errData;
+        } else if (errData.message) {
+          message = errData.message;
+        } else if (errData.error) {
+          message = errData.error;
+        } else if (typeof errData === "object") {
+          const msgs = [];
+          const newErrors = {};
+          for (const [key, val] of Object.entries(errData)) {
+            const detail = Array.isArray(val) ? val.join(" ") : String(val);
+            if (key === "email") newErrors.email = detail;
+            else if (key === "phone_number" || key === "phoneNumber") newErrors.phoneNumber = detail;
+            else if (key === "password") newErrors.password = detail;
+            else if (key === "full_name" || key === "fullName") newErrors.fullName = detail;
+            const fieldLabel = key.replace(/_/g, " ").toUpperCase();
+            msgs.push(`${fieldLabel}: ${detail}`);
           }
-          setPaymentLoading(false);
-        },
-      modal: {
-        ondismiss: () => {
-          toast.info("Payment cancelled.");
-          setPaymentLoading(false);
-        },
-      },
-    };
+          if (Object.keys(newErrors).length > 0) {
+            setFieldErrors((prev) => ({ ...prev, ...newErrors }));
+          }
+          if (msgs.length > 0) {
+            message = msgs.join("\n");
+          }
+        }
+      } else if (error.message) {
+        message = error.message;
+      }
 
-    const rzp = new window.Razorpay(options);
-    rzp.open();
-  } catch (error) {
-    toast.error(error?.response?.data?.error || "Failed to initiate payment.");
-    setPaymentLoading(false);
-  }
-};
-
-  // ── Final registration ─────────────────────────────────────────────────────
-  const handleRegister = async (e) => {
-  e.preventDefault();
-
-  if (!isFormValid) return toast.warn("Please ensure your password meets all requirements.");
-  if (!role) return toast.error("Please select a role before registering.");
-
-  // ✅ Gate payment for BOTH roles, not just nutritionist
-  if (!paymentData) {
-    openPlanModal();
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const payload = {
-      full_name: fullName,
-      email,
-      password,
-      password2: confirmPassword,
-      verification_token: verificationToken,
-      role,
-      ...(paymentData && {
-        razorpay_order_id: paymentData.razorpay_order_id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        razorpay_signature: paymentData.razorpay_signature,
-      }),
-    };
-
-    await registerUser(payload);
-    toast.success("Registration successful! Please log in.");
-    navigate("/login");
-  } catch (error) {
-    const errData = error?.response?.data;
-    const message =
-      errData?.payment?.[0] ||
-      errData?.token?.[0] ||
-      errData?.message ||
-      "Registration failed. Please try again.";
-    toast.error(message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // ── Google login ───────────────────────────────────────────────────────────
-  const handleGoogleSuccess = async (tokenResponse) => {
-    try {
-      const googleToken = tokenResponse.access_token;
-      const res = await loginWithGoogle(googleToken);
-      const { access, refresh, role, email: userEmail, full_name } = res.data;
-      const id = jwtDecode(access).user_id;
-      login(access, refresh, { id, role, email: userEmail, full_name });
-      localStorage.setItem("userRole", role.toLowerCase());
-      toast.success(`Welcome, ${full_name || "User"}!`);
-      const redirectPath = { nutritionist: "/nutritionist", operator: "/operator", owner: "/owner" }[role.toLowerCase()] || "/dashboard";
-      navigate(redirectPath);
-    } catch {
-      toast.error("Google login failed. Please try again.");
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: handleGoogleSuccess,
-    onError: () => toast.error("Google login failed."),
-  });
 
   // ── Animation variants ─────────────────────────────────────────────────────
   const itemVariants = {
     hidden: { opacity: 0, y: -10 },
     visible: { opacity: 1, y: 0 },
   };
-  const checklistItemVariants = {
-    hidden: { opacity: 0, x: -10 },
-    visible: { opacity: 1, x: 0 },
-  };
 
-  // ── Submit button label logic ──────────────────────────────────────────────
-  const submitLabel = () => {
-  if (loading) return "Registering...";
-  if (!paymentData) return "Continue →";
-  return "Create Account";
-};
-  
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="text-left w-full max-w-sm mx-auto p-4 font-[var(--font-secondary)]">
+    <div className="w-full max-w-lg mx-auto font-[var(--font-secondary)]">
       <motion.h2
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-3xl font-[var(--font-primary)] text-center mb-6 text-[var(--color-text-strong)]"
+        className="text-2xl sm:text-3xl font-[var(--font-primary)] text-center mb-1.5 text-[var(--color-text-strong)] font-black"
       >
         Create Account
       </motion.h2>
+      <p className="text-xs sm:text-sm text-[var(--color-text-muted)] text-center mb-6">
+        Sign up to access your health portal or nutritionist workspace
+      </p>
 
       <motion.form
         initial="hidden"
         animate="visible"
-        variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-        onSubmit={handleRegister}
-        className="space-y-5"
+        variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+        onSubmit={handleSubmitRegistration}
+        className="space-y-4"
       >
-        {/* ── Step 1: Email + OTP ── */}
-        {!isOtpVerified && (
-          <>
-            <motion.div variants={itemVariants}>
-              <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Email</label>
-              <div className="relative">
-                <input
-                  type="email"
-                  className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg"
-                  placeholder="email@domain.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value.trim().toLowerCase())}
-                  required
-                />
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
-              </div>
-              
-              {!otpSent ? (
-                <button
-  type="button"
-  onClick={handleSendOtp}
-  disabled={otpLoading}
-  className="w-full mt-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] py-3 rounded-lg font-semibold shadow-md disabled:opacity-50 transition-colors"
->
-  {otpLoading ? "Sending..." : "Click here to get OTP →"}
-</button>
-              ) : (
-                <button type="button" disabled={otpTimer > 0} onClick={handleSendOtp} className="text-sm text-[var(--color-primary)] mt-1 disabled:opacity-50">
-                  {otpTimer > 0 ? `Resend in ${otpTimer}s` : "Resend OTP"}
-                </button>
-              )}
-            </motion.div>
-
-            {otpSent && (
-              <motion.div variants={checklistItemVariants}>
-                <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Enter OTP</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg"
-                    placeholder="Enter OTP here"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                  />
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+        {/* ── Interactive Role Cards ── */}
+        <motion.div variants={itemVariants} className="space-y-2">
+          <label className="block text-xs sm:text-sm font-bold text-[var(--color-text-strong)]">
+            I want to register as a <span className="text-rose-500 font-bold">*</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* User / Patient Card */}
+            <button
+              type="button"
+              disabled={otpSent || loading}
+              onClick={() => {
+                setRole("user");
+                clearError("role");
+              }}
+              className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                role === "user"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-sm"
+                  : fieldErrors.role
+                  ? "border-rose-500/50 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-hover)]"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-2 rounded-xl ${role === "user" ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-bg-app)] text-[var(--color-text-muted)]"}`}>
+                  <User size={18} />
                 </div>
-                <button
-  type="button"
-  onClick={handleVerifyOtp}
-  disabled={loading}
-  className="w-full mt-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] py-3 rounded-lg font-semibold shadow-md disabled:opacity-50 transition-colors"
->
-  {loading ? "Verifying..." : "Continue →"}
-</button>
-              </motion.div>
-            )}
-          </>
-        )}
-
-        {/* ── Step 2: Role + Details ── */}
-        {isOtpVerified && (
-          <>
-            {/* Role */}
-            <motion.div variants={itemVariants}>
-              <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Role</label>
-              <div className="relative">
-                <select
-                  className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg appearance-none"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  required
-                >
-                  <option value="">Select Role</option>
-                  <option value="nutritionist">Nutritionist</option>
-                  <option value="user">User</option>
-                </select>
-                <User2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
-                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                {role === "user" && <CircleCheck size={18} className="text-[var(--color-primary)]" />}
               </div>
-            </motion.div>
-
-            {/* Nutritionist plan info banner */}
-           <AnimatePresence>
-            {role && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                {paymentData ? (
-                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>
-                      <strong>{selectedPlan?.name}</strong> plan purchased — complete registration below.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-orange-50 border border-orange-300 text-sm text-orange-700">
-                    <CreditCard className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span>
-                      Registration requires a <strong>plan purchase</strong>. You'll be prompted to select a plan next.
-                    </span>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-            {/* Full Name */}
-            <motion.div variants={itemVariants}>
-              <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Full Name</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[var(--color-text-strong)]">User / Patient</h4>
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 leading-tight">
+                  Track intake, log weight & book health consultations
+                </p>
               </div>
-            </motion.div>
+            </button>
 
-            {/* Password */}
-            <motion.div variants={itemVariants}>
-              <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Password</label>
-              <div className="relative">
-                <input
-                  type="password"
-                  className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg"
-                  placeholder="Min 8 chars + 1 symbol"
-                  value={password}
-                  onFocus={() => setShowChecklist(true)}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+            {/* Nutritionist Card */}
+            <button
+              type="button"
+              disabled={otpSent || loading}
+              onClick={() => {
+                setRole("nutritionist");
+                clearError("role");
+                setIsNutritionistModalOpen(true);
+              }}
+              className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                role === "nutritionist"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-sm"
+                  : fieldErrors.role
+                  ? "border-rose-500/50 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-hover)]"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-2 rounded-xl ${role === "nutritionist" ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-bg-app)] text-[var(--color-text-muted)]"}`}>
+                  <Sparkles size={18} />
+                </div>
+                {role === "nutritionist" && <CircleCheck size={18} className="text-[var(--color-primary)]" />}
               </div>
-            </motion.div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-1">
+                  <span>Nutritionist</span>
+                </h4>
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 leading-tight">
+                  5-Step Practitioner wizard & clinical portal setup
+                </p>
+              </div>
+            </button>
+          </div>
+          {fieldErrors.role && (
+            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <CircleX className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{fieldErrors.role}</span>
+            </p>
+          )}
+        </motion.div>
 
-            {/* Confirm Password */}
-            <motion.div variants={itemVariants}>
-              <label className="block mb-1 text-sm font-semibold text-[var(--color-text-strong)]">Confirm Password</label>
-              <div className="relative">
-                <input
-                  type="password"
-                  className="w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg"
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
-              </div>
-            </motion.div>
-          </>
-        )}
+        {/* ── Full Name ── */}
+        <motion.div variants={itemVariants}>
+          <label className="block mb-1 text-xs sm:text-sm font-semibold text-[var(--color-text-strong)]">
+            Full Name <span className="text-rose-500 font-bold">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              className={`w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 text-[var(--color-text-strong)] text-xs sm:text-sm rounded-lg outline-none transition-all ${
+                fieldErrors.fullName
+                  ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] focus:border-[var(--color-primary)]"
+              }`}
+              placeholder="Enter your full name"
+              value={fullName}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                clearError("fullName");
+              }}
+              disabled={otpSent || loading}
+              required
+            />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+          </div>
+          {fieldErrors.fullName && (
+            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <CircleX className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{fieldErrors.fullName}</span>
+            </p>
+          )}
+        </motion.div>
+
+        {/* ── Phone Number ── */}
+        <motion.div variants={itemVariants}>
+          <label className="block mb-1 text-xs sm:text-sm font-semibold text-[var(--color-text-strong)]">
+            Phone Number <span className="text-xs text-[var(--color-text-muted)] font-normal ml-1">(Optional)</span>
+          </label>
+          <div className="relative">
+            <input
+              type="tel"
+              className={`w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 text-[var(--color-text-strong)] text-xs sm:text-sm rounded-lg outline-none transition-all ${
+                fieldErrors.phoneNumber
+                  ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] focus:border-[var(--color-primary)]"
+              }`}
+              placeholder="+91 9876543210"
+              value={phoneNumber}
+              onChange={(e) => {
+                setPhoneNumber(e.target.value);
+                clearError("phoneNumber");
+              }}
+              disabled={otpSent || loading}
+            />
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+          </div>
+          {fieldErrors.phoneNumber && (
+            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <CircleX className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{fieldErrors.phoneNumber}</span>
+            </p>
+          )}
+        </motion.div>
+
+        {/* ── Email ── */}
+        <motion.div variants={itemVariants}>
+          <label className="block mb-1 text-xs sm:text-sm font-semibold text-[var(--color-text-strong)]">
+            Email Address <span className="text-rose-500 font-bold">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="email"
+              className={`w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 text-[var(--color-text-strong)] text-xs sm:text-sm rounded-lg outline-none transition-all ${
+                fieldErrors.email
+                  ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] focus:border-[var(--color-primary)]"
+              }`}
+              placeholder="email@domain.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value.trim().toLowerCase());
+                clearError("email");
+              }}
+              disabled={otpSent || loading}
+              required
+            />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+          </div>
+          {fieldErrors.email && (
+            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <CircleX className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{fieldErrors.email}</span>
+            </p>
+          )}
+        </motion.div>
+
+        {/* ── Password ── */}
+        <motion.div variants={itemVariants}>
+          <label className="block mb-1 text-xs sm:text-sm font-semibold text-[var(--color-text-strong)]">
+            Password <span className="text-rose-500 font-bold">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="password"
+              className={`w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 text-[var(--color-text-strong)] text-xs sm:text-sm rounded-lg outline-none transition-all ${
+                fieldErrors.password
+                  ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] focus:border-[var(--color-primary)]"
+              }`}
+              placeholder="Min 8 chars + 1 symbol"
+              value={password}
+              onFocus={() => setShowChecklist(true)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                clearError("password");
+              }}
+              disabled={otpSent || loading}
+              required
+            />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+          </div>
+          {fieldErrors.password && (
+            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <CircleX className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{fieldErrors.password}</span>
+            </p>
+          )}
+        </motion.div>
+
+        {/* ── Confirm Password ── */}
+        <motion.div variants={itemVariants}>
+          <label className="block mb-1 text-xs sm:text-sm font-semibold text-[var(--color-text-strong)]">
+            Confirm Password <span className="text-rose-500 font-bold">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="password"
+              className={`w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 text-[var(--color-text-strong)] text-xs sm:text-sm rounded-lg outline-none transition-all ${
+                fieldErrors.confirmPassword
+                  ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5"
+                  : "border-[var(--color-border-default)] focus:border-[var(--color-primary)]"
+              }`}
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                clearError("confirmPassword");
+              }}
+              disabled={otpSent || loading}
+              required
+            />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-muted)]" />
+          </div>
+          {fieldErrors.confirmPassword && (
+            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+              <CircleX className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{fieldErrors.confirmPassword}</span>
+            </p>
+          )}
+        </motion.div>
 
         {/* Password checklist */}
-        {(isOtpVerified && (showChecklist || password || confirmPassword)) && (
+        {(showChecklist || password || confirmPassword) && !otpSent && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -521,138 +524,123 @@ const Register = ({ onSwitchToLogin }) => {
           </motion.div>
         )}
 
-        {/* Submit */}
-        {/* Submit — only show after OTP verified */}
-{isOtpVerified && (
-  <motion.button
-    variants={itemVariants}
-    type="submit"
-    disabled={!isFormValid || loading}
-    className="w-full bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-5 py-3 rounded-lg font-semibold shadow-lg hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
-  >
-    {submitLabel()}
-  </motion.button>
-)}
+        {/* ── OTP Field (Appears automatically when OTP is sent) ── */}
+        <AnimatePresence>
+          {otpSent && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              className="pt-2 border-t border-dashed border-[var(--color-border-default)] space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-[var(--color-text-strong)]">Enter OTP</label>
+                <span className="text-xs font-medium text-[var(--color-primary)]">
+                  OTP valid for {formatTimer(otpTimer)}
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  maxLength={6}
+                  className={`w-full pl-10 pr-4 py-3 bg-[var(--color-bg-app)] border-2 tracking-widest text-lg font-bold rounded-lg outline-none transition-all ${
+                    otpError
+                      ? "border-rose-500 ring-2 ring-rose-500/30 bg-rose-500/5 text-rose-600"
+                      : "border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+                  }`}
+                  placeholder="6-digit OTP"
+                  value={otp}
+                  onChange={(e) => {
+                    setOtp(e.target.value.replace(/\D/g, ""));
+                    setVerificationToken("");
+                    setOtpError("");
+                  }}
+                  autoFocus
+                  required
+                />
+                <KeyRound className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 ${otpError ? "text-rose-500" : "text-[var(--color-primary)]"}`} />
+              </div>
+              {otpError && (
+                <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400 animate-pulse mt-1">
+                  <CircleX className="h-4 w-4 shrink-0 text-rose-500" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-[var(--color-text-muted)]">Didn't receive OTP?</span>
+                <button
+                  type="button"
+                  disabled={otpTimer > 540 || otpLoading} // allow resend after 1 min or if timer expired
+                  onClick={handleRequestOtp}
+                  className="text-[var(--color-primary)] font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {otpLoading ? "Sending..." : "Resend OTP"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Action Button ── */}
+        <motion.button
+          variants={itemVariants}
+          type="submit"
+          disabled={!isFormValid || loading || otpLoading}
+          className="w-full mt-4 bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-5 py-3 rounded-lg font-semibold shadow-lg hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
+        >
+          {loading ? (
+            "Creating Account..."
+          ) : otpLoading ? (
+            "Sending OTP..."
+          ) : otpSent ? (
+            "Submit & Create Account"
+          ) : (
+            "Register →"
+          )}
+        </motion.button>
       </motion.form>
 
-      {/* Divider */}
-      <div className="my-6 flex items-center">
-        <div className="flex-grow border-t border-[var(--color-border-default)]"></div>
-        <span className="mx-4 flex-shrink text-sm text-[var(--color-text-muted)]">OR</span>
-        <div className="flex-grow border-t border-[var(--color-border-default)]"></div>
-      </div>
-
-      {/* Google */}
-      {/* <motion.button
-        type="button"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={() => googleLogin()}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 shadow-sm transition-all hover:bg-gray-50 disabled:opacity-60"
-        disabled={loading}
-      >
-        <svg className="h-5 w-5" viewBox="0 0 48 48">
-          <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
-          <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
-          <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
-          <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.021,35.596,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-        </svg>
-        Sign in with Google
-      </motion.button> */}
-
+      {/* Footer Link to Login */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0, transition: { delay: 0.6 } }}
+        animate={{ opacity: 1, y: 0, transition: { delay: 0.3 } }}
         className="mt-6 text-center text-sm"
       >
         <span className="text-[var(--color-text-default)] font-medium">Already have an account? </span>
-        <button onClick={onSwitchToLogin} className="text-[var(--color-primary)] font-semibold underline hover:text-[var(--color-primary-hover)] transition-colors">
+        <button
+          type="button"
+          onClick={onSwitchToLogin || (() => navigate("/login"))}
+          className="text-[var(--color-primary)] font-semibold underline hover:text-[var(--color-primary-hover)] transition-colors"
+        >
           Login here
         </button>
       </motion.div>
 
-      {/* ── Plan Selection Modal ── */}
-      <AnimatePresence>
-        {showPlanModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowPlanModal(false); }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-[var(--color-bg-app)] rounded-2xl shadow-2xl w-full max-w-lg p-6"
-            >
-              <h3 className="text-xl font-bold text-[var(--color-text-strong)] mb-1">Choose Your Plan</h3>
-              <p className="text-sm text-[var(--color-text-muted)] mb-6">
-                Select a plan to activate your {role === "nutritionist" ? "nutritionist" : "user"} account.
-              </p>
-
-              {plansLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : plans.length === 0 ? (
-                <p className="text-center text-[var(--color-text-muted)] py-8">No plans available. Please contact support.</p>
-              ) : (
-                <div className="space-y-3">
-                  {plans.map((plan) => (
-                    <motion.div
-                      key={plan.id}
-                      whileHover={{ scale: 1.01 }}
-                      className="border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] rounded-xl p-4 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-[var(--color-text-strong)] text-base">{plan.name}</p>
-                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                            {plan.duration_days} days
-                            {plan.expert_consults > 0 && ` · ${plan.expert_consults} expert consults`}
-                            {plan.inhouse_consults > 0 && ` · ${plan.inhouse_consults} in-house consults`}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-[var(--color-primary)]">
-                            ₹{plan.price.toLocaleString()}
-                          </p>
-                          <button
-                            type="button"
-                            disabled={paymentLoading}
-                            onClick={() => handlePurchasePlan(plan)}
-                            className="mt-1 text-xs bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-3 py-1.5 rounded-lg font-semibold hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
-                          >
-                            {paymentLoading && selectedPlan?.id === plan.id ? "Loading..." : "Buy Now"}
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setShowPlanModal(false)}
-                className="mt-5 w-full py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] transition-colors"
-              >
-                Cancel
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Multi-step Nutritionist Registration Modal ── */}
+      <NutritionistRegistrationModal
+        isOpen={isNutritionistModalOpen}
+        onClose={() => {
+          setIsNutritionistModalOpen(false);
+          if (role === "nutritionist") setRole("");
+        }}
+        onSuccess={() => {
+          setIsNutritionistModalOpen(false);
+          toast.success("🎉 Nutritionist registered! Please log in.");
+          if (onSwitchToLogin) {
+            onSwitchToLogin();
+          } else {
+            navigate("/login");
+          }
+        }}
+      />
     </div>
   );
 };
 
 // ─── Reusable Sub-components ──────────────────────────────────────────────────
 const ChecklistItem = ({ isValid, text }) => (
-  <div className={`flex items-center gap-2 ${isValid ? "text-[var(--color-success-text)]" : "text-[var(--color-danger-text)]"}`}>
-    {isValid ? <CircleCheck className="w-4 h-4" /> : <CircleX className="w-4 h-4" />}
+  <div className={`flex items-center gap-2 ${isValid ? "text-emerald-600" : "text-rose-500"}`}>
+    {isValid ? <CircleCheck className="w-4 h-4 shrink-0" /> : <CircleX className="w-4 h-4 shrink-0" />}
     <span>{text}</span>
   </div>
 );

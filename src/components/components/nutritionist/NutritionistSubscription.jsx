@@ -6,6 +6,7 @@ import {
   createOrder,
   verifyPayment,
 } from "../../../api/subscriptionService";
+import { getPlanBenefits } from "../../../api/planBenefits";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -96,7 +97,12 @@ const NutritionistSubscription = () => {
         name: "TrackIntake Nutritionist Plan",
         description: `${plan.name} Nutritionist Subscription`,
         handler: async (response) => {
-          const verifyToastId = toast.loading("Verifying your payment...");
+          toast.update(toastId, {
+            render: "Verifying your payment with Razorpay...",
+            type: "info",
+            isLoading: true,
+          });
+
           try {
             await verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
@@ -104,13 +110,23 @@ const NutritionistSubscription = () => {
               razorpay_signature: response.razorpay_signature,
             });
 
-            toast.success("🎉 Plan activated successfully!", { id: verifyToastId });
+            toast.update(toastId, {
+              render: "🎉 Plan activated successfully!",
+              type: "success",
+              isLoading: false,
+              autoClose: 4000,
+              closeButton: true,
+            });
             await fetchData(true);
             setActiveTab("overview");
           } catch (verifyErr) {
             console.error("Payment verification failed:", verifyErr);
-            toast.error("Payment completed but verification failed. Please contact support.", {
-              id: verifyToastId,
+            toast.update(toastId, {
+              render: "Payment completed but verification failed. Please contact support.",
+              type: "error",
+              isLoading: false,
+              autoClose: 5000,
+              closeButton: true,
             });
           }
         },
@@ -118,15 +134,35 @@ const NutritionistSubscription = () => {
         prefill: {
           name: "Nutritionist",
         },
+        modal: {
+          ondismiss: () => {
+            setPurchasingPlanId(null);
+            toast.dismiss(toastId);
+          },
+        },
       };
 
       const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        console.error("Payment failed:", response.error);
+        toast.update(toastId, {
+          render: `Payment failed: ${response.error?.description || "Transaction cancelled."}`,
+          type: "error",
+          isLoading: false,
+          autoClose: 4000,
+          closeButton: true,
+        });
+        setPurchasingPlanId(null);
+      });
       rzp.open();
-      toast.dismiss(toastId);
     } catch (err) {
       console.error("Error creating plan order:", err);
-      toast.error(err.response?.data?.error || "Failed to start payment. Please try again.", {
-        id: toastId,
+      toast.update(toastId, {
+        render: err.response?.data?.error || "Failed to start payment. Please try again.",
+        type: "error",
+        isLoading: false,
+        autoClose: 4000,
+        closeButton: true,
       });
     } finally {
       setPurchasingPlanId(null);
@@ -465,46 +501,18 @@ const NutritionistSubscription = () => {
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
-                    <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] flex-shrink-0">
-                      <Bot size={16} />
+                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                  {getPlanBenefits(subscription?.plan).map((benefitText, bIdx) => (
+                    <div key={bIdx} className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
+                      <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] flex-shrink-0">
+                        <Check size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-[var(--color-text-strong)]">{benefitText}</p>
+                        <span className="text-[11px] text-[var(--color-text-muted)]">Enabled on your active practitioner tier</span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-[var(--color-text-strong)]">AI Smart Meal Recommender</p>
-                      <span className="text-[11px] text-[var(--color-text-muted)]">Automated meal formulation for patients</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
-                    <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] flex-shrink-0">
-                      <MessageSquare size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-[var(--color-text-strong)]">Direct Patient Messaging</p>
-                      <span className="text-[11px] text-[var(--color-text-muted)]">Real-time chat & voice communication</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
-                    <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] flex-shrink-0">
-                      <Users size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-[var(--color-text-strong)]">Bulk Excel (.xlsx) Onboarding</p>
-                      <span className="text-[11px] text-[var(--color-text-muted)]">Instant patient spreadsheet imports</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
-                    <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] flex-shrink-0">
-                      <Search size={16} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-[var(--color-text-strong)]">Nutrition Database Search</p>
-                      <span className="text-[11px] text-[var(--color-text-muted)]">Comprehensive macro & calorie database</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="p-3 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
@@ -608,37 +616,15 @@ const NutritionistSubscription = () => {
                       </p>
                     </div>
 
-                    <div className="border-t border-[var(--color-border-default)] pt-3.5 space-y-2.5 text-xs text-[var(--color-text-strong)]">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex-shrink-0">
-                          <Check size={12} />
+                    <div className="border-t border-[var(--color-border-default)] pt-3.5 space-y-2 text-xs text-[var(--color-text-strong)]">
+                      {getPlanBenefits(p).map((b, bIdx) => (
+                        <div key={bIdx} className="flex items-center gap-2.5">
+                          <div className="p-1 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex-shrink-0">
+                            <Check size={12} />
+                          </div>
+                          <span>{b}</span>
                         </div>
-                        <span>AI Smart Diet Generation for Patients</span>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex-shrink-0">
-                          <Check size={12} />
-                        </div>
-                        <span>Direct Patient Real-Time Messaging</span>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex-shrink-0">
-                          <Check size={12} />
-                        </div>
-                        <span>Bulk Patient Spreadsheet (.xlsx) Upload</span>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex-shrink-0">
-                          <Check size={12} />
-                        </div>
-                        <span>Full Nutrition Calorie & Macro Search</span>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex-shrink-0">
-                          <Check size={12} />
-                        </div>
-                        <span>Patient Biomarkers & Zoom Consultations</span>
-                      </div>
+                      ))}
                     </div>
                   </div>
 
