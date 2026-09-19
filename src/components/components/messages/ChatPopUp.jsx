@@ -131,7 +131,7 @@ const ChatPopUp = ({ isOpen, onClose }) => {
         const fetchedNutritionist = nutritionistRes.data;
         setNutritionist(fetchedNutritionist);
         
-        const messagesRes = await getMessages();
+        const messagesRes = await getMessages({ partner_id: fetchedNutritionist.id });
         const serverMessages = messagesRes?.data?.results || [];
         setMessages(serverMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
         

@@ -123,7 +123,7 @@ const PatientChatPage = () => {
         const nutritionistResponse = await getMyNutritionist();
         const fetchedNutritionist = nutritionistResponse.data;
         setNutritionist(fetchedNutritionist);
-        const messagesResponse = await getMessages();
+        const messagesResponse = await getMessages({ partner_id: fetchedNutritionist.id });
         const serverMessages = messagesResponse?.data?.results || [];
         setMessages(serverMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
         const hasUnread = serverMessages.some(msg => msg.sender_id === fetchedNutritionist.id && !msg.is_read);
