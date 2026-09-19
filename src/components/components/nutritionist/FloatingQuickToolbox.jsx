@@ -177,7 +177,7 @@ export const FloatingQuickToolbox = ({
           // ignore
         }
       } else if (userRole === "user") {
-        const nutriId = selectedNutritionist?.id;
+        const nutriId = myNutritionistInfo?.id;
         const res = await getPatientMessages(nutriId ? { partner_id: nutriId } : {});
         const msgs = res.data?.results || res.data || [];
         setChatMessages(
@@ -189,7 +189,7 @@ export const FloatingQuickToolbox = ({
     } finally {
       setLoadingChat(false);
     }
-  }, [userRole, selectedPatient, selectedNutritionist]);
+  }, [userRole, selectedPatient, myNutritionistInfo]);
 
   useEffect(() => {
     if (isOpen && !isMinimized && activeTab === "chat") {
