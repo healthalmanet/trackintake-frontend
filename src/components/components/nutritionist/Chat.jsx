@@ -152,15 +152,10 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
         const fetchAndFilterMessages = async () => {
             setIsLoading(true);
             try {
-                // ✅ THE DEFINITIVE FIX: Fetch ALL messages, because getMessages(id) is unreliable.
-                const response = await getMessages();
-                const allMessages = response.data.results || [];
-
-                // ✅ Manually filter the messages for THIS specific conversation.
-                const conversationMessages = allMessages.filter(msg =>
-                    (String(msg.sender_id) === String(user.id) && String(msg.receiver_id) === String(nutritionistId)) ||
-                    (String(msg.receiver_id) === String(user.id) && String(msg.sender_id) === String(nutritionistId))
-                ).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                // Fetch messages specifically for this active conversation
+                const response = await getMessages({ partner_id: user.id });
+                const conversationMessages = (response.data?.results || response.data || [])
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
                 setMessages(conversationMessages);
 

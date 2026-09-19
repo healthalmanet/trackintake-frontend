@@ -12,9 +12,9 @@ import axiosInstance from './axiosInstance'; // ✅ Import the one, true instanc
  * Corresponds to: GET /api/messages/
  * @returns {Promise<axios.Response>} The API response with the list of messages.
  */
-export const getMessages = () => {
-  // ✅ Use the global instance. It handles everything.
-  return axiosInstance.get('/messages/');
+export const getMessages = (params = {}) => {
+  // ✅ Use the global instance with optional query params.
+  return axiosInstance.get('/messages/', { params });
 };
 
 /**

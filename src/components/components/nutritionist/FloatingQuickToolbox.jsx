@@ -166,7 +166,7 @@ export const FloatingQuickToolbox = ({
     try {
       if (userRole === "nutritionist" && selectedPatient) {
         const patientId = selectedPatient.patient_id || selectedPatient.id;
-        const res = await getMessages({ sender_id: patientId });
+        const res = await getMessages({ partner_id: patientId });
         const msgs = res.data?.results || res.data || [];
         setChatMessages(
           msgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
@@ -177,7 +177,8 @@ export const FloatingQuickToolbox = ({
           // ignore
         }
       } else if (userRole === "user") {
-        const res = await getPatientMessages();
+        const nutriId = selectedNutritionist?.id;
+        const res = await getPatientMessages(nutriId ? { partner_id: nutriId } : {});
         const msgs = res.data?.results || res.data || [];
         setChatMessages(
           msgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
@@ -188,7 +189,7 @@ export const FloatingQuickToolbox = ({
     } finally {
       setLoadingChat(false);
     }
-  }, [userRole, selectedPatient]);
+  }, [userRole, selectedPatient, selectedNutritionist]);
 
   useEffect(() => {
     if (isOpen && !isMinimized && activeTab === "chat") {
@@ -209,10 +210,16 @@ export const FloatingQuickToolbox = ({
       if (userRole === "nutritionist" && selectedPatient) {
         const patientId = selectedPatient.patient_id || selectedPatient.id;
         if (String(msg.sender_id) === String(patientId)) {
-          setChatMessages((prev) => [...prev, msg]);
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
         }
       } else if (userRole === "user") {
-        setChatMessages((prev) => [...prev, msg]);
+        setChatMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
       }
     },
     [userRole, selectedPatient]
@@ -225,6 +232,17 @@ export const FloatingQuickToolbox = ({
     if (!chatInputText.trim() || sendingChat) return;
 
     const textToSend = chatInputText.trim();
+    const tempId = `temp_${Date.now()}`;
+    const optimisticMsg = {
+      id: tempId,
+      sender_id: user?.id,
+      text: textToSend,
+      timestamp: new Date().toISOString(),
+      status: "sending",
+    };
+
+    // Instant optimistic render
+    setChatMessages((prev) => [...prev, optimisticMsg]);
     setChatInputText("");
     setSendingChat(true);
 
@@ -232,26 +250,30 @@ export const FloatingQuickToolbox = ({
       if (userRole === "nutritionist" && selectedPatient) {
         const patientId = selectedPatient.patient_id || selectedPatient.id;
         const res = await sendNutriMessage(patientId, textToSend);
-        const newMsg = res.data || {
+        const serverMsg = res.data || {
+          ...optimisticMsg,
           id: Date.now(),
-          sender_id: user?.id,
-          text: textToSend,
-          timestamp: new Date().toISOString(),
+          status: "sent",
         };
-        setChatMessages((prev) => [...prev, newMsg]);
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...serverMsg, status: "sent" } : m))
+        );
       } else if (userRole === "user") {
         const res = await sendPatientMessage(textToSend);
-        const newMsg = res.data || {
+        const serverMsg = res.data || {
+          ...optimisticMsg,
           id: Date.now(),
-          sender_id: user?.id,
-          text: textToSend,
-          timestamp: new Date().toISOString(),
+          status: "sent",
         };
-        setChatMessages((prev) => [...prev, newMsg]);
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...serverMsg, status: "sent" } : m))
+        );
       }
     } catch (err) {
       console.error("Failed to send message:", err);
       toast.error("Failed to send message. Please retry.");
+      // Rollback optimistic message and restore input
+      setChatMessages((prev) => prev.filter((m) => m.id !== tempId));
       setChatInputText(textToSend);
     } finally {
       setSendingChat(false);
