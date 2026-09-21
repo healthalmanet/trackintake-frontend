@@ -222,7 +222,9 @@ const NutritionistProfile = () => {
       fetchProfile();
     } catch (err) {
       console.error("Failed to update basic info:", err);
-      toast.error(err.response?.data?.error || "Failed to update basic info.");
+      const errData = err.response?.data;
+      const msg = errData?.error || errData?.detail || (typeof errData === 'object' && errData ? Object.values(errData).flat().join(', ') : "Failed to update basic info.");
+      toast.error(msg);
     } finally {
       setSavingBasic(false);
     }
@@ -253,7 +255,9 @@ const NutritionistProfile = () => {
       fetchProfile();
     } catch (err) {
       console.error("Failed to update professional details:", err);
-      toast.error(err.response?.data?.error || "Failed to update professional details.");
+      const errData = err.response?.data;
+      const msg = errData?.error || errData?.detail || (typeof errData === 'object' && errData ? Object.values(errData).flat().join(', ') : "Failed to update professional details.");
+      toast.error(msg);
     } finally {
       setSavingProfessional(false);
     }
@@ -276,7 +280,9 @@ const NutritionistProfile = () => {
       fetchProfile();
     } catch (err) {
       console.error("Failed to update specializations:", err);
-      toast.error(err.response?.data?.error || "Failed to update specializations.");
+      const errData = err.response?.data;
+      const msg = errData?.error || errData?.detail || (typeof errData === 'object' && errData ? Object.values(errData).flat().join(', ') : "Failed to update specializations.");
+      toast.error(msg);
     } finally {
       setSavingSpecializations(false);
     }
@@ -307,7 +313,9 @@ const NutritionistProfile = () => {
       fetchProfile();
     } catch (err) {
       console.error("Failed to update appointment settings:", err);
-      toast.error(err.response?.data?.error || "Failed to update appointment settings.");
+      const errData = err.response?.data;
+      const msg = errData?.error || errData?.detail || (typeof errData === 'object' && errData ? Object.values(errData).flat().join(', ') : "Failed to update appointment settings.");
+      toast.error(msg);
     } finally {
       setSavingAppointment(false);
     }
@@ -334,8 +342,10 @@ const NutritionistProfile = () => {
       fetchProfile();
     } catch (err) {
       console.error("Document upload failed:", err);
+      const errData = err.response?.data;
+      const msg = errData?.error || errData?.detail || "Failed to upload document.";
       toast.update(toastId, {
-        render: err.response?.data?.error || "Failed to upload document.",
+        render: msg,
         type: "error",
         isLoading: false,
         autoClose: 4000,
@@ -382,7 +392,9 @@ const NutritionistProfile = () => {
       });
     } catch (err) {
       console.error("Failed to change password:", err);
-      toast.error(err.response?.data?.error || "Failed to update password.");
+      const errData = err.response?.data;
+      const msg = errData?.error || errData?.detail || "Failed to update password.";
+      toast.error(msg);
     } finally {
       setChangingPassword(false);
     }

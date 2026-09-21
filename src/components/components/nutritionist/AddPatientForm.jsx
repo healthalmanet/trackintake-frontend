@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { createUserPatient } from '../services/patientService'; // Adjust path if needed
+import { createUserPatient } from '../../../api/nutritionistApi';
 
 // Icons for better UI
 import { 
@@ -158,11 +158,23 @@ const AddPatientForm = () => {
     };
 
     try {
-      await createUserPatient(payload);
-      toast.success('Patient created successfully!');
+      const res = await createUserPatient(payload);
+      toast.success(res.data?.detail || res.data?.message || 'Patient created successfully!');
       reset(); // Reset form fields on success
     } catch (error) {
-      toast.error(error.message || 'Failed to create patient. Please try again.');
+      const errorData = error.response?.data;
+      let errorMsg = 'Failed to create patient. Please try again.';
+      if (typeof errorData === 'string') {
+        errorMsg = errorData;
+      } else if (errorData?.detail) {
+        errorMsg = errorData.detail;
+      } else if (errorData?.error) {
+        errorMsg = errorData.error;
+      } else if (typeof errorData === 'object' && errorData !== null) {
+        const msgs = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+        if (msgs.length > 0) errorMsg = msgs.join(' | ');
+      }
+      toast.error(errorMsg);
     }
   };
 
