@@ -77,7 +77,7 @@ export const submitFeedbackForML = (dietId, feedback, approved) => {
 
 // In nutritionistApi.js
 export const getDietByPatientId = (patientId) => {
-  return axiosInstance.get(`/nutritionist/patients/${patientId}/diet-plans`);
+  return axiosInstance.get(`/nutritionist/patients/${patientId}/diet-plans/`);
 };
 
 export const getDietRecommendationUsers = (page = 1, pageSize = 10) => {
@@ -116,12 +116,8 @@ export const getLabReportByDate = (patientId, date) => {
 
 // The patientId is needed to build the correct, secure API endpoint path.
 export const updateLabReport = (patientId, reportId, updatedData) => {
-  // [THE FINAL FIX]
-  // This function now uses the PATCH method and the plural "/patients/" path,
-  // exactly matching your working Postman request.
-  // The reportId uniquely identifies the resource to be updated.
   return axiosInstance.patch(
-    `nutritionist/patients/${patientId}/lab-reports/${reportId}/`,
+    `/nutritionist/patients/${patientId}/lab-reports/${reportId}/`,
     updatedData
   );
 };

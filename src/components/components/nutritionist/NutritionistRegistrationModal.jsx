@@ -91,8 +91,11 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  const [serverError, setServerError] = useState("");
+
   // Helper to clear error when user types into field
   const clearError = (field) => {
+    setServerError("");
     if (fieldErrors[field]) {
       setFieldErrors((prev) => {
         const copy = { ...prev };
@@ -126,6 +129,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleNextStep = () => {
     const errors = {};
+    setServerError("");
     if (step === 1) {
       if (!fullName.trim()) {
         errors.fullName = "Please fill in your full name.";
@@ -190,8 +194,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       }
 
       if (isOnlineAvailable) {
-        if (!onlinePrice || isNaN(parseFloat(onlinePrice)) || parseFloat(onlinePrice) <= 0) {
-          errors.onlinePrice = "Please enter a valid online consultation fee (greater than ₹0).";
+        if (onlinePrice === "" || isNaN(parseFloat(onlinePrice)) || parseFloat(onlinePrice) < 0) {
+          errors.onlinePrice = "Please enter a valid online consultation fee (₹0 or more).";
         }
       }
 
@@ -202,8 +206,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           errors.offlineLocation = "Please enter a detailed clinic address (at least 5 characters).";
         }
 
-        if (!offlinePrice || isNaN(parseFloat(offlinePrice)) || parseFloat(offlinePrice) <= 0) {
-          errors.offlinePrice = "Please enter a valid offline consultation fee (greater than ₹0).";
+        if (offlinePrice === "" || isNaN(parseFloat(offlinePrice)) || parseFloat(offlinePrice) < 0) {
+          errors.offlinePrice = "Please enter a valid offline consultation fee (₹0 or more).";
         }
       }
 
@@ -219,6 +223,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handlePrevStep = () => {
+    setServerError("");
     setStep((prev) => Math.max(prev - 1, 1));
   };
 
@@ -232,6 +237,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     const normalizedEmail = email.trim().toLowerCase();
     setSendingOtp(true);
     setVerificationToken("");
+    setServerError("");
     clearError("otp");
     try {
       await sendOtp(normalizedEmail);
@@ -239,8 +245,12 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       setOtpSent(true);
       setOtpTimer(600);
     } catch (error) {
-      const errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.message || "Failed to send OTP.";
-      setFieldErrors((prev) => ({ ...prev, otp: errMsg }));
+      const errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.email || error?.response?.data?.message || error?.response?.data?.error || "Failed to send OTP.";
+      setFieldErrors((prev) => ({ ...prev, email: errMsg, otp: errMsg }));
+      setServerError(errMsg);
+      if (error?.response?.data?.email) {
+        setStep(1);
+      }
       toast.error(errMsg);
     } finally {
       setSendingOtp(false);
@@ -250,6 +260,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   // Final Registration Submit
   const handleFinalRegistration = async (e) => {
     e.preventDefault();
+    setServerError("");
+
     if (!otpSent) {
       await handleRequestOtp();
       return;
@@ -274,6 +286,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         } catch (otpErr) {
           const otpMsg = otpErr?.response?.data?.error || otpErr?.response?.data?.otp?.[0] || otpErr?.response?.data?.message || "Invalid or expired OTP code. Please check your email.";
           setFieldErrors((prev) => ({ ...prev, otp: otpMsg }));
+          setServerError(otpMsg);
           toast.error(`❌ ${otpMsg}`, { duration: 6000 });
           setSubmitting(false);
           return;
@@ -282,6 +295,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
 
       if (!token) {
         setFieldErrors((prev) => ({ ...prev, otp: "Verification token missing or expired. Please re-verify." }));
+        setServerError("Verification token missing or invalid.");
         toast.error("Verification token missing or invalid.");
         setSubmitting(false);
         return;
@@ -306,7 +320,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       if (currentOrganization) formData.append("current_organization", currentOrganization);
       if (professionalBio) formData.append("professional_bio", professionalBio);
 
-      // JSON stringified fields
+      // JSON stringified fields (arrays of strings)
       const langs = languagesSpoken.split(",").map((l) => l.trim()).filter(Boolean);
       formData.append("languages_spoken", JSON.stringify(langs));
       formData.append("specializations", JSON.stringify(selectedSpecializations));
@@ -345,16 +359,45 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         } else if (typeof resData === "object") {
           const fieldMsgs = [];
           const newFieldErrors = {};
+          let targetStep = 5;
 
           for (const [key, val] of Object.entries(resData)) {
-            const valStr = Array.isArray(val) ? val.join(" ") : String(val);
+            const valStr = Array.isArray(val) ? val.join(" ") : typeof val === 'object' ? JSON.stringify(val) : String(val);
             if (key === "email") {
               newFieldErrors.email = valStr;
-              setStep(1); // Jump back to Step 1 so user sees the email error field!
+              targetStep = Math.min(targetStep, 1);
             } else if (key === "phone_number" || key === "phoneNumber") {
               newFieldErrors.phoneNumber = valStr;
-              setStep(1);
-            } else if (key === "token") {
+              targetStep = Math.min(targetStep, 1);
+            } else if (key === "full_name" || key === "fullName") {
+              newFieldErrors.fullName = valStr;
+              targetStep = Math.min(targetStep, 1);
+            } else if (key === "password") {
+              newFieldErrors.password = valStr;
+              targetStep = Math.min(targetStep, 1);
+            } else if (key === "professional_title" || key === "qualification" || key === "registration_number" || key === "issuing_authority" || key === "current_organization" || key === "professional_bio") {
+              newFieldErrors[key] = valStr;
+              targetStep = Math.min(targetStep, 2);
+            } else if (key === "years_of_experience") {
+              newFieldErrors.yearsOfExperience = valStr;
+              targetStep = Math.min(targetStep, 2);
+            } else if (key === "languages_spoken") {
+              newFieldErrors.languagesSpoken = valStr;
+              targetStep = Math.min(targetStep, 2);
+            } else if (key === "specializations") {
+              newFieldErrors.specializations = valStr;
+              targetStep = Math.min(targetStep, 3);
+            } else if (key === "online_price") {
+              newFieldErrors.onlinePrice = valStr;
+              targetStep = Math.min(targetStep, 4);
+            } else if (key === "offline_price") {
+              newFieldErrors.offlinePrice = valStr;
+              targetStep = Math.min(targetStep, 4);
+            } else if (key === "offline_location") {
+              newFieldErrors.offlineLocation = valStr;
+              targetStep = Math.min(targetStep, 4);
+            } else if (key === "token" || key === "verification_token" || key === "otp") {
+              newFieldErrors.otp = valStr;
               msg = `OTP Verification Error: ${valStr}`;
             }
             const fieldLabel = key.replace(/_/g, " ").toUpperCase();
@@ -363,6 +406,9 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
 
           if (Object.keys(newFieldErrors).length > 0) {
             setFieldErrors((prev) => ({ ...prev, ...newFieldErrors }));
+            if (targetStep < 5) {
+              setStep(targetStep);
+            }
           }
 
           if (fieldMsgs.length > 0 && !msg.startsWith("OTP Verification Error:")) {
@@ -373,6 +419,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         msg = err.message;
       }
 
+      setServerError(msg);
       toast.error(msg, { duration: 6000 });
     } finally {
       setSubmitting(false);
@@ -440,6 +487,16 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
 
         {/* Modal Form Body */}
         <form onSubmit={handleFinalRegistration} className="p-5 sm:p-8 space-y-6 max-h-[75vh] sm:max-h-[78vh] overflow-y-auto bg-[var(--color-bg-surface)]">
+          {/* Top-Level Server Error Banner */}
+          {serverError && (
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3 text-rose-600 animate-pulse">
+              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+              <div className="text-xs sm:text-sm font-semibold whitespace-pre-line">
+                {serverError}
+              </div>
+            </div>
+          )}
+
           {/* ──────────────── PAGE 1: BASIC INFORMATION ──────────────── */}
           {step === 1 && (
             <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">

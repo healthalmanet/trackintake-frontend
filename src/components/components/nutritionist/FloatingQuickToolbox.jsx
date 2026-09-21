@@ -407,8 +407,8 @@ User Query: "${userQuery}"`;
                     ? `Chat: ${selectedPatient?.patient_name || "Patient"}`
                     : "Chat with Nutritionist"
                   : activeTab === "assistant"
-                  ? "AI Smart Assistant"
-                  : "Nutrition Search"}
+                    ? "AI Smart Assistant"
+                    : "Nutrition Search"}
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </span>
               <span className="text-[10px] text-[var(--color-text-muted)]">
@@ -437,11 +437,10 @@ User Query: "${userQuery}"`;
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
-              isExpanded
-                ? "w-[calc(100vw-2rem)] sm:w-[620px] h-[640px] max-h-[88vh]"
-                : "w-[calc(100vw-2rem)] sm:w-[420px] h-[560px] max-h-[82vh]"
-            }`}
+            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${isExpanded
+              ? "w-[calc(100vw-2rem)] sm:w-[620px] h-[640px] max-h-[88vh]"
+              : "w-[calc(100vw-2rem)] sm:w-[420px] h-[560px] max-h-[82vh]"
+              }`}
           >
             {/* Top Window Bar */}
             <div className="p-3 sm:px-4 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-2 select-none flex-shrink-0">
@@ -450,11 +449,10 @@ User Query: "${userQuery}"`;
                 <button
                   type="button"
                   onClick={() => setActiveTab("chat")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "chat"
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "chat"
+                    ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
                 >
                   <MessageSquare size={14} />
                   <span>Messages</span>
@@ -463,11 +461,10 @@ User Query: "${userQuery}"`;
                 <button
                   type="button"
                   onClick={() => setActiveTab("assistant")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "assistant"
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "assistant"
+                    ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
                 >
                   <Bot size={14} />
                   <span>Assistant</span>
@@ -476,11 +473,10 @@ User Query: "${userQuery}"`;
                 <button
                   type="button"
                   onClick={() => setActiveTab("nutrition")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "nutrition"
-                      ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "nutrition"
+                    ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
                 >
                   <Salad size={14} />
                   <span>Search</span>
@@ -609,11 +605,10 @@ User Query: "${userQuery}"`;
                                           setShowPatientSelector(false);
                                           setPatientSearchTerm("");
                                         }}
-                                        className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors text-xs ${
-                                          isSelected
-                                            ? "bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)]"
-                                            : "hover:bg-[var(--color-bg-app)]"
-                                        }`}
+                                        className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors text-xs ${isSelected
+                                          ? "bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)]"
+                                          : "hover:bg-[var(--color-bg-app)]"
+                                          }`}
                                       >
                                         <div className="min-w-0 pr-2">
                                           <p className="font-bold text-[var(--color-text-strong)] truncate">
@@ -691,23 +686,21 @@ User Query: "${userQuery}"`;
                             className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                           >
                             <div
-                              className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs ${
-                                isMe
-                                  ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-tr-none font-medium"
-                                  : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] rounded-tl-none"
-                              }`}
+                              className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs ${isMe
+                                ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-tr-none font-medium"
+                                : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] rounded-tl-none"
+                                }`}
                             >
                               <p className="whitespace-pre-wrap">{msg.text || msg.message}</p>
                               <span
-                                className={`block text-[9px] mt-1 text-right ${
-                                  isMe ? "text-white/70" : "text-[var(--color-text-muted)]"
-                                }`}
+                                className={`block text-[9px] mt-1 text-right ${isMe ? "text-white/70" : "text-[var(--color-text-muted)]"
+                                  }`}
                               >
                                 {msg.timestamp
                                   ? new Date(msg.timestamp).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
                                   : ""}
                               </span>
                             </div>
@@ -790,9 +783,8 @@ User Query: "${userQuery}"`;
                     {assistantMessages.map((msg, idx) => (
                       <div
                         key={idx}
-                        className={`flex gap-2.5 ${
-                          msg.sender === "user" ? "justify-end" : "justify-start"
-                        }`}
+                        className={`flex gap-2.5 ${msg.sender === "user" ? "justify-end" : "justify-start"
+                          }`}
                       >
                         {msg.sender === "ai" && (
                           <div className="w-7 h-7 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex items-center justify-center flex-shrink-0 mt-0.5 border border-[var(--color-border-hover)]">
@@ -801,13 +793,12 @@ User Query: "${userQuery}"`;
                         )}
 
                         <div
-                          className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed shadow-2xs relative group ${
-                            msg.sender === "user"
-                              ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-tr-none font-medium"
-                              : msg.isError
+                          className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed shadow-2xs relative group ${msg.sender === "user"
+                            ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-tr-none font-medium"
+                            : msg.isError
                               ? "bg-red-500/10 text-red-700 border border-red-500/20 rounded-tl-none"
                               : "bg-[var(--color-bg-surface)] text-[var(--color-text-default)] border border-[var(--color-border-default)] rounded-tl-none"
-                          }`}
+                            }`}
                         >
                           {msg.sender === "ai" ? (
                             <div className="prose prose-xs max-w-none text-[var(--color-text-default)] prose-p:my-1 prose-headings:text-[var(--color-text-strong)] prose-headings:font-bold prose-strong:text-[var(--color-text-strong)] prose-ul:my-1 prose-li:my-0.5">

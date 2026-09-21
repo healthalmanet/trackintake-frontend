@@ -27,6 +27,7 @@ import HomeBlog from "./components/components/HomeBlog";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { Toaster } from "react-hot-toast";
 
 import { ProfileDropdown } from "./components/components/ProfileDropdown";
 import QuickTools from "./components/components/nutritionist/QuickTools";
@@ -216,6 +217,7 @@ function App() {
       {isAuthenticated && user?.role === "user" && <Footer />}
 
       <ToastContainer position="top-right" autoClose={3000} pauseOnHover theme="light" />
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
     </>
   );
 }
