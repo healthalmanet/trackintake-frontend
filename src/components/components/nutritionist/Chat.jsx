@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Send, Smile, ArrowLeft, MessagesSquare, Inbox, AlertCircle } from 'lucide-react';
 import { getMessages, sendMessage, getAssignedPatients, markMessageAsRead } from '../../../api/nutritionistApi';
 import NutriNavbar from './NutriNavbar';
+import BackButton from './BackButton';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import EmojiPicker from 'emoji-picker-react';
@@ -345,8 +346,11 @@ const Chat = () => {
         <div className="flex flex-col h-[calc(100vh-65px)] bg-[var(--color-bg-app)] font-[var(--font-primary)]">
             <div className="flex flex-1 overflow-hidden">
                 <aside className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-surface)] border-r border-[var(--color-border-default)] transition-transform duration-300 ease-in-out md:w-1/3 md:relative md:translate-x-0 lg:w-1/4 ${isChatVisible ? '-translate-x-full' : 'translate-x-0'}`}>
-                    <header className="p-4 border-b border-[var(--color-border-default)] flex-shrink-0">
-                        <h2 className="text-2xl font-bold text-[var(--color-text-strong)]">Chats</h2>
+                    <header className="p-4 border-b border-[var(--color-border-default)] flex-shrink-0 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold text-[var(--color-text-strong)]">Chats</h2>
+                            <BackButton label="Dashboard" to="/nutritionist" />
+                        </div>
                         <div className="relative mt-3">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)] z-10" />
                             <input type="text" placeholder="Search by name..." className="w-full py-2.5 pl-12 pr-10 border-2 bg-[var(--color-bg-app)] border-[var(--color-border-default)] rounded-xl" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />

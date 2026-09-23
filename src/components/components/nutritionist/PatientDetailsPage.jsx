@@ -57,6 +57,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import NutriNavbar from "./NutriNavbar";
 import QuickTools from "./QuickTools";
 import FloatingQuickToolbox from "./FloatingQuickToolbox";
+import BackButton from "./BackButton";
 
 
 // --- All sub-components remain unchanged ---
@@ -1470,8 +1471,11 @@ Each object must have this exact structure:
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-6 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)]"
+          className="mb-8 p-4 sm:p-6 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)]"
         >
+          <div className="mb-4">
+            <BackButton label="Back to Patient List" to="/nutritionist" />
+          </div>
           <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
             <div className="flex items-center gap-6 flex-grow">
               <div className="p-4 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-full text-5xl ring-4 ring-[var(--color-primary)]/20">

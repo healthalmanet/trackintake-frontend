@@ -37,6 +37,7 @@ import {
   Award,
   ChevronRight,
 } from "lucide-react";
+import BackButton from "./BackButton";
 
 const NutritionistSubscription = () => {
   const [subscription, setSubscription] = useState(null);
@@ -209,7 +210,9 @@ const NutritionistSubscription = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 font-[var(--font-secondary)] text-[var(--color-text-strong)]">
-      
+      <div>
+        <BackButton label="Back to Dashboard" to="/nutritionist" />
+      </div>
       {/* ── Top Header Section ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

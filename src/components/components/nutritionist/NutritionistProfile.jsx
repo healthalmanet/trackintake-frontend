@@ -44,6 +44,7 @@ import {
   updateNutritionistProfile,
   changeNutritionistPassword,
 } from "../../../api/nutritionistApi";
+import BackButton from "./BackButton";
 
 const ALL_SPECIALIZATIONS = [
   "Weight Management (Loss/Gain)",
@@ -465,6 +466,9 @@ const NutritionistProfile = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 font-[var(--font-secondary)] text-[var(--color-text-strong)]">
+      <div>
+        <BackButton label="Back to Dashboard" to="/nutritionist" />
+      </div>
       {/* ── Practitioner Profile Hero Card ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
