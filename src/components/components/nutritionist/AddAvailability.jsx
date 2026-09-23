@@ -8,10 +8,11 @@ import {
   SlidersHorizontal, CheckCircle2, ChevronLeft,
   Building2, MapPin, Layers, Info, CheckSquare, Square, DollarSign, FileText
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getMySlots, addAvailability, deleteAvailability } from "../../../api/availabilityApi";
 import { getNutritionistProfile } from "../../../api/nutritionistApi";
 import AppointmentDetailModal from "../appointments/AppointmentDetailModal";
+import BackButton from "./BackButton";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 const getTodayStr = () => new Date().toISOString().split("T")[0];
@@ -845,10 +846,18 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
 ═══════════════════════════════════════════════════════════════ */
 const AddAvailability = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Slots State
   const [unbookedSlots, setUnbookedSlots] = useState([]);
   const [bookedSlots, setBookedSlots] = useState([]);
+  const [summary, setSummary] = useState({
+    total_available: 0,
+    total_booked: 0,
+    upcoming_count: 0,
+    past_count: 0,
+    total_count: 0,
+  });
   const [fetching, setFetching] = useState(false);
 
   // Modals & Drawers
@@ -878,6 +887,9 @@ const AddAvailability = () => {
       const res = await getMySlots(params);
       setUnbookedSlots(res.data?.unbooked_slots || []);
       setBookedSlots(res.data?.booked_slots || []);
+      if (res.data?.summary) {
+        setSummary(res.data.summary);
+      }
     } catch {
       toast.error("Failed to fetch slots. Please try again.");
     } finally {
@@ -887,7 +899,7 @@ const AddAvailability = () => {
 
   useEffect(() => {
     fetchSlots();
-  }, [timeHorizon, modeFilter, statusFilter, filterDate]);
+  }, [timeHorizon, modeFilter, statusFilter, filterDate, location.key]);
 
   useEffect(() => {
     const timer = setTimeout(fetchSlots, 300);
@@ -991,6 +1003,9 @@ const AddAvailability = () => {
         {/* ── Clean Header & Actions ── */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
+            <div className="mb-3">
+              <BackButton label="Back to Dashboard" to="/nutritionist" />
+            </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] text-[11px] font-bold tracking-wider uppercase mb-1.5 border border-[var(--color-border-hover)]">
               <CalendarDays size={12} /> Flexible Virtual & In-Clinic Availability
             </div>
@@ -1008,7 +1023,7 @@ const AddAvailability = () => {
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div>
                 <span className="text-base sm:text-lg font-black text-emerald-600 block leading-tight">
-                  {availableCount}
+                  {summary.total_available ?? availableCount}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Available Slots
@@ -1020,7 +1035,7 @@ const AddAvailability = () => {
               <Lock size={14} className="text-[var(--color-primary)]" />
               <div>
                 <span className="text-base sm:text-lg font-black text-[var(--color-primary)] block leading-tight">
-                  {bookedCount}
+                  {summary.total_booked ?? bookedCount}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Booked Sessions
@@ -1056,20 +1071,29 @@ const AddAvailability = () => {
             {/* Horizon Filter Tabs (Upcoming / Past / All) */}
             <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
               {[
-                { key: "upcoming", label: "Upcoming Slots" },
-                { key: "past", label: "Past Slots" },
-                { key: "all", label: "All Slots" },
+                { key: "upcoming", label: "Upcoming", count: summary.upcoming_count },
+                { key: "past", label: "Past", count: summary.past_count },
+                { key: "all", label: "All Slots", count: summary.total_count },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setTimeHorizon(tab.key)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     timeHorizon === tab.key
                       ? "bg-[var(--color-primary)] text-white shadow-xs"
                       : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
                   }`}
                 >
-                  {tab.label}
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      timeHorizon === tab.key
+                        ? "bg-white/25 text-white"
+                        : "bg-[var(--color-border-default)] text-[var(--color-text-muted)]"
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -1100,7 +1124,7 @@ const AddAvailability = () => {
             {/* Status Tabs (All / Open / Booked) */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
               {[
-                { key: "ALL", label: "All" },
+                { key: "ALL", label: `All (${totalCount})` },
                 { key: "AVAILABLE", label: `Open (${availableCount})` },
                 { key: "BOOKED", label: `Booked (${bookedCount})` },
               ].map((st) => (
@@ -1176,19 +1200,39 @@ const AddAvailability = () => {
               <CalendarDays size={28} />
             </div>
             <h3 className="text-base font-bold text-[var(--color-text-strong)]">
-              No {timeHorizon} slots found
+              No {timeHorizon === "all" ? "availability" : timeHorizon} slots found
             </h3>
-            <p className="text-xs text-[var(--color-text-muted)] max-w-sm mx-auto mt-1 mb-4">
-              {timeHorizon === "upcoming"
-                ? "You don't have any upcoming availability slots matching your filter."
+            <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto mt-1 mb-4">
+              {timeHorizon === "upcoming" && summary.past_count > 0
+                ? `You don't have any upcoming availability slots matching your filter, but you have ${summary.past_count} slot${summary.past_count > 1 ? "s" : ""} in Past Slots.`
+                : timeHorizon === "upcoming"
+                ? "You don't have any upcoming availability slots. Generate new slots to let patients book appointments with you."
                 : "No consultation slots match your current filter settings."}
             </p>
-            <button
-              onClick={() => setCreateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-md cursor-pointer"
-            >
-              <Plus size={15} /> Add Availability Slots
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {timeHorizon === "upcoming" && summary.past_count > 0 && (
+                <>
+                  <button
+                    onClick={() => setTimeHorizon("past")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] hover:bg-[var(--color-bg-interactive-subtle)] cursor-pointer"
+                  >
+                    View Past Slots ({summary.past_count})
+                  </button>
+                  <button
+                    onClick={() => setTimeHorizon("all")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] hover:bg-[var(--color-border-default)] cursor-pointer"
+                  >
+                    View All Slots ({summary.total_count})
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-md cursor-pointer"
+              >
+                <Plus size={15} /> Add Availability Slots
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">

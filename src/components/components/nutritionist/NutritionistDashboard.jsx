@@ -596,9 +596,9 @@ const NutritionistDashboard = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8 p-6 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-lg"
+          className="mb-8 p-4 sm:p-6 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-lg"
         >
-          <h1 className="text-4xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] tracking-tight">
             Nutritionist Dashboard
           </h1>
           <p className="text-[var(--color-text-default)] mt-2 text-lg font-[var(--font-secondary)]">
