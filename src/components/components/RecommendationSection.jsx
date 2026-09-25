@@ -23,10 +23,10 @@ const DietRecommendations = () => {
       <div className="max-w-6xl mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <h2 className="text-3xl font-[var(--font-primary)] font-bold text-center text-[var(--color-text-strong)] mb-3">
-            Personalized Diet Recommendations
+            Personalized Diet & Clinical Suggestions
           </h2>
           <p className="text-center text-lg text-[var(--color-text-default)] mb-12">
-            AI-powered meal suggestions based on your goals
+            AI-powered meal plans & clinical suggestions tailored to your health goals
           </p>
         </motion.div>
 

@@ -1,5 +1,3 @@
-// src/pages/dashboard/Meals.jsx
-
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -12,7 +10,14 @@ import {
   Activity,
   Brain,
   ChevronDown,
-  ClipboardList, UserCheck,CircleUser
+  ClipboardList,
+  UserCheck,
+  CircleUser,
+  Sparkles,
+  Ban,
+  Leaf,
+  Apple,
+  AlertTriangle
 } from "lucide-react";
 import {
   BsSunFill,
@@ -37,166 +42,190 @@ import { getDietApi, getDietHistoryApi } from "../../api/dietApi";
 import { getUserProfile } from "../../api/userProfile";
 import { getDiabeticProfile } from "../../api/diabeticApi";
 
-// ... (generateHealthTips function remains the same)
+// Generate structured 4-pillar suggestions fallback if plan does not have explicit suggestions yet
 const generateHealthTips = (profile, report) => {
-  if (!profile || !report) return [];
-  const bmi = profile.weight_kg / (profile.height_cm / 100) ** 2;
+  if (!profile) return [];
+  const rep = report || {};
+  const bmi =
+    profile.weight_kg && profile.height_cm
+      ? profile.weight_kg / (profile.height_cm / 100) ** 2
+      : 22;
 
-  const tipLibrary = [
-    {
-      id: "manage_sugar",
-      priority: 10,
-      condition: () => profile.is_diabetic || report.hba1c > 5.7,
-      content: {
-        icon: <ShieldCheck />,
-        title: "Focus on Low-GI Carbs",
-        description:
-          "Choose whole grains and vegetables over refined carbs to help keep your blood sugar levels stable.",
-        bg: "bg-[var(--color-warning-bg-subtle)]",
-        color: "text-[var(--color-warning-text)]",
-      },
-    },
-    {
-      id: "heart_health",
-      priority: 9,
-      condition: () =>
-        report.ldl_cholesterol > 100 ||
-        report.triglycerides > 150 ||
-        profile.is_hypertensive,
-      content: {
-        icon: <HeartPulse />,
-        title: "Support Heart Health",
-        description:
-          "Incorporate healthy fats from avocados and nuts, and be mindful of sodium to support healthy blood pressure.",
-        bg: "bg-[var(--color-danger-bg-subtle)]",
-        color: "text-[var(--color-danger-text)]",
-      },
-    },
-    {
-      id: "weight_management_protein",
-      priority: 8,
-      condition: () => bmi > 25 && profile.goal === "lose_weight",
-      content: {
-        icon: <Dumbbell />,
-        title: "Prioritize Protein & Fiber",
-        description:
-          "Including lean protein and fiber can help you feel full longer, aiding in weight management.",
-        bg: "bg-[var(--color-success-bg-subtle)]",
-        color: "text-[var(--color-success-text)]",
-      },
-    },
-    {
-      id: "vitamin_d",
-      priority: 7,
-      condition: () => report.vitamin_d3 < 30,
-      content: {
-        icon: <Sun />,
-        title: "Get Your Daily Dose of Sunshine",
-        description:
-          "Aim for 15-20 minutes of morning sun and include mushrooms or fortified foods in your diet.",
-        bg: "bg-[var(--color-accent-1-bg-subtle)]",
-        color: "text-[var(--color-accent-1-text)]",
-      },
-    },
-    {
-      id: "vitamin_b12",
-      priority: 6,
-      condition: () => report.vitamin_b12 < 300,
-      content: {
-        icon: <Brain />,
-        title: "Boost Your B12 Intake",
-        description:
-          "Support your energy and nerve health with Vitamin B12 from dairy, eggs, or fortified foods.",
-        bg: "bg-[var(--color-accent-2-bg-subtle)]",
-        color: "text-[var(--color-accent-2-text)]",
-      },
-    },
-    {
-      id: "increase_activity",
-      priority: 5,
-      condition: () =>
-        profile.activity_level === "sedentary" ||
-        profile.activity_level === "lightly_active",
-      content: {
-        icon: <Activity />,
-        title: "Incorporate More Movement",
-        description:
-          "A brisk 30-minute walk each day can improve your metabolic health, mood, and energy.",
-        bg: "bg-[var(--color-info-bg-subtle)]",
-        color: "text-[var(--color-info-text)]",
-      },
-    },
-    {
-      id: "gut_health",
-      priority: 4,
-      condition: () => profile.has_gastric_issues,
-      content: {
-        icon: <FaLeaf />,
-        title: "Nurture Your Gut Health",
-        description:
-          "Support digestion with fiber-rich foods and probiotics like yogurt. Remember to stay hydrated.",
-        bg: "bg-[var(--color-success-bg-subtle)]",
-        color: "text-[var(--color-success-text)]",
-      },
-    },
-    {
-      id: "hydration",
-      priority: 1,
-      condition: () => true,
-      content: {
-        icon: <Droplets />,
-        title: "Focus on Hydration",
-        description:
-          "Drinking enough water is crucial for energy and digestion. Carry a water bottle as a reminder.",
-        bg: "bg-[var(--color-info-bg-subtle)]",
-        color: "text-[var(--color-info-text)]",
-      },
-    },
-    {
-      id: "mindful_eating",
-      priority: 1,
-      condition: () => true,
-      content: {
-        icon: <Brain />,
-        title: "Practice Mindful Eating",
-        description:
-          "Pay attention to hunger and fullness cues. Eating slowly can improve digestion and satisfaction.",
-        bg: "bg-[var(--color-accent-3-bg-subtle)]",
-        color: "text-[var(--color-accent-3-text)]",
-      },
-    },
-  ];
+  const tips = [];
 
-  const matchedTips = tipLibrary.filter((tip) => tip.condition());
-  const uniqueMatchedTips = Array.from(
-    new Map(matchedTips.map((tip) => [tip.id, tip])).values()
-  );
-  uniqueMatchedTips.sort((a, b) => b.priority - a.priority);
-  return uniqueMatchedTips.slice(0, 4);
+  // 1. Avoid
+  if (profile.is_diabetic || rep.hba1c > 5.7 || rep.fasting_blood_sugar > 100) {
+    tips.push({
+      id: "sug_avoid_diab",
+      key: "avoid",
+      category: "Foods to Avoid",
+      title: "Limit Simple Sugars & High-GI Carbs",
+      description:
+        "Avoid refined flours, sugary beverages, pastries, and processed snacks to stabilize blood glucose and insulin levels.",
+    });
+  } else if (
+    rep.ldl_cholesterol > 100 ||
+    rep.triglycerides > 150 ||
+    profile.is_hypertensive
+  ) {
+    tips.push({
+      id: "sug_avoid_cardio",
+      key: "avoid",
+      category: "Foods to Avoid",
+      title: "Limit Deep Fried & High-Sodium Foods",
+      description:
+        "Restrict processed meats, saturated trans fats, and excess table salt to support vascular elasticity and heart health.",
+    });
+  } else {
+    tips.push({
+      id: "sug_avoid_gen",
+      key: "avoid",
+      category: "Foods to Avoid",
+      title: "Avoid Ultra-Processed Foods",
+      description:
+        "Minimize artificial sweeteners, trans-fat fried snacks, and late-night heavy greasy meals.",
+    });
+  }
+
+  // 2. Follow
+  if (bmi > 25 || profile.goal === "lose_weight") {
+    tips.push({
+      id: "sug_follow_protein",
+      key: "follow",
+      category: "Foods to Follow",
+      title: "Prioritize Lean Protein & Soluble Fiber",
+      description:
+        "Incorporate lentils, sprouts, legumes, green leafy salads, and lean proteins at every meal to promote prolonged satiety.",
+    });
+  } else {
+    tips.push({
+      id: "sug_follow_nutrient",
+      key: "follow",
+      category: "Foods to Follow",
+      title: "Incorporate Nutrient-Dense Whole Foods",
+      description:
+        "Eat colorful seasonal vegetables, ancient whole grains like millets/oats, and healthy fats from seeds and nuts.",
+    });
+  }
+
+  // 3. Exercise
+  tips.push({
+    id: "sug_exercise",
+    key: "exercise",
+    category: "Exercise & Activity",
+    title:
+      profile.activity_level === "sedentary"
+        ? "Daily 30-Min Brisk Walking"
+        : "Regular Cardiovascular & Strength Training",
+    description:
+      profile.activity_level === "sedentary"
+        ? "Engage in 30 minutes of brisk walking or light aerobic movement daily to boost basal metabolic rate."
+        : "Maintain 3-4 days of structured resistance training combined with daily active step targets.",
+  });
+
+  // 4. Lifestyle
+  tips.push({
+    id: "sug_lifestyle",
+    key: "lifestyle",
+    category: "Lifestyle & Hydration",
+    title: "Optimal Hydration & Consistent Sleep",
+    description:
+      "Drink 2.5 to 3 liters of water throughout the day and maintain a consistent 7-8 hour sleep schedule for metabolic recovery.",
+  });
+
+  return tips;
+};
+
+// Automatic styling resolver for patient suggestion cards
+const getSuggestionStyling = (item) => {
+  const cat = (item.category || "").toLowerCase();
+  const title = (item.title || "").toLowerCase();
+  const key = (item.key || "").toLowerCase();
+  const text = `${cat} ${title} ${key}`;
+
+  if (
+    text.includes("avoid") ||
+    text.includes("ban") ||
+    text.includes("limit") ||
+    text.includes("restrict")
+  ) {
+    return {
+      icon: <Ban className="w-5 h-5 text-rose-500" />,
+      bg: "bg-rose-500/10 dark:bg-rose-950/30",
+      border: "border-rose-500/30",
+      badgeBg: "bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30",
+      iconBg: "bg-rose-500/20 text-rose-600 dark:text-rose-400",
+      category: item.category || "Foods to Avoid",
+    };
+  }
+  if (
+    text.includes("follow") ||
+    text.includes("include") ||
+    text.includes("eat") ||
+    text.includes("food") ||
+    text.includes("diet") ||
+    text.includes("plant") ||
+    text.includes("fiber")
+  ) {
+    return {
+      icon: <Leaf className="w-5 h-5 text-emerald-500" />,
+      bg: "bg-emerald-500/10 dark:bg-emerald-950/30",
+      border: "border-emerald-500/30",
+      badgeBg: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30",
+      iconBg: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+      category: item.category || "Foods to Follow",
+    };
+  }
+  if (
+    text.includes("exercise") ||
+    text.includes("activity") ||
+    text.includes("workout") ||
+    text.includes("walk") ||
+    text.includes("fitness") ||
+    text.includes("train")
+  ) {
+    return {
+      icon: <Dumbbell className="w-5 h-5 text-amber-500" />,
+      bg: "bg-amber-500/10 dark:bg-amber-950/30",
+      border: "border-amber-500/30",
+      badgeBg: "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30",
+      iconBg: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+      category: item.category || "Exercise & Activity",
+    };
+  }
+  return {
+    icon: <Droplets className="w-5 h-5 text-sky-500" />,
+    bg: "bg-sky-500/10 dark:bg-sky-950/30",
+    border: "border-sky-500/30",
+    badgeBg: "bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/30",
+    iconBg: "bg-sky-500/20 text-sky-600 dark:text-sky-400",
+    category: item.category || "Lifestyle & Hydration",
+  };
 };
 
 const MEAL_TYPE_NORMALIZATION_MAP = {
   "Early-Morning": ["earlymorning", "early-morning"],
-  "Breakfast": ["breakfast"],
+  Breakfast: ["breakfast"],
   "Mid-Morning Snack": ["midmorningsnack", "mid-morning snack"],
-  "Lunch": ["lunch"],
+  Lunch: ["lunch"],
   "Afternoon Snack": ["afternoonsnack", "afternoon snack"],
-  "Dinner": ["dinner"],
-  "Bedtime": ["bedtime", "bed time"],
+  Dinner: ["dinner"],
+  Bedtime: ["bedtime", "bed time"],
 };
 
 // This helper function takes any raw key and finds its correct canonical name.
 const getCanonicalMealType = (rawKey) => {
   if (!rawKey) return null;
-  // Normalize the input key to a consistent format for lookup
-  const normalizedKey = rawKey.toLowerCase().replace(/[- ]/g, '');
-  
-  for (const [canonical, variations] of Object.entries(MEAL_TYPE_NORMALIZATION_MAP)) {
+  const normalizedKey = rawKey.toLowerCase().replace(/[- ]/g, "");
+
+  for (const [canonical, variations] of Object.entries(
+    MEAL_TYPE_NORMALIZATION_MAP
+  )) {
     if (variations.includes(normalizedKey)) {
-      return canonical; // Return the correct, canonical key
+      return canonical;
     }
   }
-  return null; // Return null if no match is found
+  return null;
 };
 
 const Meals = () => {
@@ -204,7 +233,9 @@ const Meals = () => {
   const [activeDay, setActiveDay] = useState(null);
   const [dietData, setDietData] = useState(null);
   const [dailyMeals, setDailyMeals] = useState([]);
-  const [healthTips, setHealthTips] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
+  const [userMedical, setUserMedical] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -404,11 +435,13 @@ const Meals = () => {
 
         setSelectedPlanId(initialPlanId);
 
-       
+        const prof = profileResponse?.data || profileResponse;
+        const med = medicalResponse?.data || medicalResponse;
+        setUserProfile(prof);
+        setUserMedical(med);
 
-        if (profileResponse && medicalResponse) {
-          setHealthTips(generateHealthTips(profileResponse, medicalResponse));
-        }
+        const fallbackSugs = generateHealthTips(prof, med);
+        setSuggestions(fallbackSugs);
       } catch (err) {
         console.error("Failed to fetch initial data:", err);
         setError(
@@ -437,8 +470,17 @@ const Meals = () => {
         processPlanData(planToProcess);
       setDietData(processedDietData);
       setDailyMeals(processedDailyMeals);
+
+      const planSugs =
+        planToProcess.meals?.suggestions ||
+        planToProcess.original_ai_plan?.suggestions ||
+        planToProcess.suggestions;
+      if (Array.isArray(planSugs) && planSugs.length > 0) {
+        setSuggestions(planSugs);
+      } else if (userProfile) {
+        setSuggestions(generateHealthTips(userProfile, userMedical));
+      }
     } else if (allPlans.length === 0) {
-      // Don't set an error if there are simply no plans yet
       setDietData(null);
       setDailyMeals([]);
     } else {
@@ -446,7 +488,7 @@ const Meals = () => {
     }
 
     setLoading(false);
-  }, [selectedPlanId, allPlans, processPlanData]);
+  }, [selectedPlanId, allPlans, processPlanData, userProfile, userMedical]);
 
   const handlePlanChange = (e) => {
     const newPlanId = e.target.value;
@@ -598,39 +640,55 @@ if (allPlans.length === 0 || !dietData) {
           </div>
         </header>
 
-        {healthTips.length > 0 && (
+        {suggestions.length > 0 && (
           <section className="mb-12">
-            <h2
-              className="text-2xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)] mb-5 opacity-0 animate-fade-up"
-              style={{ animationDelay: "100ms", animationFillMode: "forwards" }}
-            >
-              Your Top Recommendations
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 opacity-0 animate-fade-up" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
+              <div>
+                <h2 className="text-2xl font-[var(--font-primary)] font-extrabold text-[var(--color-text-strong)]">
+                  Clinical Suggestions & Strategy
+                </h2>
+                <p className="text-sm text-[var(--color-text-default)] mt-0.5">
+                  Actionable dietary, physical activity, and lifestyle guidelines tailored for your health goals.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto text-[11px] uppercase font-black px-3 py-1 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 shadow-2xs">
+                {suggestions.length} Key Pillars
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {healthTips.map((tip, idx) => (
-                <div
-                  key={tip.id}
-                  className={`group flex items-start gap-4 p-5 rounded-2xl border-2 border-transparent shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-2 hover:border-[var(--color-primary)] opacity-0 animate-fade-up ${tip.content.bg}`}
-                  style={{
-                    animationDelay: `${200 + idx * 100}ms`,
-                    animationFillMode: "forwards",
-                  }}
-                >
+              {suggestions.map((item, idx) => {
+                const style = getSuggestionStyling(item);
+                return (
                   <div
-                    className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-white/60 text-2xl transition-transform duration-300 group-hover:scale-110 ${tip.content.color}`}
+                    key={item.id || item.key || idx}
+                    className={`group flex items-start gap-4 p-5 rounded-2xl border-2 ${style.border} ${style.bg} shadow-sm transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 opacity-0 animate-fade-up`}
+                    style={{
+                      animationDelay: `${200 + idx * 80}ms`,
+                      animationFillMode: "forwards",
+                    }}
                   >
-                    {tip.content.icon}
+                    <div
+                      className={`flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl shadow-2xs transition-transform duration-300 group-hover:scale-110 ${style.iconBg}`}
+                    >
+                      {style.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md ${style.badgeBg}`}>
+                          {item.category || style.category}
+                        </span>
+                      </div>
+                      <h3 className="font-[var(--font-primary)] font-extrabold text-base text-[var(--color-text-strong)] group-hover:text-[var(--color-primary)] transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-[var(--color-text-default)] mt-1.5 leading-relaxed font-[var(--font-secondary)]">
+                        {item.description}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">
-                      {tip.content.title}
-                    </h3>
-                    <p className="text-sm text-[var(--color-text-default)] mt-1">
-                      {tip.content.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}

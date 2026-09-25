@@ -13,7 +13,6 @@ import "react-toastify/dist/ReactToastify.css";
 // Replace your existing lucide-react imports with this single block
 // At the top of PatientDetailsPage.jsx
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- [CORRECTED] Consolidated lucide-react imports ---
 import {
@@ -27,7 +26,7 @@ import {
 import {
   FaUser, FaEnvelope, FaVenusMars, FaBirthdayCake, FaFileMedicalAlt, FaCheck,
   FaTimes, FaSave, FaPlus, FaThumbsUp, FaThumbsDown, FaBullseye, FaAllergies,
-  FaChevronDown, FaSpinner, FaPencilAlt, FaTrashAlt, FaArchive, FaUndo, FaClock
+  FaChevronDown, FaSpinner, FaPencilAlt, FaClock
 } from "react-icons/fa";
 
 import {
@@ -140,7 +139,6 @@ const PatientDetailsPage = () => {
   const [activeDayPerDiet, setActiveDayPerDiet] = useState({});
   const [planOptions, setPlanOptions] = useState([]);
   const [editingDay, setEditingDay] = useState(null);
-  const [deletingPlanId, setDeletingPlanId] = useState(null);
   const [toolboxOpen, setToolboxOpen] = useState(false);
   const [toolboxTab, setToolboxTab] = useState("chat");
   const [toolboxMinimized, setToolboxMinimized] = useState(false);
@@ -204,7 +202,7 @@ const PatientDetailsPage = () => {
       setLoadingAppointments(false);
     }
   }, [id]);
-  const [isArchiving, setIsArchiving] = useState(null);
+  const [isDisablingPlan, setIsDisablingPlan] = useState(null);
 
   console.log('[RENDER] Page rendering. Current "diets" state:', JSON.parse(JSON.stringify(diets)));
 
@@ -258,7 +256,6 @@ const PatientDetailsPage = () => {
 
   // --- [NEW] LLM-Powered & Editable AI Suggestions System ---
   const [aiSuggestions, setAiSuggestions] = useState([]);
-  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [copiedSuggestionKey, setCopiedSuggestionKey] = useState(null);
   const [suggestionModal, setSuggestionModal] = useState({
     isOpen: false,
@@ -271,99 +268,127 @@ const PatientDetailsPage = () => {
     },
   });
 
-  // Helper to construct clinical fallback suggestions based on profile & labs (Always 4 distinct clinical pillars)
+  // Helper to construct clinical fallback suggestions based on profile & labs (Foods to Avoid, Foods to Follow, Exercise, Lifestyle)
   const getSmartFallbackSuggestions = useCallback((prof, rep) => {
     if (!prof) return [];
     const list = [];
 
-    // Pillar 1: Glycemic & Metabolic Strategy
+    // 1. Foods to Avoid / Restrict
     const isHighSugar = prof.is_diabetic || (rep && (rep.hba1c > 6.5 || rep.fasting_blood_sugar > 125));
-    list.push({
-      id: "sug_glycemic",
-      key: "glycemic",
-      iconType: "Leaf",
-      category: "Metabolic & Glycemic",
-      title: isHighSugar ? "Glycemic Control & Low-GI Fiber" : "Complex Carbohydrate & Fiber Focus",
-      description: isHighSugar
-        ? `Elevated glycemic indicators detected${rep?.hba1c ? ` (HbA1c ${rep.hba1c}%, Fasting ${rep.fasting_blood_sugar || "elevated"} mg/dL)` : ""}. Prioritize low-glycemic complex carbs (millets, oats, chia seeds, cruciferous greens) and strictly eliminate simple refined sugars.`
-        : `Maintain optimal insulin sensitivity and sustained energy with 30g+ daily dietary fiber from whole grains, legumes, and seeds. Avoid ultra-processed refined carbs.`,
-    });
-
-    // Pillar 2: Cardiovascular Health & Lipid Balance
     const isHighCardio = prof.is_hypertensive || (rep && (rep.ldl_cholesterol > 130 || rep.triglycerides > 150));
+    const isHighUric = rep && rep.uric_acid > 6.5;
+
+    let avoidTitle = "Limit Refined Carbs & Sugars";
+    let avoidDesc = "Avoid refined flour, sugary beverages, deep-fried items, and high-glycemic snacks to keep insulin levels steady.";
+    if (isHighSugar && isHighCardio) {
+      avoidTitle = "Strictly Avoid Sugars & Excess Sodium";
+      avoidDesc = "Eliminate direct sweets, refined flours, processed meats, and keep table salt < 1 tsp/day to manage blood glucose and pressure.";
+    } else if (isHighSugar) {
+      avoidTitle = "Avoid Simple Sugars & High-GI Foods";
+      avoidDesc = "Strictly avoid table sugar, sweetened beverages, white bread, and refined confectionery to maintain glycemic control.";
+    } else if (isHighUric) {
+      avoidTitle = "Restrict High-Purine Foods & Red Meat";
+      avoidDesc = "Avoid organ meats, red meat, shellfish, beer, and high-fructose corn syrup to lower uric acid levels.";
+    } else if (isHighCardio) {
+      avoidTitle = "Restrict Trans-Fats & High-Sodium Foods";
+      avoidDesc = "Avoid deep-fried snacks, hydrogenated fats, excess cheese, and processed foods with high sodium content.";
+    }
+
     list.push({
-      id: "sug_cardio",
-      key: "cardio",
-      iconType: "Heart",
-      category: "Cardiovascular Health",
-      title: isHighCardio ? "Lipid Management & Sodium Control" : "Cardioprotective Unsaturated Fats",
-      description: isHighCardio
-        ? `Cardiovascular risk indicators observed${rep?.ldl_cholesterol ? ` (LDL: ${rep.ldl_cholesterol} mg/dL, Triglycerides: ${rep.triglycerides} mg/dL)` : ""}. Restrict saturated fats. Increase rich Omega-3 fatty acids (flaxseed, chia, walnuts) and keep daily sodium < 2000mg.`
-        : `Support endothelial health and cardiovascular longevity with heart-healthy monounsaturated fats (extra virgin olive oil, nuts, seeds) and potassium-rich whole foods.`,
+      id: "sug_avoid",
+      key: "avoid",
+      iconType: "Ban",
+      category: "Foods to Avoid",
+      title: avoidTitle,
+      description: avoidDesc,
     });
 
-    // Pillar 3: Protein Targets & Caloric Energy Distribution
+    // 2. Foods to Follow & Prioritize
+    const isVeg = prof.diet_type?.toLowerCase().includes("veg");
+    let followTitle = "Prioritize Lean Protein & Whole Grains";
+    let followDesc = isVeg
+      ? "Incorporate paneer, lentils/sprouts, tofu, millets, oats, and green leafy vegetables in each main meal."
+      : "Incorporate skinless chicken breast, eggs, fish, lentils, millets, and fiber-rich cruciferous vegetables in daily meals.";
+
+    list.push({
+      id: "sug_follow",
+      key: "follow",
+      iconType: "Leaf",
+      category: "Foods to Follow",
+      title: followTitle,
+      description: followDesc,
+    });
+
+    // 3. Exercise & Physical Activity
     const goal = prof.goal || "Maintain Weight";
-    const bmi = prof.bmi ? prof.bmi.toFixed(1) : null;
-    let proteinTitle = "Balanced Macronutrient Target";
-    let proteinDesc = `Prescribe 1.0–1.2g protein/kg body weight with a 50% complex carbs, 25% lean protein, 25% healthy fats ratio to sustain metabolic homeostasis.`;
+    const activity = prof.activity_level || "Sedentary";
+    let exerciseTitle = "Daily 30–45 Min Cardio & Steps";
+    let exerciseDesc = "Aim for 8,000–10,000 daily steps along with 30 minutes of brisk walking or moderate cycling 5 days a week.";
 
-    if (goal === "Lose Weight" || (bmi && Number(bmi) > 25)) {
-      proteinTitle = "Caloric Deficit & Satiety Protein";
-      proteinDesc = `Prescribe a moderate 350–500 kcal daily deficit with 1.2–1.5g protein/kg to safeguard lean muscle mass while accelerating adipose reduction and appetite satiety.`;
+    if (goal === "Lose Weight") {
+      exerciseTitle = "Cardio + Caloric Burn Circuit";
+      exerciseDesc = "Engage in 35–45 minutes of brisk walking/jogging 5 days/week plus 2 days of bodyweight resistance training.";
     } else if (goal === "Build Muscle") {
-      proteinTitle = "High Protein & Anabolic Timing";
-      proteinDesc = `Target 1.6–2.0g protein/kg daily with post-workout carbohydrate replenishment. Ensure balanced leucine-rich meals evenly spaced every 3–4 hours.`;
+      exerciseTitle = "Progressive Resistance Training";
+      exerciseDesc = "Perform 45 minutes of hypertrophy-focused weight training 4–5 days/week targeting major muscle groups with adequate rest.";
+    } else if (activity === "Sedentary") {
+      exerciseTitle = "Low-Impact Daily Movement";
+      exerciseDesc = "Start with 25–30 minutes of continuous brisk walking daily and take 5-minute movement breaks every hour.";
     }
+
     list.push({
-      id: "sug_protein",
-      key: "protein",
-      iconType: goal === "Lose Weight" ? "Target" : goal === "Build Muscle" ? "Flame" : "Sparkles",
-      category: "Energy Balance & Macros",
-      title: proteinTitle,
-      description: proteinDesc,
+      id: "sug_exercise",
+      key: "exercise",
+      iconType: "Flame",
+      category: "Exercise & Activity",
+      title: exerciseTitle,
+      description: exerciseDesc,
     });
 
-    // Pillar 4: Micronutrients, Mineral Fortification & Hydration
-    const hasDeficiency = rep && (rep.vitamin_d3 < 25 || rep.vitamin_b12 < 250 || rep.hemoglobin < 12 || rep.uric_acid > 6.5);
-    let microTitle = "Cellular Hydration & Micronutrients";
-    let microDesc = `Ensure 2.5–3.0L structured daily hydration. Integrate antioxidant-dense rainbow vegetables, berries, and citrus for immune optimization and cellular recovery.`;
+    // 4. Lifestyle & Hydration
+    let lifeTitle = "Structured Hydration & Sleep Rhythm";
+    let lifeDesc = "Drink 2.5–3.0 liters of water daily, maintain regular meal timings, and get 7–8 hours of restorative sleep.";
 
-    if (hasDeficiency) {
-      microTitle = "Targeted Micronutrient & Mineral Support";
-      const notes = [];
-      if (rep.vitamin_d3 && rep.vitamin_d3 < 25) notes.push(`Vitamin D3 low (${rep.vitamin_d3} ng/mL)`);
-      if (rep.vitamin_b12 && rep.vitamin_b12 < 250) notes.push(`B12 low (${rep.vitamin_b12} pg/mL)`);
-      if (rep.hemoglobin && rep.hemoglobin < 12) notes.push(`Hb low (${rep.hemoglobin} g/dL)`);
-      if (rep.uric_acid && rep.uric_acid > 6.5) notes.push(`Uric acid high (${rep.uric_acid} mg/dL - low purine needed)`);
-      microDesc = `Clinical lab markers indicate attention needed: ${notes.join(", ")}. Prioritize fortified sources, iron-rich greens with vitamin C, and clinician-guided supplementation.`;
+    if (rep && (rep.vitamin_d3 < 25 || rep.vitamin_b12 < 250)) {
+      lifeTitle = "Hydration, Sun Exposure & Recovery";
+      lifeDesc = "Maintain 3L daily hydration, take 15–20 minutes of morning sunlight for Vitamin D3, and ensure consistent meal timings.";
     }
+
     list.push({
-      id: "sug_micros",
-      key: "micros",
-      iconType: rep?.hemoglobin < 12 ? "Anchor" : rep?.uric_acid > 6.5 ? "Ban" : "Sun",
-      category: "Micronutrients & Recovery",
-      title: microTitle,
-      description: microDesc,
+      id: "sug_lifestyle",
+      key: "lifestyle",
+      iconType: "Droplets",
+      category: "Lifestyle & Hydration",
+      title: lifeTitle,
+      description: lifeDesc,
     });
 
     return list;
   }, []);
 
-  // Initialize suggestions from local storage or default synthesis
+  // Initialize / sync suggestions from current diet plan or smart synthesis
   useEffect(() => {
-    if (!id) return;
-    const storageKey = `trackintake_ai_suggestions_${id}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 4) {
-          setAiSuggestions(parsed);
-          return;
+    const currentPlan = diets?.[0];
+    if (currentPlan) {
+      const planSuggestions = currentPlan.meals?.suggestions || currentPlan.original_ai_plan?.suggestions;
+      if (Array.isArray(planSuggestions) && planSuggestions.length > 0) {
+        setAiSuggestions(planSuggestions);
+        return;
+      }
+    }
+    if (id) {
+      const storageKey = `trackintake_ai_suggestions_${id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length >= 4) {
+            setAiSuggestions(parsed);
+            return;
+          }
+        } catch {
+          // continue
         }
-      } catch {
-        // continue
       }
     }
     // If not saved or less than 4, generate initial smart 4 suggestions
@@ -371,132 +396,48 @@ const PatientDetailsPage = () => {
       const initialList = getSmartFallbackSuggestions(profile, labReports?.[0]);
       setAiSuggestions(initialList);
     }
-  }, [id, profile, labReports, getSmartFallbackSuggestions]);
+  }, [diets, id, profile, labReports, getSmartFallbackSuggestions]);
 
-  // Persist suggestions on change
-  const updateSuggestions = (newList) => {
+  // Persist suggestions on change (locally & to active backend diet plan)
+  const updateSuggestions = async (newList) => {
     setAiSuggestions(newList);
     if (id) {
       localStorage.setItem(`trackintake_ai_suggestions_${id}`, JSON.stringify(newList));
     }
+    const currentPlanId = diets?.[0]?.id;
+    if (currentPlanId) {
+      try {
+        await editDiet(currentPlanId, { suggestions: newList });
+        setDiets((prev) =>
+          prev.map((d) =>
+            d.id === currentPlanId
+              ? { ...d, meals: { ...(d.meals || {}), suggestions: newList } }
+              : d
+          )
+        );
+      } catch (err) {
+        console.warn("Could not sync suggestions to backend plan:", err);
+      }
+    }
   };
 
-  // Generate suggestions via Google Gemini LLM
-  const handleGenerateLLMSuggestions = async () => {
-    setIsGeneratingSuggestions(true);
-    const latestReport = labReports?.[0];
-
-    const clinicalContext = {
-      patient_name: profile?.full_name || "Patient",
-      age: profile?.age || "N/A",
-      gender: profile?.gender || "N/A",
-      bmi: profile?.bmi?.toFixed(1) || "N/A",
-      primary_goal: profile?.goal || "General Health",
-      activity_level: profile?.activity_level || "Moderate",
-      diet_type: profile?.diet_type || "Standard",
-      allergies: profile?.allergies || "None",
-      is_diabetic: profile?.is_diabetic || false,
-      is_hypertensive: profile?.is_hypertensive || false,
-      medical_history: profile?.medical_history || "None reported",
-      biomarkers: latestReport ? {
-        fasting_glucose: latestReport.fasting_blood_sugar,
-        post_meal_glucose: latestReport.post_meal_blood_sugar,
-        hba1c: latestReport.hba1c,
-        cholesterol: latestReport.total_cholesterol,
-        ldl: latestReport.ldl_cholesterol,
-        hdl: latestReport.hdl_cholesterol,
-        triglycerides: latestReport.triglycerides,
-        hemoglobin: latestReport.hemoglobin,
-        uric_acid: latestReport.uric_acid,
-        vitamin_d3: latestReport.vitamin_d3,
-        vitamin_b12: latestReport.vitamin_b12,
-        tsh: latestReport.tsh,
-      } : "No lab report provided",
-    };
-
-    const prompt = `You are a Senior Clinical Nutritionist. Analyze this patient profile and clinical lab biomarkers:
-${JSON.stringify(clinicalContext, null, 2)}
-
-Provide EXACTLY 4 targeted, actionable, evidence-based clinical diet and nutrition suggestions for this specific patient:
-1. Card 1: Glycemic & Metabolic Strategy (Low GI, carb quality, fiber)
-2. Card 2: Cardiovascular Health & Lipid Management (Sodium, healthy fats, blood pressure)
-3. Card 3: Protein Targets & Caloric Energy Distribution (Based on patient goal, BMI, activity)
-4. Card 4: Micronutrients, Mineral Fortification & Hydration (Vitamins D3/B12, iron, hydration)
-
-You MUST reply ONLY with a valid JSON array of EXACTLY 4 objects. Do not include markdown code block syntax outside the JSON.
-Each object must have this exact structure:
-[
-  {
-    "id": "sug_1",
-    "key": "glycemic",
-    "iconType": "Leaf",
-    "category": "Metabolic & Glycemic",
-    "title": "Concise Clinical Recommendation Title",
-    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
-  },
-  {
-    "id": "sug_2",
-    "key": "cardio",
-    "iconType": "Heart",
-    "category": "Cardiovascular Health",
-    "title": "Concise Clinical Recommendation Title",
-    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
-  },
-  {
-    "id": "sug_3",
-    "key": "protein",
-    "iconType": "Target",
-    "category": "Energy Balance & Macros",
-    "title": "Concise Clinical Recommendation Title",
-    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
-  },
-  {
-    "id": "sug_4",
-    "key": "micros",
-    "iconType": "Sun",
-    "category": "Micronutrients & Recovery",
-    "title": "Concise Clinical Recommendation Title",
-    "description": "Specific, practical clinical advice referencing their actual vitals, lab numbers, and dietary goals."
-  }
-]`;
-
-    try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDj2OzDZX-nwDUR9EO7Y9g4-11EdCVHlB4");
-      const modelNames = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
-      let generatedText = "";
-
-      for (const modelName of modelNames) {
-        try {
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent(prompt);
-          const txt = result.response.text();
-          if (txt) {
-            generatedText = txt;
-            break;
-          }
-        } catch (err) {
-          console.warn(`Model ${modelName} failed for suggestions:`, err);
-        }
-      }
-
-      if (generatedText) {
-        let cleanJson = generatedText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        const parsed = JSON.parse(cleanJson);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          updateSuggestions(parsed);
-          toast.success("4 AI clinical suggestions generated successfully!");
-          return;
-        }
-      }
-      throw new Error("Invalid LLM response format");
-    } catch (err) {
-      console.warn("Gemini generation fallback used:", err);
-      const fallbackList = getSmartFallbackSuggestions(profile, latestReport);
-      updateSuggestions(fallbackList);
-      toast.info("Generated 4 clinical suggestions using biomarker analysis.");
-    } finally {
-      setIsGeneratingSuggestions(false);
+  const handleResetSuggestions = async () => {
+    if (!window.confirm("Reset suggestions to original AI clinical recommendations?")) {
+      return;
     }
+    if (id) {
+      localStorage.removeItem(`trackintake_ai_suggestions_${id}`);
+    }
+    const currentPlan = diets?.[0];
+    const originalSugs = currentPlan?.original_ai_plan?.suggestions;
+    let freshList = [];
+    if (Array.isArray(originalSugs) && originalSugs.length > 0) {
+      freshList = originalSugs;
+    } else if (profile && profile.full_name) {
+      freshList = getSmartFallbackSuggestions(profile, labReports?.[0]);
+    }
+    updateSuggestions(freshList);
+    toast.success("Suggestions reset to defaults!");
   };
 
   const handleOpenAddSuggestion = () => {
@@ -506,7 +447,7 @@ Each object must have this exact structure:
       index: null,
       form: {
         title: "",
-        category: "Clinical Strategy",
+        category: "Foods to Avoid",
         description: "",
       },
     });
@@ -735,6 +676,12 @@ Each object must have this exact structure:
     }
     return false; // Default to false if no diet is being displayed
   }, [diets]);
+
+  const latestActiveDietPlan = useMemo(() => {
+    return allDietPlans.find(
+      (p) => !p.is_deleted && (p.status === "approved" || p.status === "active")
+    );
+  }, [allDietPlans]);
 
 
   useEffect(() => {
@@ -1065,6 +1012,16 @@ Each object must have this exact structure:
       if (planDays.length > 0) {
         setActiveDayPerDiet((prev) => ({ ...prev, [planToDisplay.id]: planDays[0] }));
       }
+      const planSugs = planToDisplay.meals?.suggestions || planToDisplay.original_ai_plan?.suggestions;
+      if (Array.isArray(planSugs) && planSugs.length > 0) {
+        setAiSuggestions(planSugs);
+        if (id) {
+          localStorage.setItem(`trackintake_ai_suggestions_${id}`, JSON.stringify(planSugs));
+        }
+      } else if (profile && profile.full_name) {
+        const fallback = getSmartFallbackSuggestions(profile, labReports?.[0]);
+        setAiSuggestions(fallback);
+      }
       setComment("");
       setEditingDay(null);
     }
@@ -1090,45 +1047,21 @@ Each object must have this exact structure:
     }
   };
 
-  const handleDeletePlan = async (dietId) => {
-    await handleArchivePlan(dietId);
-  };
-
-  const handleArchivePlan = async (dietId) => {
-    if (window.confirm("Are you sure you want to archive this diet plan? It can be restored later.")) {
-      setIsArchiving(dietId);
+  const handleDisablePlan = async (dietId) => {
+    if (window.confirm("Are you sure you want to disable this active diet plan?")) {
+      setIsDisablingPlan(dietId);
       try {
         await archiveDietPlan(dietId);
-        toast.success("Diet plan archived successfully!");
+        toast.success("Diet plan disabled successfully!");
         // Re-fetch all plans to update the UI
         const { latestPlan } = await fetchAndSetAllPlans();
-        setDiets(latestPlan ? [latestPlan] : []); // Display the new latest non-archived plan
+        setDiets(latestPlan ? [latestPlan] : []);
         setSelectedPlanId(latestPlan ? latestPlan.id : null);
       } catch (err) {
-        console.error("Failed to archive diet plan:", err);
-        toast.error("Failed to archive plan.");
+        console.error("Failed to disable diet plan:", err);
+        toast.error("Failed to disable plan.");
       } finally {
-        setIsArchiving(null);
-      }
-    }
-  };
-
-  // --- [NEW] handleRestorePlan function ---
-  const handleRestorePlan = async (dietId) => {
-    if (window.confirm("Are you sure you want to restore this diet plan?")) {
-      setIsArchiving(dietId);
-      try {
-        await restoreDietPlan(dietId);
-        toast.success("Diet plan restored successfully!");
-        // Re-fetch all plans to update the UI
-        const { latestPlan } = await fetchAndSetAllPlans();
-        setDiets(latestPlan ? [latestPlan] : []); // Display the new latest non-archived plan
-        setSelectedPlanId(latestPlan ? latestPlan.id : null);
-      } catch (err) {
-        console.error("Failed to restore diet plan:", err);
-        toast.error("Failed to restore plan.");
-      } finally {
-        setIsArchiving(null);
+        setIsDisablingPlan(null);
       }
     }
   };
@@ -1218,7 +1151,6 @@ Each object must have this exact structure:
   };
 
   // --- [CORRECTED] handleGenerateDiet with polling for real-time updates ---
-  // --- [MODIFIED] handleGenerateDiet with delayed fetch instead of polling ---
   const handleGenerateDiet = async () => {
     if (
       !window.confirm(
@@ -1229,18 +1161,18 @@ Each object must have this exact structure:
     }
 
     setIsGenerating(true);
-
-    // Also trigger 4 AI clinical suggestions generation alongside diet plan
-    if (!isGeneratingSuggestions) {
-      handleGenerateLLMSuggestions();
+    // Immediately clear suggestions for the generating session
+    if (id) {
+      localStorage.removeItem(`trackintake_ai_suggestions_${id}`);
     }
+    setAiSuggestions([]);
 
     try {
       // 1️⃣ Backend returns placeholder plan immediately
       const res = await generateDietPlan(id);
       const placeholderPlan = res.data;
 
-      toast.info("AI generation started...");
+      toast.info("AI generation started in background...");
 
       // Show placeholder immediately
       setDiets([placeholderPlan]);
@@ -1248,8 +1180,8 @@ Each object must have this exact structure:
 
       const planId = placeholderPlan.id;
 
-      const POLL_INTERVAL = 8000;   // 8 seconds
-      const MAX_ATTEMPTS = 25;      // ~3 minutes max
+      const POLL_INTERVAL = 1500;   // 1.5 seconds for instant UI update
+      const MAX_ATTEMPTS = 60;      // ~90 seconds max
       let attempts = 0;
 
       const poll = async () => {
@@ -1270,9 +1202,19 @@ Each object must have this exact structure:
           }
 
           // ✅ SUCCESS
-          if (updatedPlan.status === "pending") {
+          if (updatedPlan.status === "pending" || updatedPlan.status === "approved") {
             toast.success("Diet plan generated successfully!");
             setDiets([updatedPlan]);
+            const newSugs = updatedPlan.meals?.suggestions || updatedPlan.original_ai_plan?.suggestions;
+            if (Array.isArray(newSugs) && newSugs.length > 0) {
+              setAiSuggestions(newSugs);
+              if (id) {
+                localStorage.setItem(`trackintake_ai_suggestions_${id}`, JSON.stringify(newSugs));
+              }
+            } else if (profile && profile.full_name) {
+              const fallback = getSmartFallbackSuggestions(profile, labReports?.[0]);
+              setAiSuggestions(fallback);
+            }
             setIsGenerating(false);
             return;
           }
@@ -1302,7 +1244,7 @@ Each object must have this exact structure:
         }
       };
 
-      setTimeout(poll, POLL_INTERVAL);
+      setTimeout(poll, 1200);
 
     } catch (err) {
       toast.error(
@@ -2263,8 +2205,7 @@ Each object must have this exact structure:
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[var(--color-border-default)]">
                               <div>
                                 <h3 className="text-base sm:text-lg font-[var(--font-primary)] font-extrabold text-[var(--color-text-strong)] flex items-center gap-2">
-                                  <Sparkles size={18} className="text-amber-500" />
-                                  <span>AI Clinical Suggestions & Strategy for {profile.full_name}</span>
+                                  <span>Clinical Suggestions & Strategy for {profile.full_name}</span>
                                   <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20">
                                     4 Quick Suggestions
                                   </span>
@@ -2277,18 +2218,12 @@ Each object must have this exact structure:
                               <div className="flex items-center gap-2 flex-wrap">
                                 <button
                                   type="button"
-                                  disabled={isGeneratingSuggestions}
-                                  onClick={handleGenerateLLMSuggestions}
-                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                                  onClick={handleResetSuggestions}
+                                  title="Reset clinical suggestions to original AI synthesized defaults"
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-interactive-subtle)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all cursor-pointer shadow-2xs"
                                 >
-                                  {isGeneratingSuggestions ? (
-                                    <Loader2 size={13} className="animate-spin" />
-                                  ) : (
-                                    <RotateCcw size={13} />
-                                  )}
-                                  {isGeneratingSuggestions ? "Analyzing..." : "⚡ Regenerate 4 AI"}
+                                  <RotateCcw size={12} /> Reset to Defaults
                                 </button>
-
                                 <button
                                   type="button"
                                   onClick={handleOpenAddSuggestion}
@@ -2391,9 +2326,8 @@ Each object must have this exact structure:
                             className="w-full max-w-lg bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl p-6 space-y-4"
                           >
                             <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border-default)]">
-                              <h3 className="text-base font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)] flex items-center gap-2">
-                                <Sparkles size={16} className="text-[var(--color-primary)]" />
-                                {suggestionModal.isNew ? "Add Custom Clinical Suggestion" : "Edit AI Suggestion"}
+                              <h3 className="text-base font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+                                {suggestionModal.isNew ? "Add Custom Clinical Suggestion" : "Edit Clinical Suggestion"}
                               </h3>
                               <button
                                 type="button"
@@ -2427,6 +2361,32 @@ Each object must have this exact structure:
                                 <label className="block text-xs font-bold text-[var(--color-text-strong)] mb-1">
                                   Category / Clinical Pillar
                                 </label>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  {[
+                                    "Foods to Avoid",
+                                    "Foods to Follow",
+                                    "Exercise & Activity",
+                                    "Lifestyle & Hydration",
+                                  ].map((cat) => (
+                                    <button
+                                      key={cat}
+                                      type="button"
+                                      onClick={() =>
+                                        setSuggestionModal((prev) => ({
+                                          ...prev,
+                                          form: { ...prev.form, category: cat },
+                                        }))
+                                      }
+                                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all cursor-pointer ${
+                                        suggestionModal.form.category === cat
+                                          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                                          : "bg-[var(--color-bg-app)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:border-[var(--color-primary)]/50"
+                                      }`}
+                                    >
+                                      {cat}
+                                    </button>
+                                  ))}
+                                </div>
                                 <input
                                   type="text"
                                   value={suggestionModal.form.category}
@@ -2436,12 +2396,9 @@ Each object must have this exact structure:
                                       form: { ...prev.form, category: e.target.value },
                                     }))
                                   }
-                                  placeholder="e.g., Glycemic Management / Cardiovascular / Macros"
+                                  placeholder="e.g., Foods to Avoid / Foods to Follow / Exercise & Activity"
                                   className="w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none"
                                 />
-                                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
-                                  ✨ Icon is automatically matched based on the clinical category and recommendation text.
-                                </p>
                               </div>
 
                               <div>
@@ -2612,50 +2569,20 @@ Each object must have this exact structure:
                                     : diet.status}
                                 </span>
 
-                                {!diet.is_deleted ? (
+                                {!diet.is_deleted && (diet.status === "approved" || diet.status === "active") && (!latestActiveDietPlan || diet.id === latestActiveDietPlan.id) && (
                                   <button
-                                    onClick={() => handleArchivePlan(diet.id)}
-                                    disabled={isArchiving === diet.id}
-                                    className="p-2 text-sm text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] rounded-lg hover:bg-[var(--color-info-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Archive Plan"
-                                    aria-label={`Archive plan ${diet.id}`}
+                                    onClick={() => handleDisablePlan(diet.id)}
+                                    disabled={isDisablingPlan === diet.id}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-text)] bg-[var(--color-danger-bg-subtle)] border border-[var(--color-danger-border)] hover:bg-[var(--color-danger-bg)] hover:text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                    title="Disable Plan"
+                                    aria-label={`Disable plan ${diet.id}`}
                                   >
-                                    {isArchiving === diet.id ? (
+                                    {isDisablingPlan === diet.id ? (
                                       <FaSpinner className="animate-spin" />
                                     ) : (
-                                      <FaArchive />
+                                      <Ban className="w-3.5 h-3.5" />
                                     )}
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleRestorePlan(diet.id)}
-                                    disabled={isArchiving === diet.id}
-                                    className="p-2 text-sm text-[var(--color-success-text)] bg-[var(--color-success-bg-subtle)] rounded-lg hover:bg-[var(--color-success-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Restore Plan"
-                                    aria-label={`Restore plan ${diet.id}`}
-                                  >
-                                    {isArchiving === diet.id ? (
-                                      <FaSpinner className="animate-spin" />
-                                    ) : (
-                                      <FaUndo />
-                                    )}
-                                  </button>
-                                )}
-
-                                {!diet.is_deleted && diet.status !== "rejected" && (
-                                  <button
-                                    onClick={() => handleDeletePlan(diet.id)}
-                                    disabled={
-                                      deletingPlanId === diet.id || isReviewing
-                                    }
-                                    className="p-2 text-sm text-[var(--color-danger-text)] bg-[var(--color-danger-bg-subtle)] rounded-lg hover:bg-[var(--color-danger-bg)] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Delete / Archive Plan"
-                                  >
-                                    {deletingPlanId === diet.id ? (
-                                      <FaSpinner className="animate-spin" />
-                                    ) : (
-                                      <FaTrashAlt />
-                                    )}
+                                    <span>Disable</span>
                                   </button>
                                 )}
                               </div>
