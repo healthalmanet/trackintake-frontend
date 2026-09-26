@@ -106,7 +106,7 @@ const FoodAutocompleteInput = ({
             )}
 
             {!loading && isOpen && results?.length > 0 && (
-                <ul className="absolute left-0 right-0 mt-1 z-50 bg-white border border-[var(--color-border-default)] rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                <ul className="absolute left-0 right-0 mt-1 z-50 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl max-h-56 overflow-y-auto divide-y divide-[var(--color-border-default)]/30">
                     {results.map((result, index) => (
                         <li
                             key={String(result.id)}
@@ -114,12 +114,17 @@ const FoodAutocompleteInput = ({
                             tabIndex={0}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => handleSelectResult(result)}
-                            className={`px-3 py-2 text-sm font-medium cursor-pointer transition-colors ${highlightedIndex === index
-                                ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
-                                : "text-[var(--color-text-default)] hover:bg-gray-50"
+                            className={`px-3.5 py-2.5 text-sm cursor-pointer transition-colors flex items-center justify-between gap-2 ${highlightedIndex === index
+                                ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-semibold"
+                                : "text-[var(--color-text-default)] hover:bg-[var(--color-bg-app)]"
                                 }`}
                         >
-                            {result.name}
+                            <span className="font-medium text-[var(--color-text-strong)] truncate">{result.name}</span>
+                            {result.serving_hint && (
+                                <span className="text-[11px] text-[var(--color-text-muted)] font-normal whitespace-nowrap bg-[var(--color-bg-app)] px-2 py-0.5 rounded-full border border-[var(--color-border-default)]/50">
+                                    {result.serving_hint}
+                                </span>
+                            )}
                         </li>
                     ))}
                 </ul>

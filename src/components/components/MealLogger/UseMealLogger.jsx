@@ -1,7 +1,7 @@
 // src/components/dashboard/UseMealLogger.js
 
 import { useEffect, useState, useCallback } from "react";
-import { getMeals, createMeal, deleteMeal, getMealsByDate, patchMeal, getFoodWithAttributes, createMealWithAttributes, searchFoods } from "../../../api/mealLog";
+import { getMeals, createMeal, deleteMeal, getMealsByDate, patchMeal, searchFoods, getRecentMeals } from "../../../api/mealLog";
 import { toast } from "react-hot-toast";
 import { CheckCircle, AlertTriangle, CircleHelp } from "lucide-react";
 import React from "react";
@@ -20,19 +20,43 @@ const getLocalDateString = (date) => {
 const useMealLogger = () => {
   // --- All useState hooks are called unconditionally at the top level ---
   // === Changes made by Ananya (Start) ===
-  const getInitialFoodInput = () => ({
-    id: Date.now(),
-    foodId: "",
-    name: "",
-    unit: "",
-    quantity: "",
-    remark: "",
-    portionSize: "",
-    logDate: '',
-    logTime: '',
-    mealType: 'Breakfast',
-  });
-  // === Changes made by Ananya (End) ===
+  // Auto-select meal type based on current time
+  const getMealTypeByTime = () => {
+    const h = new Date().getHours();
+    if (h >= 5  && h < 9)  return 'Early-Morning';
+    if (h >= 9  && h < 11) return 'Breakfast';
+    if (h >= 11 && h < 12) return 'Mid-Morning Snack';
+    if (h >= 12 && h < 15) return 'Lunch';
+    if (h >= 15 && h < 18) return 'Afternoon Snack';
+    if (h >= 18 && h < 21) return 'Dinner';
+    return 'Bedtime';
+  };
+
+  const getInitialFoodInput = (customDate = null, customTime = null, customMealType = null) => {
+    const now = new Date();
+    const currentDate = customDate || getLocalDateString(now);
+    const currentTime = customTime || now.toTimeString().slice(0, 5);
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 7)}`,
+      foodId: "",
+      name: "",
+      unit: "Bowl",
+      quantity: "1",
+      remark: "",
+      portionSize: "Medium",
+      logDate: currentDate,
+      logTime: currentTime,
+      mealType: customMealType || getMealTypeByTime(),
+      // New exact override fields
+      exact_grams: '',
+      exact_ml: '',
+      showExactOverride: false,
+      // Serving hint from search (for live preview)
+      gramEquivalent: null,
+      caloriesPerServing: null,
+      defaultUnit: null,
+    };
+  };
 
   const [foodInputs, setFoodInputs] = useState([getInitialFoodInput()]);
   const [loggedMeals, setLoggedMeals] = useState([]);
@@ -41,36 +65,47 @@ const useMealLogger = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [editingMeal, setEditingMeal] = useState(null);
-  // NEW: Attributes state for food attributes system
-  const [foodAttributes, setFoodAttributes] = useState({});
-  const [selectedAttributes, setSelectedAttributes] = useState({});
-  const [attributeLoading, setAttributeLoading] = useState({});
 
   // Search/autocomplete state (keep these near the top so callbacks can reference them)
   const [foodSearchResults, setFoodSearchResults] = useState({}); // { [index]: [{id,name,has_attributes}] }
   const [foodSearchLoading, setFoodSearchLoading] = useState({});
   const [foodSearchQuery, setFoodSearchQuery] = useState({});
 
-  const unitOptions = [//ananya
-    "Gram",
-    "Kilogram",
-    "Milliliters",
-    "Liters",
-    "Glass",
-    "Cup",
-    "Bowl",
-    "Piece",
-    "Tbsp",
-    "Tsp",
-    "Slice",
-    "Plate",
-    "Handful",
-    "Pinch",
-    "Dash",
-    "Sprinkle",
-    "Other"
+  const [recentMeals, setRecentMeals] = useState([]);
+
+  const unitOptions = [
+    // --- Exact ---
+    "Gram", "Kilogram", "Milliliter", "Liter",
+    // --- Bowl ---
+    "Small Bowl", "Bowl", "Big Bowl",
+    // --- Plate ---
+    "Small Plate", "Plate", "Big Plate",
+    // --- Glass ---
+    "Small Glass", "Glass", "Large Glass",
+    // --- Cup ---
+    "Small Cup", "Cup",
+    // --- Piece ---
+    "Small Piece", "Piece", "Large Piece",
+    // --- Slice & Spoon ---
+    "Slice", "Tbsp", "Tsp",
+    // --- Indian ---
+    "Katori", "Vati", "Karchi", "Muthhi", "Handful", "Thali",
+    // --- Misc ---
+    "Pinch", "Other",
   ];
   const mealTypeOptions = ["Early-Morning", "Breakfast", "Mid-Morning Snack", "Lunch", "Afternoon Snack", "Dinner", "Bedtime"];
+
+  // Fetch recent meals for quick re-log chips
+  const fetchRecentMeals = useCallback(async () => {
+    try {
+      const data = await getRecentMeals();
+      setRecentMeals(data?.recent || []);
+    } catch (e) {
+      // silently fail — recent meals are a convenience feature
+    }
+  }, []);
+
+  useEffect(() => { fetchRecentMeals(); }, [fetchRecentMeals]);
 
   // --- All useEffect and useCallback hooks are also called unconditionally ---
   useEffect(() => {
@@ -179,76 +214,44 @@ const useMealLogger = () => {
         searchDate,
       });
 
-      // NEW: Validate attributes for all inputs
-      for (let idx = 0; idx < foodInputs.length; idx++) {
+      const getMealPayload = (input, consumedAt) => {
+        let finalQty = parseFloat(input.quantity) || 1;
+        let finalUnit = input.unit || "Bowl";
+        let finalRemarks = input.remark || "";
 
-        if (foodInputs[idx].name && foodInputs[idx].quantity && foodInputs[idx].unit) {
-          const attrValidation = validateAttributes(idx);
-          if (!attrValidation.valid) {
-            toast.error(attrValidation.message, { icon: <AlertTriangle className="text-[var(--color-danger-text)]" /> });
-            setIsSubmitting(false);
-            return;
-          }
+        if (input.exact_grams && parseFloat(input.exact_grams) > 0) {
+          finalQty = parseFloat(input.exact_grams);
+          finalUnit = "Gram";
+        } else if (input.exact_ml && parseFloat(input.exact_ml) > 0) {
+          finalQty = parseFloat(input.exact_ml);
+          finalUnit = "Milliliters";
         }
-      }
 
-      // Logic using `editingMeal` happens AFTER all hooks are defined
-      if (editingMeal) {
-        const input = allInputs[0];
-        const consumedAt = new Date(`${input.logDate}T${input.logTime}:00`).toISOString();
-        await patchMeal(editingMeal.id, {
+        return {
           food_name: input.name,
-          quantity: parseFloat(input.quantity),
-          unit: input.unit,
+          quantity: finalQty,
+          unit: finalUnit,
           meal_type: input.mealType,
-          remarks: input.remark,
+          remarks: finalRemarks,
           ...(input.portionSize && { portion_size: input.portionSize }),
           date: input.logDate,
           consumed_at: consumedAt,
-        }, token);
+        };
+      };
+
+      if (editingMeal) {
+        const input = allInputs[0];
+        const consumedAt = new Date(`${input.logDate}T${input.logTime}:00`).toISOString();
+        await patchMeal(editingMeal.id, getMealPayload(input, consumedAt), token);
         toast.success("Meal updated successfully!", { icon: <CheckCircle className="text-[var(--color-success-text)]" /> });
         setEditingMeal(null);
       } else {
-        for (let idx = 0; idx < allInputs.length; idx++) {
-          const input = allInputs[idx];
+        const payloads = allInputs.map((input) => {
           const consumedAt = new Date(`${input.logDate}T${input.logTime}:00`).toISOString();
+          return getMealPayload(input, consumedAt);
+        });
 
-          // NEW: Check if this food has attributes
-          const attrs = foodAttributes[idx] || [];
-          if (attrs.length > 0) {
-            // Use new endpoint that includes attributes
-            const attributesArray = Object.entries(selectedAttributes[idx] || {}).map(([attributeId, optionId]) => ({
-              attribute_id: parseInt(attributeId),
-              option_id: optionId
-            }));
-
-            console.log("[MealLogger] About to createMealWithAttributes", { idx, input: { name: input.name, logDate: input.logDate, logTime: input.logTime } });
-            await createMealWithAttributes({
-              food_name: input.name,
-
-              quantity: parseFloat(input.quantity),
-              unit: input.unit,
-              meal_type: input.mealType,
-              remarks: input.remark,
-              ...(input.portionSize && { portion_size: input.portionSize }),
-              date: input.logDate,
-              consumed_at: consumedAt,
-              attributes: attributesArray
-            });
-          } else {
-            // Fall back to basic meal logging for foods without attributes
-            await createMeal({
-              food_name: input.name,
-              quantity: parseFloat(input.quantity),
-              unit: input.unit,
-              meal_type: input.mealType,
-              remarks: input.remark,
-              ...(input.portionSize && { portion_size: input.portionSize }),
-              date: input.logDate,
-              consumed_at: consumedAt,
-            }, token);
-          }
-        }
+        await createMeal(payloads.length === 1 ? payloads[0] : payloads, token);
         toast.success(`${allInputs.length} Meal(s) logged successfully!`, { icon: <CheckCircle className="text-[var(--color-success-text)]" /> });
       }
 
@@ -265,9 +268,6 @@ const useMealLogger = () => {
         await fetchMeals();
       }
       setFoodInputs([getInitialFoodInput()]);
-      // NEW: Clear attributes after successful submission
-      setFoodAttributes({});
-      setSelectedAttributes({});
     } catch (err) {
       toast.error("Failed to save meal(s).", { icon: <AlertTriangle className="text-[var(--color-danger-text)]" /> });
     } finally {
@@ -277,16 +277,37 @@ const useMealLogger = () => {
 
   const handleEditMeal = (meal) => {
     setEditingMeal(meal);
+    const isGram = (meal?.unit || "").toLowerCase() === "gram" || (meal?.unit || "").toLowerCase() === "g";
+    const isMl = ["milliliters", "milliliter", "ml"].includes((meal?.unit || "").toLowerCase());
+
+    const safeDate = meal?.date || (meal?.consumed_at ? new Date(meal.consumed_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+    let safeTime = "12:00";
+    try {
+      if (meal?.consumed_at) {
+        safeTime = new Date(meal.consumed_at).toTimeString().slice(0, 5);
+      } else {
+        safeTime = new Date().toTimeString().slice(0, 5);
+      }
+    } catch {
+      safeTime = new Date().toTimeString().slice(0, 5);
+    }
+
     setFoodInputs([{
       id: meal.id,
       name: meal.food_name_display || meal.food_name || "",
-      quantity: meal.quantity,
-      unit: meal.unit,
-      remark: meal.remarks,
+      foodId: meal.food_item ? String(meal.food_item) : (meal.food_item_id ? String(meal.food_item_id) : ""),
+      quantity: meal.quantity || 1,
+      unit: meal.unit || "Bowl",
+      exact_grams: isGram ? String(meal.quantity) : "",
+      exact_ml: isMl ? String(meal.quantity) : "",
+      showExactOverride: isGram || isMl,
+      remark: meal.remarks || "",
       portionSize: meal.selected_size || meal.portion_size || "",
-      logDate: meal.date,
-      logTime: new Date(meal.consumed_at).toTimeString().slice(0, 5),
-      mealType: meal.meal_type,
+      logDate: safeDate,
+      logTime: safeTime,
+      mealType: meal.meal_type || "Lunch",
+      gramEquivalent: meal.gram_equivalent ?? null,
+      caloriesPerServing: meal.calories ?? null,
     }]);
   };
 
@@ -295,190 +316,43 @@ const useMealLogger = () => {
     setFoodInputs([getInitialFoodInput()]);
   };
 
-  // NEW: Fetch attributes ONLY when a valid numeric foodId is available
-  const fetchFoodAttributes = useCallback(async (foodIdentifier, inputIndex) => {
-    if (!foodIdentifier || foodIdentifier.trim() === "") {
-      console.log(`[Attributes] Clearing attributes for index ${inputIndex}`);
-      setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
-      setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
-      return;
-    }
-
-    console.log(`[Attributes] Fetching attributes for: "${foodIdentifier}" (index: ${inputIndex})`);
-    setAttributeLoading(prev => ({ ...prev, [inputIndex]: true }));
-
-    try {
-      const food = await getFoodWithAttributes(foodIdentifier);
-      console.log(`[Attributes] API Response:`, food);
-
-      if (food && Array.isArray(food.attributes) && food.attributes.length > 0) {
-        console.log(`[Attributes] ✅ Found ${food.attributes.length} attributes`);
-        setFoodAttributes(prev => ({ ...prev, [inputIndex]: food.attributes }));
-        setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-        toast.success(`Found ${food.attributes.length} attribute(s) for ${food.name || foodIdentifier}`, {
-          duration: 2,
-          position: "bottom-right"
-        });
-      } else {
-        console.log(`[Attributes] ℹ️ No attributes for this food (this is ok - you can still log it)`);
-        setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
-        setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-        // Don't show a toast for missing attributes - it's normal for many foods
-      }
-    } catch (error) {
-      console.error(`[Attributes] ❌ Error fetching attributes for "${foodIdentifier}":`, error);
-      setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
-      setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-      // Show helpful message if attributes lookup fails
-      toast.error(`Could not load attributes for "${foodIdentifier}" - you can still log this meal`, {
-        duration: 3,
-        position: "bottom-right"
-      });
-    } finally {
-      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
-    }
-  }, []);
-
-
-
-
-  // NEW: Validate required attributes
-  const validateAttributes = useCallback((inputIndex) => {
-    const attributes = foodAttributes[inputIndex] || [];
-    const selected = selectedAttributes[inputIndex] || {};
-
-    for (const attr of attributes) {
-      const attributeId = attr.attribute?.id ?? attr.id;
-      const attributeName = attr.attribute?.name ?? attr.name ?? "this attribute";
-      if (attr.is_required && !selected[attributeId]) {
-        return { valid: false, message: `Please select ${attributeName}` };
-      }
-    }
-    return { valid: true };
-  }, [foodAttributes, selectedAttributes]);
-
-  // NEW: Handle attribute selection
-  const handleAttributeSelect = useCallback((inputIndex, attributeId, optionId) => {
-    setSelectedAttributes(prev => ({
-      ...prev,
-      [inputIndex]: { ...prev[inputIndex], [attributeId]: optionId }
-    }));
-  }, []);
-
   const handleFoodChange = (idx, field, value) => {
     setFoodInputs(prev => prev.map((input, i) => {
       if (i !== idx) return input;
       const nextInput = { ...input, [field]: value };
       if (field === "name") {
         nextInput.foodId = "";
-        setFoodAttributes(prev => ({ ...prev, [idx]: [] }));
-        setSelectedAttributes(prev => ({ ...prev, [idx]: {} }));
-        setAttributeLoading(prev => ({ ...prev, [idx]: false }));
       }
       return nextInput;
     }));
   };
 
-  const resolvedFoodNamesRef = React.useRef({});
-
-  const resolveFoodFromName = useCallback(async (inputIndex, foodName) => {
-    const trimmedName = String(foodName ?? "").trim();
-    if (!trimmedName) {
-      return false;
-    }
-
-    const input = foodInputs?.[inputIndex];
-    if (!input) {
-      return false;
-    }
-
-    if (input.foodId) {
-      return true;
-    }
-
-    const cacheKey = `${inputIndex}:${trimmedName.toLowerCase()}`;
-    if (resolvedFoodNamesRef.current[cacheKey]) {
-      return true;
-    }
-
-    if ((foodSearchResults?.[inputIndex]?.length || 0) > 0) {
-      return false;
-    }
-
-    setAttributeLoading(prev => ({ ...prev, [inputIndex]: true }));
-
-    try {
-      const baseDate = input.logDate || searchDate || getLocalDateString(new Date());
-      const consumedAt = input.logTime
-        ? new Date(`${baseDate}T${input.logTime}:00`).toISOString()
-        : new Date().toISOString();
-
-      const mealPayload = {
-        food_name: trimmedName,
-        quantity: parseFloat(input.quantity || 1) || 1,
-        unit: input.unit || "Gram",
-        meal_type: input.mealType || "Breakfast",
-        remarks: input.remark || "",
-        ...(input.portionSize && { portion_size: input.portionSize }),
-        date: baseDate,
-        consumed_at: consumedAt,
-      };
-
-      const createdMeal = await createMeal(mealPayload);
-      const createdMealId = createdMeal?.data?.[0]?.id || createdMeal?.data?.id;
-      if (createdMealId) {
-        try {
-          await deleteMeal(createdMealId, localStorage.getItem("token"));
-        } catch {
-          // Ignore cleanup failures and continue loading the resolved food.
-        }
-      }
-
-      const resolvedFood = await getFoodWithAttributes(trimmedName);
-      if (resolvedFood?.id) {
-        setFoodInputs(prev => prev.map((entry, index) => index === inputIndex ? {
-          ...entry,
-          foodId: String(resolvedFood.id),
-          name: resolvedFood.name || trimmedName,
-        } : entry));
-      }
-
-      setFoodAttributes(prev => ({ ...prev, [inputIndex]: Array.isArray(resolvedFood?.attributes) ? resolvedFood.attributes : [] }));
-      setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-      resolvedFoodNamesRef.current[cacheKey] = true;
-      return true;
-    } catch (error) {
-      setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
-      setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-      return false;
-    } finally {
-      setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
-    }
-  }, [foodInputs, foodSearchResults, searchDate]);
-
-  // NEW: Exportable handler to fetch attributes onBlur.
-  const fetchFoodAttributesOnBlur = useCallback(
-    async (foodNameOrId, inputIndex) => {
-      await fetchFoodAttributes(foodNameOrId, inputIndex);
-    },
-    [fetchFoodAttributes]
-  );
-
-  // === Changes made by Ananya (Start) ===
-
   const handleSelectFood = useCallback((inputIndex, selected) => {
-    const selectedId = selected?.id != null ? String(selected.id) : "";
+    const selectedId   = selected?.id   != null ? String(selected.id) : "";
     const selectedName = selected?.name || "";
 
-    // Store selected foodId + name.
+    const foodDefaultUnit = selected?.default_unit ? (
+      selected.default_unit.charAt(0).toUpperCase() + selected.default_unit.slice(1)
+    ) : null;
+    const foodDefaultQty = (selected?.default_quantity != null && Number(selected.default_quantity) > 0)
+      ? String(selected.default_quantity)
+      : null;
+
+    // Store selected foodId + name + food metadata for live preview
     setFoodInputs(prev =>
       prev.map((inp, i) =>
         i === inputIndex
           ? {
             ...inp,
-            foodId: selectedId,
-            name: selectedName,
+            foodId:             selectedId,
+            name:               selectedName,
+            // Auto-fill unit from food's default (e.g. Glass for Lassi) or preserve current
+            unit:               foodDefaultUnit || inp.unit || "Bowl",
+            quantity:           inp.quantity && inp.quantity !== "1" ? inp.quantity : (foodDefaultQty || inp.quantity || "1"),
+            // Store food metadata for live nutrition preview
+            gramEquivalent:     selected?.gram_equivalent     ?? null,
+            caloriesPerServing: selected?.calories_per_serving ?? null,
+            defaultUnit:        selected?.default_unit         ?? null,
           }
           : inp
       )
@@ -487,18 +361,29 @@ const useMealLogger = () => {
     // Hide dropdown immediately.
     setFoodSearchResults(prev => ({ ...prev, [inputIndex]: [] }));
     setFoodSearchLoading(prev => ({ ...prev, [inputIndex]: false }));
+  }, []);
 
-    // Fetch attributes immediately using selected foodId.
-    setFoodAttributes(prev => ({ ...prev, [inputIndex]: [] }));
-    setSelectedAttributes(prev => ({ ...prev, [inputIndex]: {} }));
-    setAttributeLoading(prev => ({ ...prev, [inputIndex]: false }));
+  // Quick re-log: pre-fill form from a recent meal entry
+  const handleQuickReLog = useCallback((recent) => {
+    setFoodInputs(prev => {
+      const updated = [...prev];
+      updated[0] = {
+        ...updated[0],
+        name:               recent.food_name || "",
+        foodId:             String(recent.food_item_id || ""),
+        quantity:           String(recent.last_quantity || "1"),
+        unit:               recent.last_unit  || "Bowl",
+        exact_grams:        recent.last_exact_grams != null ? String(recent.last_exact_grams) : "",
+        exact_ml:           recent.last_exact_ml    != null ? String(recent.last_exact_ml)    : "",
+        showExactOverride:  !!(recent.last_exact_grams || recent.last_exact_ml),
+        gramEquivalent:     recent.gram_equivalent ?? null,
+        caloriesPerServing: recent.last_calories   ?? null,
+      };
+      return updated;
+    });
+  }, []);
 
-    // Per requirements: if we have a foodId, use ID endpoint.
-    // (fetchFoodAttributesOnBlur will call getFoodWithAttributes which uses numeric IDs first.)
-    fetchFoodAttributesOnBlur(selectedId || selectedName, inputIndex);
-  }, [fetchFoodAttributesOnBlur]);
-
-  const handleFoodBlur = useCallback(async (inputIndex, foodName) => {
+  const handleFoodBlur = useCallback((inputIndex, foodName) => {
     const trimmedName = String(foodName ?? "").trim();
     if (!trimmedName) {
       return;
@@ -516,12 +401,8 @@ const useMealLogger = () => {
 
     if (exactMatch) {
       handleSelectFood(inputIndex, exactMatch);
-      return;
     }
-
-    // If there are search results but none matches exactly, the user likely entered a custom food name.
-    await resolveFoodFromName(inputIndex, trimmedName);
-  }, [foodInputs, foodSearchResults, resolveFoodFromName, handleSelectFood]);
+  }, [foodInputs, foodSearchResults, handleSelectFood]);
 
   // Debounce timers per inputIndex so we can cancel previous requests.
   const searchTimersRef = React.useRef({});
@@ -564,8 +445,13 @@ const useMealLogger = () => {
 
 
   const addFoodField = () => {
-
-    setFoodInputs(prev => [...prev, getInitialFoodInput()]);
+    setFoodInputs(prev => {
+      const lastInput = prev[prev.length - 1];
+      const inheritedDate = lastInput?.logDate || null;
+      const inheritedTime = lastInput?.logTime || null;
+      const inheritedMealType = lastInput?.mealType || null;
+      return [...prev, getInitialFoodInput(inheritedDate, inheritedTime, inheritedMealType)];
+    });
   };
 
   const removeFoodField = (index) => {
@@ -591,20 +477,16 @@ const useMealLogger = () => {
     handleDeleteMeal, dailySummary, searchDate,
     setSearchDate, searchByDate, isSubmitting, isFetching,
     editingMeal, handleEditMeal, cancelEdit,
-    // NEW: Export attributes-related state and functions
-    foodAttributes, selectedAttributes, attributeLoading,
-    handleAttributeSelect, validateAttributes,
-    fetchFoodAttributesOnBlur,
-
-    // === Changes made by Ananya (Start) ===
     foodSearchResults,
     foodSearchLoading,
     foodSearchQuery,
     debouncedSearch,
     handleSelectFood,
     handleFoodBlur,
-    resolveFoodFromName,
-    // === Changes made by Ananya (End) ===
+    // Recent meals for quick re-log
+    recentMeals,
+    handleQuickReLog,
+    getMealTypeByTime,
   };
 };
 
