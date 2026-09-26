@@ -40,7 +40,7 @@ const NutriNavbar = () => {
     const processedNotificationIds = useRef(new Set());
     const { user } = useAuth();
     
-    const hasUnread = notifications.length > 0;
+    const unreadCount = notifications.filter(n => !n.is_read && !n.read).length;
 
     useEffect(() => {
         clearNotificationsFromSender = (senderId) => {
@@ -119,14 +119,28 @@ const NutriNavbar = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    const toggleDropdown = async () => {
+        const willOpen = !isDropdownOpen;
+        setIsDropdownOpen(willOpen);
+        if (willOpen) {
+            // Automatically mark all notifications as read upon opening
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read: true })));
+            try {
+                await markMessageAsRead({});
+            } catch (error) {
+                console.warn("Could not mark messages as read on server:", error);
+            }
+        }
+    };
+
     const handleClearAll = async () => {
         if (notifications.length === 0) return;
+        setNotifications([]);
+        processedNotificationIds.current.clear();
         try {
-            await markMessageAsRead({ mark_all: true });
-            setNotifications([]);
-            processedNotificationIds.current.clear();
+            await markMessageAsRead({});
         } catch (error) {
-            toast.error("Could not clear all notifications.");
+            console.warn("Could not clear all notifications on server:", error);
         }
     };
 
@@ -166,17 +180,16 @@ const NutriNavbar = () => {
                     <div className="relative">
                         <motion.button 
                             ref={bellRef} 
-                            onClick={() => setIsDropdownOpen(p => !p)} 
+                            onClick={toggleDropdown} 
                             whileHover={{ scale: 1.05 }} 
                             whileTap={{ scale: 0.95 }} 
-                            className="relative p-2 sm:p-2.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"
+                            className="relative p-2 sm:p-2.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
                             aria-label="Notifications"
                         >
                             <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
-                            {hasUnread && (
-                                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 sm:h-3 sm:w-3">
-                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-75" />
-                                    <span className="relative inline-flex h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-[var(--color-primary-hover)] ring-2 ring-white" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-extrabold text-white px-1 shadow-md ring-2 ring-[var(--color-bg-surface)]">
+                                    {unreadCount > 99 ? "99+" : unreadCount}
                                 </span>
                             )}
                         </motion.button>
@@ -191,9 +204,16 @@ const NutriNavbar = () => {
                                     className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 md:w-96 max-w-sm bg-[var(--color-bg-surface)] rounded-3xl shadow-2xl border-2 border-[var(--color-border-default)] overflow-hidden font-[var(--font-secondary)] z-50"
                                 >
                                     <div className="flex justify-between items-center p-3.5 sm:p-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
-                                        <h3 className="font-semibold text-base sm:text-lg text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-base sm:text-lg text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</h3>
+                                            {notifications.length > 0 && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] font-medium">
+                                                    {notifications.length}
+                                                </span>
+                                            )}
+                                        </div>
                                         {notifications.length > 0 && (
-                                            <button onClick={handleClearAll} className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1">
+                                            <button onClick={handleClearAll} className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1 cursor-pointer">
                                                 <Trash2 size={13} /> Clear All
                                             </button>
                                         )}
@@ -208,6 +228,9 @@ const NutriNavbar = () => {
                                                         <p className="text-xs sm:text-sm text-[var(--color-text-default)] leading-snug line-clamp-2">{notif.text}</p>
                                                         <p className="text-[11px] text-[var(--color-text-muted)] mt-1">{timeSince(new Date(notif.timestamp))}</p>
                                                     </div>
+                                                    {(!notif.is_read && !notif.read) && (
+                                                        <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 self-center" />
+                                                    )}
                                                 </motion.div>
                                             ))
                                         ) : (

@@ -146,6 +146,10 @@ const NutritionistPage = () => {
           setToolboxTab("assistant");
           setIsToolboxOpen(true);
         }}
+        onOpenGuide={() => {
+          setToolboxTab("guide");
+          setIsToolboxOpen(true);
+        }}
         onOpenNutrition={() => {
           setToolboxTab("nutrition");
           setIsToolboxOpen(true);

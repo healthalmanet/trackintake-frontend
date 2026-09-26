@@ -3146,6 +3146,10 @@ const PatientDetailsPage = () => {
 
       <QuickTools
         onOpenAssistant={handleOpenAssistant}
+        onOpenGuide={() => {
+          setToolboxTab("guide");
+          setToolboxOpen(true);
+        }}
         onOpenNutrition={handleOpenNutritionSearch}
         onOpenChat={handleOpenQuickChat}
       />
