@@ -1,41 +1,37 @@
-// src/pages/BlogDetail.jsx
-
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
-import { useLocation } from 'react-router-dom';
-
+import { getBlogById } from '../../api/blog';
 
 const BlogDetail = () => {
-
-
-  // The blogId is now correctly interpreted as the slug from the URL
   const { blogId: slug } = useParams();
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const from = location.state?.from;
 
-// If user came from public blogs page, go back to "/blogs"
-// Otherwise, go back to the dashboard's blog section
+  // If user came from public blogs page, go back to "/blogs"
+  // Otherwise, go back to the standard blogs section "/blogs-section"
+  const defaultBackLink = from === "public" ? "/blogs" : "/blogs-section";
 
-const backLink = from === "public" ? "/blogs" : "/dashboard/blogs-section";
-
-
-
+  const handleBack = () => {
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate(defaultBackLink);
+    }
+  };
 
   useEffect(() => {
     const fetchBlog = async () => {
       setLoading(true);
       try {
-        // The fetch URL now correctly uses the slug to find the blog post
-        const res = await fetch(`https://trackeats.onrender.com/api/blogs/${slug}/`);
-        if (!res.ok) throw new Error("Blog not found");
-        const data = await res.json();
+        const data = await getBlogById(slug);
         setBlog(data);
       } catch (error) {
         console.error("Error loading blog:", error);
-        setBlog(null); // Ensure blog is null on error
+        setBlog(null);
       } finally {
         setLoading(false);
       }
@@ -62,27 +58,37 @@ const backLink = from === "public" ? "/blogs" : "/dashboard/blogs-section";
         <div className="text-center bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)] p-8 rounded-xl border border-red-200 max-w-lg">
           <h2 className="text-2xl font-bold font-[var(--font-primary)] mb-2">Post Not Found</h2>
           <p className="text-red-800">We couldn't find the blog post you were looking for. It might have been moved or deleted.</p>
-          <Link 
-           to="/"
-            className="mt-6 inline-block bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-semibold px-6 py-2 rounded-full hover:bg-[var(--color-primary-hover)] transition-colors"
-          >
-            Return to Home
-          </Link>
+          <div className="mt-6 flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={handleBack}
+              className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-semibold px-6 py-2 rounded-full hover:bg-[var(--color-primary-hover)] transition-colors cursor-pointer"
+            >
+              <FaArrowLeft size={14} /> Back to Articles
+            </button>
+            <Link 
+              to="/"
+              className="inline-block bg-[var(--color-bg-surface)] text-[var(--color-text-default)] border border-[var(--color-border-default)] font-semibold px-6 py-2 rounded-full hover:bg-[var(--color-bg-interactive-subtle)] transition-colors"
+            >
+              Return to Home
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
-  
 
   // === ENHANCED BLOG DETAIL LAYOUT ===
   return (
-    <div className="bg-[var(--color-bg-app)] text-[var(--color-text-default)] font-[var(--font-secondary)] py-12 sm:py-16">
+    <div className="bg-[var(--color-bg-app)] text-[var(--color-text-default)] font-[var(--font-secondary)] py-10 sm:py-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <Link to={backLink} className="inline-flex items-center gap-2 text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-semibold transition-colors group">
+        <div className="mb-6">
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-2.5 px-4 py-2 bg-[var(--color-bg-surface)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-semibold rounded-xl border border-[var(--color-border-default)] shadow-sm hover:shadow transition-all group cursor-pointer"
+          >
             <FaArrowLeft className="transition-transform group-hover:-translate-x-1" />
-            Back to All Articles
-          </Link>
+            Back to Articles
+          </button>
         </div>
 
         <article className="bg-[var(--color-bg-surface)] p-6 sm:p-8 lg:p-12 rounded-2xl shadow-xl border border-[var(--color-border-default)]">
@@ -91,9 +97,9 @@ const backLink = from === "public" ? "/blogs" : "/dashboard/blogs-section";
               {blog.title}
             </h1>
             <div className="flex items-center gap-4 text-sm text-[var(--color-text-muted)]">
-              <span>By <span className="font-semibold text-[var(--color-text-default)]">{blog.author_name || 'TrackEats Team'}</span></span>
+              <span>By <span className="font-semibold text-[var(--color-text-default)]">{blog.author_name || 'TrackIntake Team'}</span></span>
               <span className="h-1 w-1 bg-[var(--color-border-default)] rounded-full"></span>
-              <span>{new Date(blog.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              <span>{blog.created_at ? new Date(blog.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Recent'}</span>
             </div>
           </header>
 
@@ -120,6 +126,16 @@ const backLink = from === "public" ? "/blogs" : "/dashboard/blogs-section";
                        prose-li:marker:text-[var(--color-primary)]"
             dangerouslySetInnerHTML={{ __html: blog.content }}
           />
+
+          <div className="mt-12 pt-6 border-t border-[var(--color-border-default)] flex items-center justify-between">
+            <button
+              onClick={handleBack}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-[var(--color-text-on-primary)] font-semibold rounded-xl transition-all cursor-pointer"
+            >
+              <FaArrowLeft size={13} /> Back to Articles
+            </button>
+            <span className="text-xs text-[var(--color-text-muted)]">TrackIntake Knowledge Base</span>
+          </div>
         </article>
       </div>
     </div>

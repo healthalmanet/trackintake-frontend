@@ -185,3 +185,13 @@ export const createMealWithAttributes = async (mealData) => {
     throw error;
   }
 };
+
+export const getRecentMeals = async () => {
+  try {
+    const response = await axiosInstance.get('/logmeals/recent/');
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error fetching recent meals:', error.response?.data || error.message);
+    return { recent: [] }; // fail gracefully — recent meals are a convenience feature
+  }
+};

@@ -847,7 +847,8 @@ const PatientDetailsPage = () => {
       });
     } catch (err) {
       console.error("Save failed:", err.response?.data || err.message);
-      toast.error("Failed to save changes.");
+      const errorMsg = err.response?.data?.error || err.response?.data?.detail || "Failed to save changes.";
+      toast.error(errorMsg);
     } finally {
       setIsSaving(false);
     }
@@ -3145,6 +3146,10 @@ const PatientDetailsPage = () => {
 
       <QuickTools
         onOpenAssistant={handleOpenAssistant}
+        onOpenGuide={() => {
+          setToolboxTab("guide");
+          setToolboxOpen(true);
+        }}
         onOpenNutrition={handleOpenNutritionSearch}
         onOpenChat={handleOpenQuickChat}
       />

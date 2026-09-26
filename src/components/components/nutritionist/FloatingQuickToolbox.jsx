@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
@@ -20,7 +21,9 @@ import {
   Clock,
   ChevronDown,
   Paperclip,
+  Compass,
 } from "lucide-react";
+import InteractiveAppGuide from "./InteractiveAppGuide";
 import ReactMarkdown from "react-markdown";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import toast from "react-hot-toast";
@@ -38,16 +41,25 @@ import {
   getMyNutritionist,
 } from "../../../api/messagePatientApi";
 import useWebSockets from "../../../api/useWebSockets";
+import axiosInstance from "../../../api/axiosInstance";
 
 const API_KEY =
   import.meta.env.VITE_GEMINI_API_KEY ||
   "AIzaSyDj2OzDZX-nwDUR9EO7Y9g4-11EdCVHlB4";
 
-const SUGGESTED_ASSISTANT_PROMPTS = [
-  "High protein vegetarian meal ideas",
-  "How to balance macros for fat loss?",
-  "Healthy Indian snacks for diabetes",
-  "Post-workout meal recommendations",
+const PATIENT_PROMPTS = [
+  "How do I log meals using standard bowls or plates?",
+  "High protein vegetarian Indian meal ideas",
+  "How much water should I drink daily?",
+  "Healthy Indian snacks for diabetes & blood sugar",
+  "How do I track my weight and BMI?",
+];
+
+const NUTRITIONIST_PROMPTS = [
+  "Clinical diet protocol for Type-2 Diabetes",
+  "Macronutrient distribution for lean muscle hypertrophy",
+  "Low FODMAP Indian dietary adjustments",
+  "Hypertension & sodium reduction meal recommendations",
 ];
 
 const QUICK_NUTRITIONIST_SNIPPETS = [
@@ -61,13 +73,25 @@ export const FloatingQuickToolbox = ({
   isOpen,
   onClose,
   initialTab = "assistant",
-  userRole = "nutritionist",
+  userRole = "user",
   targetPatientId = null,
   targetPatientName = null,
+  selectedPatient: externalSelectedPatient = null,
+  isMinimized: externalIsMinimized = null,
+  setIsMinimized: externalSetIsMinimized = null,
 }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const effectiveRole = (user?.role ? user.role : userRole || "user").toLowerCase();
+  const isNutritionist = effectiveRole === "nutritionist";
+  const activePrompts =
+    isNutritionist ? NUTRITIONIST_PROMPTS : PATIENT_PROMPTS;
+
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [internalIsMinimized, setInternalIsMinimized] = useState(false);
+  const isMinimized =
+    externalIsMinimized !== null ? externalIsMinimized : internalIsMinimized;
+  const setIsMinimized = externalSetIsMinimized || setInternalIsMinimized;
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPatientSelector, setShowPatientSelector] = useState(false);
   const [patientSearchTerm, setPatientSearchTerm] = useState("");
@@ -109,7 +133,7 @@ export const FloatingQuickToolbox = ({
 
   // Load patients for nutritionist
   const fetchNutritionistPatients = useCallback(async () => {
-    if (userRole !== "nutritionist") return;
+    if (effectiveRole !== "nutritionist") return;
     try {
       const res = await getAssignedPatients();
       const rawList = res.data?.results || res.data || [];
@@ -135,11 +159,11 @@ export const FloatingQuickToolbox = ({
     } catch (err) {
       console.error("Failed to fetch assigned patients for quick chat:", err);
     }
-  }, [userRole, targetPatientId, targetPatientName, selectedPatient]);
+  }, [effectiveRole, targetPatientId, targetPatientName, selectedPatient]);
 
   // Load patient's nutritionist info if user role
   const fetchPatientNutritionist = useCallback(async () => {
-    if (userRole !== "user") return;
+    if (effectiveRole !== "user") return;
     try {
       const res = await getMyNutritionist();
       if (res.data) {
@@ -148,23 +172,23 @@ export const FloatingQuickToolbox = ({
     } catch (err) {
       console.error("Failed to fetch patient nutritionist info:", err);
     }
-  }, [userRole]);
+  }, [effectiveRole]);
 
   useEffect(() => {
     if (isOpen && activeTab === "chat") {
-      if (userRole === "nutritionist") {
+      if (effectiveRole === "nutritionist") {
         fetchNutritionistPatients();
       } else {
         fetchPatientNutritionist();
       }
     }
-  }, [isOpen, activeTab, userRole, fetchNutritionistPatients, fetchPatientNutritionist]);
+  }, [isOpen, activeTab, effectiveRole, fetchNutritionistPatients, fetchPatientNutritionist]);
 
   // Fetch messages with selected counterparty
   const loadChatHistory = useCallback(async () => {
     setLoadingChat(true);
     try {
-      if (userRole === "nutritionist" && selectedPatient) {
+      if (effectiveRole === "nutritionist" && selectedPatient) {
         const patientId = selectedPatient.patient_id || selectedPatient.id;
         const res = await getMessages({ partner_id: patientId });
         const msgs = res.data?.results || res.data || [];
@@ -176,20 +200,38 @@ export const FloatingQuickToolbox = ({
         } catch {
           // ignore
         }
-      } else if (userRole === "user") {
-        const nutriId = myNutritionistInfo?.id;
-        const res = await getPatientMessages(nutriId ? { partner_id: nutriId } : {});
-        const msgs = res.data?.results || res.data || [];
-        setChatMessages(
-          msgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-        );
+      } else if (effectiveRole === "user") {
+        let nutriId = myNutritionistInfo?.id;
+        if (!nutriId) {
+          try {
+            const nutriRes = await getMyNutritionist();
+            if (nutriRes.data?.id) {
+              setMyNutritionistInfo(nutriRes.data);
+              nutriId = nutriRes.data.id;
+            }
+          } catch {
+            // no assigned nutritionist
+          }
+        }
+        if (nutriId) {
+          const res = await getPatientMessages({ partner_id: nutriId });
+          const msgs = res.data?.results || res.data || [];
+          setChatMessages(
+            msgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+          );
+          try {
+            await markMessageAsRead({ sender_id: nutriId });
+          } catch {
+            // ignore
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to load quick chat history:", err);
     } finally {
       setLoadingChat(false);
     }
-  }, [userRole, selectedPatient, myNutritionistInfo]);
+  }, [effectiveRole, selectedPatient, myNutritionistInfo]);
 
   useEffect(() => {
     if (isOpen && !isMinimized && activeTab === "chat") {
@@ -207,7 +249,7 @@ export const FloatingQuickToolbox = ({
   // Real-time WebSocket updates for chat
   const handleIncomingChatMessage = useCallback(
     (msg) => {
-      if (userRole === "nutritionist" && selectedPatient) {
+      if (effectiveRole === "nutritionist" && selectedPatient) {
         const patientId = selectedPatient.patient_id || selectedPatient.id;
         if (String(msg.sender_id) === String(patientId)) {
           setChatMessages((prev) => {
@@ -215,14 +257,14 @@ export const FloatingQuickToolbox = ({
             return [...prev, msg];
           });
         }
-      } else if (userRole === "user") {
+      } else if (effectiveRole === "user") {
         setChatMessages((prev) => {
           if (prev.some((m) => m.id === msg.id)) return prev;
           return [...prev, msg];
         });
       }
     },
-    [userRole, selectedPatient]
+    [effectiveRole, selectedPatient]
   );
 
   useWebSockets({ onMessage: handleIncomingChatMessage });
@@ -247,7 +289,7 @@ export const FloatingQuickToolbox = ({
     setSendingChat(true);
 
     try {
-      if (userRole === "nutritionist" && selectedPatient) {
+      if (effectiveRole === "nutritionist" && selectedPatient) {
         const patientId = selectedPatient.patient_id || selectedPatient.id;
         const res = await sendNutriMessage(patientId, textToSend);
         const serverMsg = res.data || {
@@ -258,8 +300,25 @@ export const FloatingQuickToolbox = ({
         setChatMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...serverMsg, status: "sent" } : m))
         );
-      } else if (userRole === "user") {
-        const res = await sendPatientMessage(textToSend);
+      } else if (effectiveRole === "user") {
+        let targetNutriId = myNutritionistInfo?.id;
+        if (!targetNutriId) {
+          try {
+            const nutriRes = await getMyNutritionist();
+            if (nutriRes.data?.id) {
+              setMyNutritionistInfo(nutriRes.data);
+              targetNutriId = nutriRes.data.id;
+            }
+          } catch (fetchErr) {
+            console.warn("Could not fetch nutritionist info for patient message:", fetchErr);
+          }
+        }
+
+        if (!targetNutriId) {
+          throw new Error("No nutritionist is currently assigned to your account. Switch to the Assistant tab to chat with our AI Bot!");
+        }
+
+        const res = await sendPatientMessage(targetNutriId, textToSend);
         const serverMsg = res.data || {
           ...optimisticMsg,
           id: Date.now(),
@@ -271,7 +330,12 @@ export const FloatingQuickToolbox = ({
       }
     } catch (err) {
       console.error("Failed to send message:", err);
-      toast.error("Failed to send message. Please retry.");
+      const errMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Failed to send message. Please retry.";
+      toast.error(errMsg);
       // Rollback optimistic message and restore input
       setChatMessages((prev) => prev.filter((m) => m.id !== tempId));
       setChatInputText(textToSend);
@@ -284,10 +348,13 @@ export const FloatingQuickToolbox = ({
   // 2. SMART ASSISTANT STATE & LOGIC
   // ----------------------------------------------------------------------
   const [assistantQuestion, setAssistantQuestion] = useState("");
-  const [assistantMessages, setAssistantMessages] = useState([
+  const [assistantMessages, setAssistantMessages] = useState(() => [
     {
       sender: "ai",
-      text: "Hello! I am your **AI Clinical Nutrition Assistant**. Ask me about food macros, glycemic index, clinical diet protocols, or meal customizations!",
+      text:
+        effectiveRole === "nutritionist"
+          ? "Hello! I am your **AI Clinical Nutrition Co-Pilot**. Ask me about clinical diet protocols, macronutrient distribution, glycemic indices, or customized patient diet adjustments!"
+          : "Hello! I am your **TrackIntake AI Nutrition Assistant**. Ask me about meal logging with standard Indian portions, healthy diet plans, daily water intake, or personalized nutrition tips!",
       timestamp: new Date(),
     },
   ]);
@@ -306,39 +373,51 @@ export const FloatingQuickToolbox = ({
     setAssistantMessages([
       {
         sender: "ai",
-        text: "Conversation cleared. How can I assist you with clinical nutrition analysis today?",
+        text:
+          effectiveRole === "nutritionist"
+            ? "Conversation cleared. How can I assist you with clinical nutrition analysis today?"
+            : "Conversation cleared. What nutrition or health question can I help you with today?",
         timestamp: new Date(),
       },
     ]);
   };
 
   const generateGeminiAssistant = async (userQuery) => {
-    const systemPrompt = `You are an expert clinical and dietary nutrition assistant for the TrackIntake health platform.
-Provide helpful, scientifically grounded, practical, and clear nutrition guidance.
-Format your responses neatly using markdown headings, bold text, and bullet points where helpful.
-User Query: "${userQuery}"`;
-
-    const modelNames = [
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-flash-latest",
-    ];
-
-    const genAI = new GoogleGenerativeAI(API_KEY);
-
-    for (const modelName of modelNames) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(systemPrompt);
-        const text = result.response.text();
-        if (text) return text;
-      } catch (err) {
-        console.warn(`Model ${modelName} failed, trying next fallback:`, err);
+    // 1. First attempt: call our enhanced backend endpoint /api/chat/ (powered by Gemini 2.5 Flash + TrackIntake context)
+    try {
+      const res = await axiosInstance.post("/chat/", {
+        question: userQuery,
+        role: effectiveRole,
+      });
+      if (res.data?.answer) {
+        return res.data.answer;
       }
+      if (res.data?.response) {
+        return res.data.response;
+      }
+    } catch (apiErr) {
+      console.warn("Backend /chat/ endpoint error, trying direct client Gemini fallback:", apiErr);
     }
 
-    return "### 💡 Clinical Nutrition Summary\n\n• Maintain adequate hydration (~35ml per kg body weight).\n• Focus on whole, nutrient-dense foods with low glycemic index.\n• Ensure balanced distribution of quality protein, complex carbs, and healthy fats.";
+    // 2. Client-side fallback if backend is unreachable
+    try {
+      const genAI = new GoogleGenerativeAI(API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const prompt = `You are an expert AI clinical nutrition assistant for the TrackIntake platform in India.
+User role: ${effectiveRole === "nutritionist" ? "Clinical Nutritionist / Dietitian" : "Patient / User"}.
+Provide clear, practical, and scientifically sound guidance formatted with markdown headings and bullet points.
+User question: "${userQuery}"`;
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      if (text) return text;
+    } catch (err) {
+      console.warn("Client-side Gemini failed:", err);
+    }
+
+    // 3. Structured fallback
+    return effectiveRole === "nutritionist"
+      ? "### 💡 Clinical Nutrition Guidance\n\n• **Macro Balance**: Calibrate carbohydrate, protein, and fat distributions for metabolic goals.\n• **Hydration**: Ensure 30–35 ml/kg body weight unless clinically contraindicated.\n• **Follow-up**: Review patient food logs and glycemic trends regularly."
+      : "### 💡 TrackIntake Nutrition Tip\n\n• **Meal Logging**: Log meals using standard katori, roti, or cup portions in your meal logger.\n• **Water Intake**: Drink at least 8–10 glasses (2.5L) of water throughout the day.\n• **Balanced Diet**: Include seasonal vegetables, lentils (dal), curd, and whole grains for sustained energy.";
   };
 
   const handleSendAssistant = async (queryText) => {
@@ -380,7 +459,7 @@ User Query: "${userQuery}"`;
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 pointer-events-none flex flex-col items-end font-[var(--font-secondary)]">
+    <div className="fixed inset-x-2 bottom-2 sm:inset-x-auto sm:bottom-6 sm:right-6 z-50 pointer-events-none flex flex-col items-center sm:items-end font-[var(--font-secondary)]">
       <AnimatePresence mode="wait">
         {isMinimized ? (
           /* ========================================================================= */
@@ -392,26 +471,31 @@ User Query: "${userQuery}"`;
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.85, y: 15 }}
             onClick={() => setIsMinimized(false)}
-            className="pointer-events-auto flex items-center gap-3 px-4 py-2.5 bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-alt)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] rounded-2xl shadow-2xl cursor-pointer transition-all duration-200 group"
+            className="pointer-events-auto flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 max-w-[calc(100vw-1.5rem)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-alt)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] rounded-2xl shadow-2xl cursor-pointer transition-all duration-200 group"
           >
-            <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]">
+            <div className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] shrink-0">
               {activeTab === "chat" && <MessageSquare size={16} />}
               {activeTab === "assistant" && <Bot size={16} />}
+              {activeTab === "guide" && <Compass size={16} />}
               {activeTab === "nutrition" && <Salad size={16} />}
             </div>
 
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] flex items-center gap-1.5">
-                {activeTab === "chat"
-                  ? userRole === "nutritionist"
-                    ? `Chat: ${selectedPatient?.patient_name || "Patient"}`
-                    : "Chat with Nutritionist"
-                  : activeTab === "assistant"
-                    ? "AI Smart Assistant"
-                    : "Nutrition Search"}
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex flex-col text-left min-w-0 flex-1">
+              <span className="text-xs font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] flex items-center gap-1.5 truncate">
+                <span className="truncate">
+                  {activeTab === "chat"
+                    ? isNutritionist
+                      ? `Chat: ${selectedPatient?.patient_name || "Patient"}`
+                      : "Chat with Nutritionist"
+                    : activeTab === "assistant"
+                      ? "AI Smart Assistant"
+                      : activeTab === "guide"
+                      ? "App Feature Guide"
+                      : "Nutrition Search"}
+                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               </span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">
+              <span className="text-[10px] text-[var(--color-text-muted)] truncate">
                 Click to restore window
               </span>
             </div>
@@ -422,9 +506,11 @@ User Query: "${userQuery}"`;
                 e.stopPropagation();
                 onClose();
               }}
-              className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors ml-1"
+              title="Close"
+              aria-label="Close"
+              className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors ml-1 shrink-0"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </motion.div>
         ) : (
@@ -437,68 +523,87 @@ User Query: "${userQuery}"`;
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${isExpanded
-              ? "w-[calc(100vw-2rem)] sm:w-[620px] h-[640px] max-h-[88vh]"
-              : "w-[calc(100vw-2rem)] sm:w-[420px] h-[560px] max-h-[82vh]"
-              }`}
+            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[420px] h-[82vh] sm:h-[560px] max-h-[92vh] ${
+              isExpanded ? "sm:!w-[640px] sm:!h-[640px]" : ""
+            }`}
           >
             {/* Top Window Bar */}
-            <div className="p-3 sm:px-4 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-2 select-none flex-shrink-0">
+            <div className="p-2 sm:p-3 sm:px-4 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-1.5 sm:gap-2 select-none flex-shrink-0 w-full">
               {/* Tool Tabs */}
-              <div className="flex items-center gap-1 bg-[var(--color-bg-app)] p-1 rounded-2xl border border-[var(--color-border-default)]">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("chat")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "chat"
-                    ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                    }`}
-                >
-                  <MessageSquare size={14} />
-                  <span>Messages</span>
-                </button>
+              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5">
+                <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-[var(--color-bg-app)] p-0.5 sm:p-1 rounded-2xl border border-[var(--color-border-default)]">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("chat")}
+                    title="Messages"
+                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "chat"
+                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                  >
+                    <MessageSquare size={13} />
+                    <span>Chat</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("assistant")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "assistant"
-                    ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                    }`}
-                >
-                  <Bot size={14} />
-                  <span>Assistant</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("assistant")}
+                    title="AI Assistant"
+                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "assistant"
+                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                  >
+                    <Bot size={13} />
+                    <span>Assistant</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("nutrition")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "nutrition"
-                    ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                    }`}
-                >
-                  <Salad size={14} />
-                  <span>Search</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("guide")}
+                    title="App Guide"
+                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "guide"
+                      ? "bg-[var(--color-bg-surface)] text-indigo-600 shadow-xs border border-indigo-200"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                  >
+                    <Compass size={13} />
+                    <span>Guide</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("nutrition")}
+                    title="Nutrition Search"
+                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "nutrition"
+                      ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                  >
+                    <Salad size={13} />
+                    <span>Search</span>
+                  </button>
+                </div>
               </div>
 
               {/* Window Controls */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0 ml-1 sm:ml-2 z-10">
                 <button
                   type="button"
                   onClick={() => setIsMinimized(true)}
                   title="Minimize"
-                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                  aria-label="Minimize"
+                  className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 >
-                  <Minus size={15} />
+                  <Minus size={16} />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsExpanded((prev) => !prev)}
                   title={isExpanded ? "Restore width" : "Expand width"}
-                  className="hidden sm:inline-flex p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                  aria-label="Toggle width"
+                  className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer shrink-0"
                 >
                   {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
                 </button>
@@ -507,9 +612,10 @@ User Query: "${userQuery}"`;
                   type="button"
                   onClick={onClose}
                   title="Close"
-                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
+                  aria-label="Close"
+                  className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 >
-                  <X size={16} />
+                  <X size={17} />
                 </button>
               </div>
             </div>
@@ -522,7 +628,7 @@ User Query: "${userQuery}"`;
               {activeTab === "chat" && (
                 <div className="flex-1 flex flex-col overflow-hidden relative">
                   {/* Nutritionist Searchable Patient Bar */}
-                  {userRole === "nutritionist" && (
+                  {effectiveRole === "nutritionist" && (
                     <div className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] p-2.5">
                       {/* Active Patient Card with Switcher Toggle */}
                       <div className="flex items-center justify-between gap-2">
@@ -635,7 +741,7 @@ User Query: "${userQuery}"`;
                   )}
 
                   {/* Patient role counterparty header */}
-                  {userRole === "user" && myNutritionistInfo && (
+                  {effectiveRole === "user" && myNutritionistInfo && (
                     <div className="p-2.5 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-xl bg-[var(--color-primary)] text-white font-bold text-xs flex items-center justify-center">
@@ -669,11 +775,29 @@ User Query: "${userQuery}"`;
                           <MessageSquare size={24} />
                         </div>
                         <p className="text-xs font-bold text-[var(--color-text-strong)]">
-                          Start the Consultation
+                          {effectiveRole === "user"
+                            ? myNutritionistInfo
+                              ? "Message Your Nutritionist"
+                              : "No Assigned Nutritionist Yet"
+                            : "Start the Consultation"}
                         </p>
-                        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 max-w-[220px]">
-                          Send a quick message, diet recommendation, or clinical note to the patient.
+                        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 max-w-[240px]">
+                          {effectiveRole === "user"
+                            ? myNutritionistInfo
+                              ? "Send a question about your diet plan, update your meals, or ask for guidance."
+                              : "You don't have an assigned nutritionist yet. Our AI Health & Nutrition Assistant is ready to help!"
+                            : "Send a quick message, diet recommendation, or clinical note to the patient."}
                         </p>
+                        {effectiveRole === "user" && !myNutritionistInfo && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("assistant")}
+                            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-primary)] text-white text-xs font-semibold shadow-xs hover:bg-[var(--color-primary-hover)] transition-all cursor-pointer"
+                          >
+                            <Sparkles size={13} />
+                            Ask AI Assistant
+                          </button>
+                        )}
                       </div>
                     ) : (
                       chatMessages.map((msg, idx) => {
@@ -712,7 +836,7 @@ User Query: "${userQuery}"`;
                   </div>
 
                   {/* Nutritionist Quick Snippets */}
-                  {userRole === "nutritionist" && (
+                  {effectiveRole === "nutritionist" && (
                     <div className="px-3 py-1.5 bg-[var(--color-bg-surface)] border-t border-[var(--color-border-default)] flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
                       <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider flex-shrink-0">
                         Quick:
@@ -766,16 +890,26 @@ User Query: "${userQuery}"`;
                   <div className="px-4 py-2 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--color-text-strong)]">
                       <Sparkles size={14} className="text-amber-500" />
-                      <span>Gemini Clinical Co-Pilot</span>
+                      <span>{effectiveRole === "nutritionist" ? "Gemini Clinical Co-Pilot" : "AI Nutrition Assistant"}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleClearAssistant}
-                      title="Clear conversation"
-                      className="text-[11px] font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-primary)] flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <RotateCcw size={12} /> Clear
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("guide")}
+                        title="Interactive Feature Guide"
+                        className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Compass size={12} /> App Guide
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAssistant}
+                        title="Clear conversation"
+                        className="text-[11px] font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-primary)] flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <RotateCcw size={12} /> Clear
+                      </button>
+                    </div>
                   </div>
 
                   {/* Messages */}
@@ -851,7 +985,7 @@ User Query: "${userQuery}"`;
                       <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider flex-shrink-0">
                         Prompts:
                       </span>
-                      {SUGGESTED_ASSISTANT_PROMPTS.map((prompt, i) => (
+                      {activePrompts.map((prompt, i) => (
                         <button
                           key={i}
                           type="button"
@@ -897,7 +1031,24 @@ User Query: "${userQuery}"`;
               )}
 
               {/* ========================================================================= */}
-              {/* TAB 3: NUTRITION INGREDIENT SEARCH                                        */}
+              {/* TAB 3: INTERACTIVE APPLICATION GUIDE                                      */}
+              {/* ========================================================================= */}
+              {activeTab === "guide" && (
+                <InteractiveAppGuide
+                  userRole={effectiveRole}
+                  onNavigate={(route) => {
+                    onClose();
+                    if (route) navigate(route);
+                  }}
+                  onAskAI={(query) => {
+                    setActiveTab("assistant");
+                    handleSendAssistant(query);
+                  }}
+                />
+              )}
+
+              {/* ========================================================================= */}
+              {/* TAB 4: NUTRITION INGREDIENT SEARCH                                        */}
               {/* ========================================================================= */}
               {activeTab === "nutrition" && (
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-1">

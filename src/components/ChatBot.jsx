@@ -1,5 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "./context/AuthContext";
+import axiosInstance from "../api/axiosInstance";
 
 // ================= MENU DATA =================
 // Static menu content for dropdown
@@ -10,118 +12,171 @@ const menuData = {
 };
 
 // ================= USER FAQs =================
-// Questions for normal users
+// ================= USER FAQs (ALL PATIENT FEATURES) =================
 const userFAQs = {
     "How to Use": [
         { q: "How do I start using TrackIntake?" },
-        { q: "What details are required first?" },
-        { q: "Is it easy for beginners?" },
-        { q: "Do I need to use it daily?" },
-        { q: "Can I skip profile setup?" }
+        { q: "What details are required in my health profile?" },
+        { q: "Can I set dietary preferences like Veg, Vegan, or Non-Veg?" },
+        { q: "Is TrackIntake suitable for weight loss and muscle building?" },
+        { q: "How does TrackIntake help manage Diabetes, PCOS, or Hypertension?" }
     ],
     "Track Meals": [
-        { q: "How do I log my meals?" },
-        { q: "Can I edit my meals later?" },
-        { q: "How are meals organized?" },
-        { q: "Does it support Indian food?" },
-        { q: "Is there a food search option?" }
+        { q: "How do I log my meals using Indian portions (Katori, Bowl, Plate)?" },
+        { q: "Can I log food by exact grams (g) or milliliters (ml)?" },
+        { q: "How do I edit or delete a logged meal?" },
+        { q: "How do I track my daily calories, protein, carbs, and fats?" },
+        { q: "What should I do if I have remaining calories at the end of the day?" }
     ],
     "Diet Plans": [
-        { q: "How do I get diet plans?" },
-        { q: "Are diet plans personalized?" },
-        { q: "Can I follow plans without a nutritionist?" },
-        { q: "Will veg preference be followed?" },
-        { q: "Are diet plans accurate?" }
+        { q: "How do I access and follow my daily Diet Plan?" },
+        { q: "Are diet plans customized by AI or my assigned Nutritionist?" },
+        { q: "Can I automatically log planned diet meals into my food tracker?" },
+        { q: "How do I request a custom diet plan from my nutritionist?" },
+        { q: "Will the diet plan respect my allergies and food preferences?" }
     ],
-    "Health Tracking": [
-        { q: "What health tools are available?" },
-        { q: "Can I track my BMI?" },
-        { q: "Can I track water intake?" },
-        { q: "Can I track my weight?" },
-        { q: "Is this platform suitable for diabetes or heart patients?" }
+    "Water Tracker": [
+        { q: "How do I log my daily water intake?" },
+        { q: "What is my recommended daily hydration target?" },
+        { q: "Can I track my water hydration streak over the week?" },
+        { q: "How do water reminders help me stay hydrated?" }
+    ],
+    "BMI & Body Fat": [
+        { q: "How do I calculate my Body Mass Index (BMI)?" },
+        { q: "What is the healthy BMI range for my height and weight?" },
+        { q: "How does the US Navy Body Fat Calculator work?" },
+        { q: "What measurements are needed for body fat calculation (waist, neck, hip)?" }
+    ],
+    "Weight Tracker": [
+        { q: "How do I log my daily or weekly body weight?" },
+        { q: "Can I see a progress graph of my weight loss or gain?" },
+        { q: "How do I set and track my target goal weight?" },
+        { q: "When is the best time of day to record my weight?" }
+    ],
+    "Custom Reminders": [
+        { q: "How do I set up custom reminders for meals, water, and supplements?" },
+        { q: "Can I set medication and vitamin alarm alerts?" },
+        { q: "How do I edit or turn off scheduled reminders?" }
+    ],
+    "Health & Vitals": [
+        { q: "How do I log and monitor my blood sugar (Fasting & Post-Prandial)?" },
+        { q: "Can I track my blood pressure and resting heart rate?" },
+        { q: "Does my assigned nutritionist see my blood glucose logs?" }
+    ],
+    "Lab Reports": [
+        { q: "How do I upload diagnostic lab reports (PDF / image)?" },
+        { q: "What lab test types are supported (CBC, Lipid, HbA1c, Thyroid)?" },
+        { q: "Can my nutritionist review my lab reports and give advice?" }
+    ],
+    "Nutrition Search": [
+        { q: "How do I search the database of 2000+ Indian and global foods?" },
+        { q: "Where can I check the Glycemic Index (GI) of ingredients?" },
+        { q: "How do I check calories, fiber, and micronutrients per 100g?" }
+    ],
+    "Appointments": [
+        { q: "How do I book a consultation with a certified Nutritionist?" },
+        { q: "Can I choose between online video calls and clinic visits?" },
+        { q: "What payment options are available (Online Razorpay or Pay at Clinic)?" },
+        { q: "Can I reschedule or cancel a booked appointment?" }
+    ],
+    "My Nutritionist & Chat": [
+        { q: "How do I chat with my assigned Nutritionist?" },
+        { q: "How quickly will my nutritionist reply to my food questions?" },
+        { q: "Can I ask my nutritionist for food substitutions?" }
     ],
     "My Progress": [
-        { q: "Can I see my progress?" },
-        { q: "What does the dashboard show?" },
-        { q: "Can I track long-term progress?" },
-        { q: "Does it help with motivation?" },
-        { q: "Is progress tracking automatic?" }
+        { q: "What insights are shown on my Progress and Reports page?" },
+        { q: "How do I monitor my 7-day calorie adherence average?" },
+        { q: "Can I export or share my health progress?" }
     ],
     "Help & Support": [
-        { q: "Can I contact support?" },
-        { q: "Can I consult a nutritionist?" },
-        { q: "What should I do if I face issues?" },
-        { q: "Is help available anytime?" },
-        { q: "Can I give feedback?" }
+        { q: "How can I contact TrackIntake customer support?" },
+        { q: "What should I do if I encounter a technical issue?" },
+        { q: "How do I update my password or account details?" }
     ]
 };
 
 // ================= NUTRITIONIST FAQs =================
-// Questions for nutritionists
 const nutritionistFAQs = {
     "How to Use": [
-        { q: "How do I start using TrackIntake as a nutritionist?" },
-        { q: "What details are required during setup?" },
-        { q: "Is the platform easy to use?" },
-        { q: "Do I need training before using it?" },
-        { q: "Can I start working immediately?" }
+        { q: "How do I start using TrackIntake as a practitioner?" },
+        { q: "What details should I complete on my professional profile?" },
+        { q: "How does the practitioner dashboard help me monitor clients?" }
     ],
-    "Patients": [
-        { q: "Can I manage multiple patients?" },
-        { q: "Can I monitor patients daily?" },
-        { q: "Can I get new patients through the platform?" },
-        { q: "How can I track patient progress?" },
-        { q: "Is patient data easy to access?" }
+    "Add & Assign Patients": [
+        { q: "How do I add or register a new patient manually?" },
+        { q: "How do I bulk import multiple patients using an Excel template (.xlsx)?" },
+        { q: "Where can I download the pre-filled patient Excel import template?" },
+        { q: "How do I assign existing registered platform users to my practice?" },
+        { q: "How does my patient capacity limit work, and how do I upgrade?" }
     ],
-    "Diet Plans": [
-        { q: "How do I create diet plans?" },
-        { q: "Can I customize diet plans?" },
-        { q: "Does the system support Indian diets?" },
-        { q: "Can I reuse diet plans?" },
-        { q: "Does AI help in diet planning?" }
+    "Patient Monitoring": [
+        { q: "How do I view what my patients ate today and their macro intake?" },
+        { q: "Can I review individual meal portion sizes (katoris, grams)?" },
+        { q: "How do I switch active patients quickly inside Quick Tools?" },
+        { q: "Can I track patient water intake and hydration consistency?" }
     ],
-    "Consultations": [
-        { q: "Can I conduct online consultations?" },
-        { q: "Can I communicate with patients easily?" },
-        { q: "Can I schedule consultations?" },
-        { q: "Is follow-up support available?" },
-        { q: "Is it convenient for both sides?" }
+    "Diet Plans & AI": [
+        { q: "How do I create and assign custom Indian diet plans?" },
+        { q: "How do I review and approve AI-generated Diet Recommendations?" },
+        { q: "Can I customize meal quantities, calories, and macro targets?" },
+        { q: "How do I reuse and archive diet plan templates?" }
     ],
-    "Earnings": [
-        { q: "How can I earn through TrackIntake?" },
-        { q: "Are there multiple earning options?" },
-        { q: "Can I set my own pricing?" },
-        { q: "Can this help grow my practice?" },
-        { q: "Can I track my earnings?" }
+    "Lab Reports": [
+        { q: "How do I view diagnostic lab reports uploaded by my patients?" },
+        { q: "Can I add clinical notes to patient CBC, HbA1c, and lipid tests?" },
+        { q: "How do patient lab reports integrate into diet recommendations?" }
     ],
-    "Reports": [
-        { q: "Can I generate patient reports?" },
-        { q: "What insights are available?" },
-        { q: "Can I track long-term progress?" },
-        { q: "Are reports easy to understand?" },
-        { q: "Can I use data for research?" }
+    "Consultations & Chat": [
+        { q: "How do I send direct messages to assigned patients?" },
+        { q: "How do Quick Snippets help me send fast clinical guidance?" },
+        { q: "Do patients receive instant notifications when I reply?" }
+    ],
+    "Availability & Slots": [
+        { q: "How do I configure my available consultation days and hours?" },
+        { q: "How do I customize appointment slot duration and buffer times?" },
+        { q: "How do I enable 'Pay at Clinic' cash bookings for clients?" }
+    ],
+    "Food Database": [
+        { q: "How do I search for foods and check glycemic values?" },
+        { q: "Does the food database support regional Indian dishes and raw ingredients?" }
+    ],
+    "Earnings & Subscriptions": [
+        { q: "How do I manage my practitioner subscription tier?" },
+        { q: "What features unlock with upgraded practitioner plans?" },
+        { q: "How can I increase my active patient capacity?" }
     ],
     "Help & Support": [
-        { q: "What should I do if I face issues?" },
-        { q: "Is technical support available?" },
-        { q: "Can I request a demo?" },
-        { q: "How can I contact support?" },
-        { q: "Can I give feedback?" }
+        { q: "What should I do if I face technical issues?" },
+        { q: "How can I contact technical support or request a demo?" }
     ]
 };
 
-export default function Chatbot() {
+export default function Chatbot({ userRole }) {
+    const { user } = useAuth();
+    const effectiveRole = (user?.role || userRole || localStorage.getItem("userRole") || "user").toLowerCase();
+    const isNutritionist = effectiveRole === "nutritionist";
+    const defaultData = isNutritionist ? nutritionistFAQs : userFAQs;
 
     // ================= STATE MANAGEMENT =================
     const [open, setOpen] = useState(false); // chatbot open/close
     const [historyStack, setHistoryStack] = useState([]); // navigation history
-    const [activeData, setActiveData] = useState(null); // current FAQ dataset
-    const [currentView, setCurrentView] = useState("home"); // current screen
+    const [activeData, setActiveData] = useState(defaultData); // current FAQ dataset
+    const [currentView, setCurrentView] = useState("categories"); // "categories" or category name
     const [answers, setAnswers] = useState({}); // API answers
     const [loading, setLoading] = useState({}); // loading state per question
     const [selectedQuestion, setSelectedQuestion] = useState(null); // selected question index
     const [menuOpen, setMenuOpen] = useState(false); // menu dropdown toggle
     const [activeMenu, setActiveMenu] = useState(null); // active menu item
+
+    // Keep activeData in sync with detected role
+    useEffect(() => {
+        const data = isNutritionist ? nutritionistFAQs : userFAQs;
+        setActiveData(data);
+        setCurrentView("categories");
+        setHistoryStack([]);
+        setSelectedQuestion(null);
+    }, [isNutritionist]);
 
     // ================= CHATBOT CONTROLS =================
     const closeBot = () => setOpen(false);
@@ -133,7 +188,9 @@ export default function Chatbot() {
 
     const showHome = () => {
         setHistoryStack([]);
-        setCurrentView("home");
+        setCurrentView("categories");
+        setActiveData(isNutritionist ? nutritionistFAQs : userFAQs);
+        setSelectedQuestion(null);
     };
 
     // ================= BACK NAVIGATION =================
@@ -142,6 +199,9 @@ export default function Chatbot() {
             const previousView = historyStack[historyStack.length - 1];
             setHistoryStack(historyStack.slice(0, -1));
             setCurrentView(previousView);
+            setSelectedQuestion(null);
+        } else {
+            showHome();
         }
     };
 
@@ -154,7 +214,6 @@ export default function Chatbot() {
 
     // ================= FETCH ANSWER FROM API =================
     const getAnswer = async (question, index) => {
-
         // Toggle close if same question clicked
         if (selectedQuestion === index) {
             setSelectedQuestion(null);
@@ -166,63 +225,39 @@ export default function Chatbot() {
         setAnswers({});
 
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/chat/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question })
-            });
-
-            const data = await res.json();
-            setAnswers({ [index]: data.answer });
-
+            const res = await axiosInstance.post("/chat/", { question });
+            setAnswers({ [index]: res.data?.answer || "No response received." });
         } catch (err) {
-            console.error(err);
-            setAnswers({ [index]: "⚠️ Server error" });
+            console.warn("Primary chat endpoint error, trying fallback:", err);
+            try {
+                const resFallback = await fetch("/api/chat/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question })
+                });
+                const data = await resFallback.json();
+                setAnswers({ [index]: data?.answer || "No response received." });
+            } catch (fallbackErr) {
+                console.error("Chatbot fallback error:", fallbackErr);
+                setAnswers({ [index]: "⚠️ Unable to load answer at the moment. Please try again." });
+            }
         }
 
         setLoading({ [index]: false });
     };
 
-    // ================= OPEN USER / NUTRITION SECTION =================
-    const openSection = (type) => {
-        setHistoryStack([...historyStack, currentView]);
-        setActiveData(type === "user" ? userFAQs : nutritionistFAQs);
-        setCurrentView(type);
-    };
-
     // ================= RENDER UI BASED ON VIEW =================
     const renderContent = () => {
-
-        // HOME SCREEN
-        if (currentView === "home") {
-            return (
-                <div className="text-center p-5">
-                    <h3 className="text-2xl font-semibold mb-2">
-                        Welcome To TrackIn-Take 👋
-                    </h3>
-                    <h5 className="text-lg mb-5">Please choose a category</h5>
-
-                    <div className="flex justify-center gap-3">
-                        <button className="btn-orange" onClick={() => openSection("user")}>
-                            User
-                        </button>
-                        <button className="btn-green" onClick={() => openSection("nutrition")}>
-                            Nutritionist
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        // CATEGORY PAGE
-        if (currentView === "user" || currentView === "nutrition") {
-            const title = currentView === "user" ? "👤 User Page" : "🥗 Nutritionist Page";
-            const data = currentView === "user" ? userFAQs : nutritionistFAQs;
+        // CATEGORIES VIEW (Never show role selection screen - strictly show patient or nutritionist)
+        if (currentView === "categories" || currentView === "home" || currentView === "user" || currentView === "nutrition") {
+            const title = isNutritionist ? "🥗 Nutritionist Knowledge Base" : "👤 Patient Guide & FAQs";
+            const data = isNutritionist ? nutritionistFAQs : userFAQs;
 
             return (
                 <div>
                     <div className="text-center p-3">
-                        <h3 className="text-xl font-semibold text-orange-500">{title}</h3>
+                        <h3 className="text-lg font-bold text-orange-500">{title}</h3>
+                        <p className="text-xs text-gray-500 mt-1">Select a category to view answers</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 p-3">

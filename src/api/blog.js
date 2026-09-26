@@ -26,3 +26,13 @@ export const getblogs = async (page = 1, perPage = 6) => {
   // axios automatically handles JSON parsing.
   return response.data;
 };
+
+/**
+ * Fetches a single blog by ID.
+ * @param {string|number} id - The blog ID.
+ * @returns {Promise<object>} The blog data object.
+ */
+export const getBlogById = async (id) => {
+  const response = await axiosInstance.get(`/blogs/${id}/`);
+  return response.data;
+};

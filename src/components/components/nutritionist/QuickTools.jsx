@@ -1,9 +1,15 @@
 import React, { useState } from "react";
-import { Bot, Salad, Zap, X, MessageSquare } from "lucide-react"; // MessageSquare icon added
+import { Bot, Salad, Zap, X, MessageSquare, Compass } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// The component now accepts an `onOpenChat` prop
-const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) => {
+// The component now accepts onOpenGuide prop
+const QuickTools = ({
+  onOpenAssistant,
+  onOpenGuide,
+  onOpenNutrition,
+  onOpenChat,
+  userRole,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Animation variants for the container to stagger the children
@@ -20,9 +26,9 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
       opacity: 0,
       transition: {
         staggerChildren: 0.05,
-        staggerDirection: -1
-      }
-    }
+        staggerDirection: -1,
+      },
+    },
   };
 
   // Animation variants for each individual tool item
@@ -38,15 +44,15 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
       opacity: 0,
       y: 15,
       scale: 0.9,
-    }
+    },
   };
 
   return (
-    <div className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 font-[var(--font-secondary)]">
+    <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 font-[var(--font-secondary)]">
       <div className="relative group flex items-center">
         {/* Tooltip that appears on hover */}
         <div className="hidden sm:block absolute right-full mr-3 px-3 py-1.5 bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] text-xs font-semibold rounded-xl shadow-lg border border-[var(--color-border-default)] whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-300">
-          Quick Toolbox
+          Quick Tools & Bot
         </div>
 
         <div className="relative">
@@ -58,21 +64,40 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="absolute right-0 bottom-full mb-3 space-y-2.5 min-w-[200px]"
+                className="absolute right-0 bottom-full mb-3 space-y-2 min-w-[200px] max-w-[calc(100vw-2rem)]"
               >
-                {/* Smart Assistant Button */}
+                {/* Smart Assistant / AI Bot Button */}
                 <motion.button
                   variants={itemVariants}
                   onClick={() => {
                     onOpenAssistant();
                     setIsOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1 cursor-pointer"
                 >
                   <span className="p-2 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]">
                     <Bot size={18} />
                   </span>
-                  <span className="text-sm font-[var(--font-primary)]">Smart Assistant</span>
+                  <span className="text-sm font-[var(--font-primary)]">
+                    {userRole === "nutritionist" ? "Clinical AI Assistant" : "AI Health & Diet Bot"}
+                  </span>
+                </motion.button>
+
+                {/* Interactive App Guide Button */}
+                <motion.button
+                  variants={itemVariants}
+                  onClick={() => {
+                    if (onOpenGuide) onOpenGuide();
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-indigo-500 hover:bg-indigo-500/10 text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1 cursor-pointer"
+                >
+                  <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600">
+                    <Compass size={18} />
+                  </span>
+                  <span className="text-sm font-[var(--font-primary)]">
+                    App Feature Guide
+                  </span>
                 </motion.button>
 
                 {/* Nutrition Search Button */}
@@ -82,7 +107,7 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                     onOpenNutrition();
                     setIsOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1 cursor-pointer"
                 >
                   <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
                     <Salad size={18} />
@@ -97,13 +122,13 @@ const QuickTools = ({ onOpenAssistant, onOpenNutrition, onOpenChat, userRole }) 
                     onOpenChat();
                     setIsOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1"
+                  className="flex items-center gap-3 w-full p-3 bg-[var(--color-bg-surface)] rounded-2xl shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] text-[var(--color-text-strong)] font-semibold transition-all duration-200 transform hover:-translate-x-1 cursor-pointer"
                 >
                   <span className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
                     <MessageSquare size={18} />
                   </span>
                   <span className="text-sm font-[var(--font-primary)]">
-                    {userRole === "nutritionist" ? "Quick Patient Messages" : "Chat with Nutritionist"}
+                    {userRole === "nutritionist" ? "Patient Messages" : "Chat with Nutritionist"}
                   </span>
                 </motion.button>
               </motion.div>

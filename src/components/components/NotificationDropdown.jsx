@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Corrected path
 import { getMessages } from "../../api/nutritionistApi";
+import { markMessageAsRead } from "../../api/messagePatientApi";
 
 export let clearMessageNotifications = () => {};
 export let pushWaterNotification = () => {};
@@ -36,12 +37,14 @@ const NotificationDropdown = () => {
 
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
-   useEffect(() => {
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
     const fetchInitialMessages = async () => {
       if (!user) return;
       try {
         const response = await getMessages();
-        const messages = response.data.results || [];
+        const messages = response.data.results || response.data || [];
         const newNotifications = [];
         messages.forEach(msg => {
           if (msg.sender_id !== user.id && !msg.is_read) {
@@ -97,7 +100,7 @@ const NotificationDropdown = () => {
     };
   }, []);
 
-   const onMessage = useCallback((data) => {
+  const onMessage = useCallback((data) => {
     if (!user) return;
     if (data.sender_id !== user.id) {
         const newNotification = { id: data.id || Date.now(), type: "message", text: data.text || "New message!", read: false, ...data };
@@ -110,9 +113,9 @@ const NotificationDropdown = () => {
   }, [user]);
 
   const onReminder = useCallback((data) => {
-    const newNotification = { id: data.id || Date.now(), type: "reminder", text: data.title || "New reminder!", ...data };
+    const newNotification = { id: data.id || Date.now(), type: "reminder", text: data.title || "New reminder!", read: false, ...data };
     if (!processedNotificationIds.current.has(newNotification.id)) {
-      setNotifications((prev) => [{ ...newNotification, read: false }, ...prev]);
+      setNotifications((prev) => [newNotification, ...prev]);
       setHasNew(true);
       processedNotificationIds.current.add(newNotification.id);
     }
@@ -120,17 +123,25 @@ const NotificationDropdown = () => {
 
   useWebSockets({ onMessage, onReminder });
   
-  const toggleDropdown = () => {
+  // Auto-read on opening notifications status
+  const toggleDropdown = async () => {
     const willOpen = !isOpen;
     setIsOpen(willOpen);
     if (willOpen) {
       setHasNew(false);
-      setNotifications(prev => prev.map(n => (n.type === 'water' || n.type === 'meal_alert') ? { ...n, read: true } : n));
+      // Automatically mark all notifications as read upon opening
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      try {
+        await markMessageAsRead({});
+      } catch (err) {
+        console.warn("Could not mark messages as read on server:", err);
+      }
     }
   };
   
   const handleClearAll = () => {
-    setNotifications(prev => prev.filter(n => !n.read));
+    setNotifications([]);
+    setHasNew(false);
   };
   
   const handleActionableClick = (note) => {
@@ -140,6 +151,10 @@ const NotificationDropdown = () => {
       navigate('/dashboard/messages');
     } else if (note.type === 'reminder') {
       navigate('/dashboard/tools/custom-reminder'); 
+    } else if (note.type === 'water') {
+      navigate('/dashboard/tools/water-tracker');
+    } else if (note.type === 'meal_alert') {
+      navigate('/dashboard/tools/meal-logger');
     }
   };
 
@@ -159,16 +174,38 @@ const NotificationDropdown = () => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button onClick={toggleDropdown} className="relative flex items-center justify-center h-10 w-10 rounded-full">
-        <Bell className="h-6 w-6 text-[var(--color-text-default)]  relative top-[1px]" />
-        {hasNew && (<span className="absolute top-1 right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" /></span>)}
+      <button
+        onClick={toggleDropdown}
+        className="relative flex items-center justify-center h-10 w-10 rounded-full hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+        aria-label="Notifications"
+      >
+        <Bell className="h-6 w-6 text-[var(--color-text-default)] relative top-[1px]" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-extrabold text-white px-1 shadow-md ring-2 ring-[var(--color-bg-surface)]">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </button>
       <AnimatePresence>
         {isOpen && (
-          <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.2, ease: "easeInOut" }} className="absolute right-0 mt-3 w-80 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-xl shadow-2xl z-50 overflow-hidden">
-            <div className="flex justify-between items-center p-3 font-semibold border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
-              <span className="text-[var(--color-text-strong)]">Notifications</span>
-              {notifications.some(n => n.read) && (<button onClick={handleClearAll} className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1"><XCircle size={14} /> Clear Read</button>)}
+          <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.2, ease: "easeInOut" }} className="absolute right-0 mt-3 w-80 sm:w-96 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-xl shadow-2xl z-50 overflow-hidden">
+            <div className="flex justify-between items-center p-3.5 font-semibold border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
+              <div className="flex items-center gap-2">
+                <span className="text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</span>
+                {notifications.length > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] font-medium">
+                    {notifications.length}
+                  </span>
+                )}
+              </div>
+              {notifications.length > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <XCircle size={14} /> Clear All
+                </button>
+              )}
             </div>
             {notifications.length === 0 ? (
               <div className="p-8 flex flex-col items-center justify-center text-center">

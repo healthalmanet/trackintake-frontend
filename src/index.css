@@ -249,7 +249,7 @@ input[type="date"]:valid::before { display: none; }
 
   /* --- Chat Box --- */
   .chat-box {
-    @apply fixed bottom-20 right-5 w-96 h-[500px] flex flex-col rounded-xl shadow-2xl z-50;
+    @apply fixed bottom-20 right-3 sm:right-5 w-[calc(100vw-1.5rem)] sm:w-96 max-w-full h-[500px] max-h-[80vh] flex flex-col rounded-2xl shadow-2xl z-50;
     background-color: var(--color-bg-surface);
     border: 1px solid var(--color-border-default);
   }
