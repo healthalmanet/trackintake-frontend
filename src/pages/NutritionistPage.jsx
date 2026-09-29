@@ -20,6 +20,7 @@ const AddAvailability = lazy(() => import("../components/components/nutritionist
 const NutritionSearchLayout = lazy(() => import("../components/components/nutritionist/NutritionSearchLayout"));
 const NutritionistSubscription = lazy(() => import("../components/components/nutritionist/NutritionistSubscription"));
 const NutritionistProfile = lazy(() => import("../components/components/nutritionist/NutritionistProfile"));
+const NutritionistPayouts = lazy(() => import("../components/components/nutritionist/NutritionistPayouts"));
 
 const PageFallbackLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
@@ -129,6 +130,7 @@ const NutritionistPage = () => {
                       }
                     />
                     <Route path="profile" element={<NutritionistProfile />} />
+                    <Route path="payouts" element={<NutritionistPayouts />} />
                   </Routes>
                 </SubscriptionGuard>
               }
