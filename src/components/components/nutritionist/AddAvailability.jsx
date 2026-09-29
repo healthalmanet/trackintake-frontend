@@ -15,18 +15,25 @@ import AppointmentDetailModal from "../appointments/AppointmentDetailModal";
 import BackButton from "./BackButton";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
-const getTodayStr = () => new Date().toISOString().split("T")[0];
+const formatLocalDate = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayStr = () => formatLocalDate(new Date());
 
 const getTomorrowStr = () => {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
+  return formatLocalDate(d);
 };
 
 const getFutureDateStr = (daysAhead) => {
   const d = new Date();
   d.setDate(d.getDate() + daysAhead);
-  return d.toISOString().split("T")[0];
+  return formatLocalDate(d);
 };
 
 const getEndOfWeekStr = () => {
@@ -34,12 +41,13 @@ const getEndOfWeekStr = () => {
   const day = d.getDay(); // 0 is Sunday, 5 is Friday
   const distance = (5 - day + 7) % 7;
   d.setDate(d.getDate() + (distance === 0 ? 7 : distance));
-  return d.toISOString().split("T")[0];
+  return formatLocalDate(d);
 };
 
 const fmtDate = (d) => {
   if (!d) return "";
-  const dateObj = new Date(d + "T00:00:00");
+  const [y, m, day] = d.split("-").map(Number);
+  const dateObj = new Date(y, m - 1, day, 12, 0, 0);
   return dateObj.toLocaleDateString(undefined, {
     weekday: "short",
     day: "numeric",
@@ -49,9 +57,14 @@ const fmtDate = (d) => {
 };
 
 const getRelativeDateLabel = (dateStr) => {
+  if (!dateStr) return null;
   const today = getTodayStr();
-  const d = new Date(dateStr + "T00:00:00");
-  const t = new Date(today + "T00:00:00");
+  if (dateStr === today) return "Today";
+
+  const [tY, tM, tD] = today.split("-").map(Number);
+  const [dY, dM, dD] = dateStr.split("-").map(Number);
+  const t = new Date(tY, tM - 1, tD, 12, 0, 0);
+  const d = new Date(dY, dM - 1, dD, 12, 0, 0);
   const diffDays = Math.round((d - t) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return "Today";
@@ -66,13 +79,15 @@ const getRelativeDateLabel = (dateStr) => {
 const getDatesInRange = (startDate, endDate, skipWeekends = false) => {
   if (!startDate || !endDate || startDate > endDate) return [];
   const dates = [];
-  let cur = new Date(startDate + "T00:00:00");
-  const end = new Date(endDate + "T00:00:00");
+  const [sY, sM, sD] = startDate.split("-").map(Number);
+  const [eY, eM, eD] = endDate.split("-").map(Number);
+  const cur = new Date(sY, sM - 1, sD, 12, 0, 0);
+  const end = new Date(eY, eM - 1, eD, 12, 0, 0);
 
   while (cur <= end) {
     const day = cur.getDay(); // 0 = Sun, 6 = Sat
     if (!skipWeekends || (day !== 0 && day !== 6)) {
-      dates.push(cur.toISOString().split("T")[0]);
+      dates.push(formatLocalDate(cur));
     }
     cur.setDate(cur.getDate() + 1);
   }

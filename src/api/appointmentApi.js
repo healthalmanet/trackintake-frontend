@@ -59,9 +59,34 @@ export const updateAppointmentNotes = (appointmentId, data) => {
 };
 
 /**
+ * Cancel an appointment (patient or nutritionist) with reason and refund policy enforcement
+ */
+export const cancelAppointment = (appointmentId, reason = "") => {
+  return axiosInstance.post(`/appointments/appointments/${appointmentId}/cancel/`, { reason });
+};
+
+/**
+ * Reschedule an appointment to a new availability slot
+ */
+export const rescheduleAppointment = (appointmentId, newSlotId) => {
+  return axiosInstance.post(`/appointments/appointments/${appointmentId}/reschedule/`, {
+    new_slot_id: newSlotId,
+  });
+};
+
+/**
+ * Get online appointment payouts and earnings summary for the nutritionist
+ */
+export const getNutritionistPayouts = (params = {}) => {
+  return axiosInstance.get("/appointments/nutritionist/payouts/", { params });
+};
+
+/**
  * Fetch all appointments scheduled by a specific patient
  */
 export const getPatientAppointmentHistory = (patientId) => {
   return axiosInstance.get(`/appointments/patient-history/${patientId}/`);
 };
+
+
 

@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getAppointmentDetails, updateAppointmentNotes } from "../../../api/appointmentApi";
+import RescheduleModal from "./RescheduleModal";
+import CancelModal from "./CancelModal";
 
 const fmtDate = (d) => {
   if (!d) return "";
@@ -47,6 +49,10 @@ const AppointmentDetailModal = ({
   const [instructions, setInstructions] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Reschedule & Cancel sub-modals
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !appointmentId) {
@@ -178,6 +184,46 @@ const AppointmentDetailModal = ({
             </div>
           ) : (
             <>
+              {/* Cancellation & Refund Alert Banner (if cancelled) */}
+              {!isConfirmed && (
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 dark:bg-rose-950/20 dark:border-rose-800 dark:text-rose-200 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-xs">
+                    <XCircle size={15} className="text-rose-600 shrink-0" />
+                    <span>Appointment Cancelled {appointment.cancelled_by ? `by ${appointment.cancelled_by}` : ""}</span>
+                  </div>
+                  {appointment.cancellation_reason && (
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                      Reason: "{appointment.cancellation_reason}"
+                    </p>
+                  )}
+                  {appointment.payment_status === "PENDING_REFUND" && (
+                    <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 pt-1">
+                      ⚠️ Refund Status: ₹{appointment.refund_amount} (Pending Admin Review)
+                    </p>
+                  )}
+                  {appointment.payment_status === "REFUNDED" && (
+                    <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 pt-1">
+                      ✓ Refund Status: ₹{appointment.refund_amount} Refunded
+                    </p>
+                  )}
+                  {appointment.payment_status === "NO_REFUND" && (
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400 pt-1">
+                      Refund Policy: No refund applicable for this cancellation.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Reschedule tracking alert */}
+              {appointment.reschedule_count > 0 && (
+                <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 dark:bg-blue-950/20 dark:border-blue-800 dark:text-blue-200 flex items-center justify-between text-xs">
+                  <span className="font-semibold">Reschedule History:</span>
+                  <span className="font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full text-[11px]">
+                    {appointment.reschedule_count} / 2 used
+                  </span>
+                </div>
+              )}
+
               {/* Date & Time Highlight Banner */}
               <div className="p-4 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -516,7 +562,36 @@ const AppointmentDetailModal = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-end">
+        <div className="p-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            {isConfirmed && (
+              <>
+                <button
+                  type="button"
+                  disabled={!appointment?.can_reschedule && !isNutritionist}
+                  onClick={() => setIsRescheduleOpen(true)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                  title={
+                    !appointment?.can_reschedule && !isNutritionist
+                      ? "Rescheduling requires at least 24 hours advance notice and max 2 attempts."
+                      : "Reschedule appointment to a new slot"
+                  }
+                >
+                  <span>🔄 Reschedule</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCancelOpen(true)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <XCircle size={14} />
+                  <span>Cancel Appointment</span>
+                </button>
+              </>
+            )}
+          </div>
+
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all cursor-pointer shadow-2xs"
@@ -524,6 +599,30 @@ const AppointmentDetailModal = ({
             Close Details
           </button>
         </div>
+
+        {/* Reschedule Sub-Modal */}
+        <RescheduleModal
+          isOpen={isRescheduleOpen}
+          onClose={() => setIsRescheduleOpen(false)}
+          appointment={appointment}
+          userRole={userRole}
+          onRescheduled={(updated) => {
+            setAppointment(updated);
+            onNotesSaved?.(updated);
+          }}
+        />
+
+        {/* Cancel Sub-Modal */}
+        <CancelModal
+          isOpen={isCancelOpen}
+          onClose={() => setIsCancelOpen(false)}
+          appointment={appointment}
+          userRole={userRole}
+          onCancelled={(updated) => {
+            setAppointment(updated);
+            onNotesSaved?.(updated);
+          }}
+        />
       </motion.div>
     </div>
   );

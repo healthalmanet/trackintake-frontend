@@ -9,6 +9,8 @@ import {
   MapPin, Search, X, RefreshCw, Filter, Layers, FileText, Info
 } from "lucide-react";
 import AppointmentDetailModal from "./AppointmentDetailModal";
+import RescheduleModal from "./RescheduleModal";
+import CancelModal from "./CancelModal";
 
 /* ─── Helpers ───────────────────────────────────────────────── */
 const fmtDate = (d) => {
@@ -207,6 +209,26 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
             </div>
             <div className="flex flex-col items-end gap-1">
               <StatusBadge status={a.status} />
+              {a.payment_status === "PENDING_REFUND" && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                  ⚠️ Pending Refund: ₹{a.refund_amount}
+                </span>
+              )}
+              {a.payment_status === "REFUNDED" && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-700 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full">
+                  ✓ Refunded: ₹{a.refund_amount}
+                </span>
+              )}
+              {a.status === "CANCELLED" && a.payment_status === "NO_REFUND" && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                  No Refund
+                </span>
+              )}
+              {a.reschedule_count > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                  Rescheduled {a.reschedule_count}/2
+                </span>
+              )}
               {hasNotes && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] px-2 py-0.5 rounded-full">
                   <FileText size={10} /> Notes Attached
@@ -340,14 +362,32 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
           )}
 
           {isConfirmed && (
-            <button
-              disabled={!ablToCancel}
-              onClick={() => onCancel(a.id)}
-              className="w-full py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-            >
-              <XCircle size={14} />
-              {ablToCancel ? "Cancel Appointment" : "Cannot Cancel (Past Appointment)"}
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                disabled={!a.can_reschedule}
+                onClick={() => onReschedule(a)}
+                className="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                title={
+                  !a.can_reschedule
+                    ? "Rescheduling requires at least 24h advance notice and maximum 2 attempts per booking."
+                    : `Reschedule session (${a.reschedule_remaining ?? 2} left)`
+                }
+              >
+                <RefreshCw size={12} />
+                <span className="truncate">
+                  {a.can_reschedule ? `Reschedule (${a.reschedule_remaining ?? 2})` : "Reschedule (Locked)"}
+                </span>
+              </button>
+
+              <button
+                disabled={!ablToCancel}
+                onClick={() => onCancel(a)}
+                className="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+              >
+                <XCircle size={13} />
+                <span>{ablToCancel ? "Cancel" : "Past"}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -464,16 +504,9 @@ const MyAppointments = ({ refresh } = {}) => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const cancelAppointment = async (id) => {
-    if (!confirm("Are you sure you want to cancel this appointment?")) return;
-    try {
-      await axiosInstance.post(`/appointments/appointments/${id}/cancel/`);
-      toast.success("Appointment cancelled");
-      fetchAppointments();
-    } catch {
-      toast.error("Failed to cancel appointment");
-    }
-  };
+  // Reschedule & Cancel Modals State
+  const [rescheduleModalAppt, setRescheduleModalAppt] = useState(null);
+  const [cancelModalAppt, setCancelModalAppt] = useState(null);
 
   return (
     <div className="min-h-screen pb-16 bg-[var(--color-bg-app)] font-[var(--font-secondary)] text-[var(--color-text-strong)]">
@@ -654,7 +687,8 @@ const MyAppointments = ({ refresh } = {}) => {
                 key={a.id}
                 a={a}
                 idx={i}
-                onCancel={cancelAppointment}
+                onCancel={(appt) => setCancelModalAppt(appt)}
+                onReschedule={(appt) => setRescheduleModalAppt(appt)}
                 onFeedback={openFeedbackModal}
                 onViewDetails={(id) => setDetailModalApptId(id)}
               />
@@ -670,6 +704,24 @@ const MyAppointments = ({ refresh } = {}) => {
         onClose={() => setDetailModalApptId(null)}
         userRole="patient"
         onNotesSaved={fetchAppointments}
+      />
+
+      {/* ── Reschedule Modal ── */}
+      <RescheduleModal
+        appointment={rescheduleModalAppt}
+        isOpen={Boolean(rescheduleModalAppt)}
+        onClose={() => setRescheduleModalAppt(null)}
+        userRole="patient"
+        onRescheduled={fetchAppointments}
+      />
+
+      {/* ── Cancel Modal with Policy Notice ── */}
+      <CancelModal
+        appointment={cancelModalAppt}
+        isOpen={Boolean(cancelModalAppt)}
+        onClose={() => setCancelModalAppt(null)}
+        userRole="patient"
+        onCancelled={fetchAppointments}
       />
 
       {/* ── Feedback Modal ── */}
