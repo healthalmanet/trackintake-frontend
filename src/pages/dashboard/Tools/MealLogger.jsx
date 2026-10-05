@@ -11,7 +11,10 @@ import {
   Search,
   Loader,
   FilePenLine,
+  Camera,
+  Sparkles,
 } from "lucide-react";
+import MealPhotoScannerModal from "../../../components/components/MealLogger/MealPhotoScannerModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 // Import the water API
@@ -153,10 +156,32 @@ const MealLogger = () => {
     handleSelectFood,
     debouncedSearch,
     handleFoodBlur,
-    // === Changes made by Ananya (End) ===
     recentMeals = [],
     handleQuickReLog,
+    setFoodInputs,
+    fetchMeals,
   } = useMealLogger();
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleApplyPhotoToInputs = (data) => {
+    if (!data.items || data.items.length === 0) return;
+    const newInputs = data.items.map((item, idx) => ({
+      id: Date.now() + idx,
+      name: item.food_name,
+      quantity: item.quantity,
+      unit: item.unit,
+      portionSize: item.portion_size || "Medium",
+      mealType: data.mealType || "Lunch",
+      logDate: data.date,
+      logTime: data.time,
+      remark: data.remarks || item.description || "",
+      selectedFood: null,
+      exact_grams: item.gram_equivalent || null,
+      exact_ml: null,
+    }));
+    setFoodInputs(newInputs);
+  };
 
   // --- DESIGN UPDATE: Changed to normalized key 'all' ---
   const [activeCategory, setActiveCategory] = useState("all");
@@ -731,12 +756,27 @@ const MealLogger = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-lg p-6"
             >
-              <h3 className="text-xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)] mb-1">
-                {editingMeal ? "Editing Meal" : "Log a New Meal"}
-              </h3>
-              <p className="text-sm mb-4">
-                Enter one or more food items below.
-              </p>
+              <div className="flex items-center justify-between gap-3 mb-1">
+                <div>
+                  <h3 className="text-xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)]">
+                    {editingMeal ? "Editing Meal" : "Log a New Meal"}
+                  </h3>
+                  <p className="text-sm">
+                    Enter one or more food items below.
+                  </p>
+                </div>
+                {!editingMeal && (
+                  <button
+                    type="button"
+                    onClick={() => setScannerOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all transform active:scale-95 cursor-pointer shrink-0"
+                    title="Snap photo or upload image to log with Gemini 2.5 Flash"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Snap / Photo AI</span>
+                  </button>
+                )}
+              </div>
               {/* Quick Re-log Recent Chips */}
               {!editingMeal && recentMeals && recentMeals.length > 0 && (
                 <div className="mb-5 p-3 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
@@ -1204,6 +1244,16 @@ const MealLogger = () => {
           </motion.div>
         </div>
       </div>
+
+      <MealPhotoScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onMealLogged={async (loggedDate) => {
+          if (loggedDate) setSearchDate(loggedDate);
+          if (fetchMeals) await fetchMeals(loggedDate || searchDate);
+        }}
+        onApplyToInputs={handleApplyPhotoToInputs}
+      />
     </div>
   );
 };

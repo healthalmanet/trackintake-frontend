@@ -195,3 +195,18 @@ export const getRecentMeals = async () => {
     return { recent: [] }; // fail gracefully — recent meals are a convenience feature
   }
 };
+
+export const scanMealPhoto = async (formDataOrBase64) => {
+  try {
+    const isFormData = formDataOrBase64 instanceof FormData;
+    const response = await axiosInstance.post(
+      '/scan-meal-photo/',
+      isFormData ? formDataOrBase64 : { image_base64: formDataOrBase64 }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error scanning meal photo with Gemini:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
