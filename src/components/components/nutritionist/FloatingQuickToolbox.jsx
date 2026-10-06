@@ -315,10 +315,24 @@ export const FloatingQuickToolbox = ({
         : myNutritionistInfo?.id;
     if (!targetId) return;
 
-    const pollInterval = setInterval(async () => {
+    let isStopped = false;
+    let pollInterval = null;
+
+    const handleStop = () => {
+      isStopped = true;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+    window.addEventListener("trackintake:logout", handleStop);
+
+    pollInterval = setInterval(async () => {
+      if (isStopped || !localStorage.getItem("token")) {
+        handleStop();
+        return;
+      }
       try {
         const apiFunc = effectiveRole === "nutritionist" ? getMessages : getPatientMessages;
         const res = await apiFunc({ partner_id: targetId });
+        if (isStopped) return;
         const serverMsgs = res.data?.results || res.data || [];
         if (serverMsgs.length > 0) {
           setChatMessages((prev) => {
@@ -350,7 +364,10 @@ export const FloatingQuickToolbox = ({
       }
     }, 2500);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      handleStop();
+      window.removeEventListener("trackintake:logout", handleStop);
+    };
   }, [isOpen, isMinimized, activeTab, effectiveRole, selectedPatient, myNutritionistInfo?.id]);
 
   const handleRetryChatMessage = async (failedMsg) => {

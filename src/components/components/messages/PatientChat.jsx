@@ -198,9 +198,23 @@ const PatientChatPage = () => {
   // Fallback sync polling to ensure 100% reliable delivery even if socket blips
   useEffect(() => {
     if (!nutritionist?.id || !user?.id) return;
-    const pollInterval = setInterval(async () => {
+    let isStopped = false;
+    let pollInterval = null;
+
+    const handleStop = () => {
+      isStopped = true;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+    window.addEventListener('trackintake:logout', handleStop);
+
+    pollInterval = setInterval(async () => {
+      if (isStopped || !localStorage.getItem('token')) {
+        handleStop();
+        return;
+      }
       try {
         const res = await getMessages({ partner_id: nutritionist.id });
+        if (isStopped) return;
         const serverMessages = res?.data?.results || res?.data || [];
         if (serverMessages.length > 0) {
           setMessages(prev => {
@@ -221,7 +235,11 @@ const PatientChatPage = () => {
         // Silent poll error
       }
     }, 2000);
-    return () => clearInterval(pollInterval);
+
+    return () => {
+      handleStop();
+      window.removeEventListener('trackintake:logout', handleStop);
+    };
   }, [nutritionist?.id, user?.id]);
 
   const handleRetry = async (failedMsg) => {

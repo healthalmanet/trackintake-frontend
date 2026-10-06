@@ -221,9 +221,23 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
     // Fallback sync polling to ensure 100% reliable real-time delivery for active chat
     useEffect(() => {
         if (!user?.id) return;
-        const pollInterval = setInterval(async () => {
+        let isStopped = false;
+        let pollInterval = null;
+
+        const handleStop = () => {
+            isStopped = true;
+            if (pollInterval) clearInterval(pollInterval);
+        };
+        window.addEventListener('trackintake:logout', handleStop);
+
+        pollInterval = setInterval(async () => {
+            if (isStopped || !localStorage.getItem('token')) {
+                handleStop();
+                return;
+            }
             try {
                 const response = await getMessages({ partner_id: user.id });
+                if (isStopped) return;
                 const serverMessages = response.data?.results || response.data || [];
                 if (serverMessages.length > 0) {
                     setMessages(prev => {
@@ -244,7 +258,11 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                 // Silent poll error
             }
         }, 2000);
-        return () => clearInterval(pollInterval);
+
+        return () => {
+            handleStop();
+            window.removeEventListener('trackintake:logout', handleStop);
+        };
     }, [user?.id]);
 
     const handleRetry = async (failedMsg) => {
