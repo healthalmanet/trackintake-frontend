@@ -638,7 +638,7 @@ const PatientDetailsPage = () => {
 
       // Filter for displayable plans in the dropdown with clear date ranges and accurate status tags
       const options = allDietsData.map((plan) => {
-        const isArchived = plan.is_deleted || plan.status === 'archived';
+        const isArchived = plan.is_deleted || plan.status === 'archived' || plan.status === 'disabled';
         const isLatest = latestPlanForDisplay && plan.id === latestPlanForDisplay.id;
         const startDate = new Date((plan.for_week_starting || plan.created_at?.slice(0, 10)) + "T00:00:00");
         const planDaysCount = plan.meals ? Object.keys(plan.meals).filter(k => k.toLowerCase().startsWith('day ')).length : 0;
@@ -649,7 +649,7 @@ const PatientDetailsPage = () => {
         const dateRangeStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
         let statusTag = "Approved";
-        if (isArchived) statusTag = "Archived";
+        if (isArchived) statusTag = "Disabled";
         else if (plan.status === 'pending' || plan.status === 'generating') statusTag = "Pending Review";
         else if (plan.status === 'rejected') statusTag = "Rejected";
         else if (plan.status === 'failed') statusTag = "Failed";
@@ -880,10 +880,29 @@ const PatientDetailsPage = () => {
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
     try {
-      // We assume updatePatientProfile takes (patientId, data)
-      const res = await updatePatientProfile(id, editableProfile);
+      const payload = { ...editableProfile };
+      // Parse numbers if present and clean empty strings
+      if (payload.weight_kg !== undefined && payload.weight_kg !== "" && payload.weight_kg !== null) {
+        payload.weight_kg = parseFloat(payload.weight_kg);
+      } else {
+        payload.weight_kg = null;
+      }
+      if (payload.height_cm !== undefined && payload.height_cm !== "" && payload.height_cm !== null) {
+        payload.height_cm = parseFloat(payload.height_cm);
+      } else {
+        payload.height_cm = null;
+      }
+      // Remove read-only fields
+      delete payload.email;
+      delete payload.full_name;
+      delete payload.bmi;
 
-      // [FIXED] Use res.data directly, as it is the profile object.
+      // Clean empty strings for optional date/string fields
+      if (!payload.date_of_birth) payload.date_of_birth = null;
+
+      const res = await updatePatientProfile(id, payload);
+
+      // Use res.data directly, as it is the updated profile object.
       setProfile(res.data);
 
       setIsEditingProfile(false);
@@ -891,7 +910,20 @@ const PatientDetailsPage = () => {
       toast.success("Profile updated successfully!");
     } catch (err) {
       console.error("Failed to update profile:", err);
-      toast.error(err.response?.data?.detail || "Failed to update profile.");
+      let errorMsg = "Failed to update profile.";
+      const errorData = err.response?.data;
+      if (typeof errorData === "string") {
+        errorMsg = errorData;
+      } else if (errorData?.detail) {
+        errorMsg = errorData.detail;
+      } else if (errorData?.errors) {
+        const msgs = Object.entries(errorData.errors).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
+        if (msgs.length > 0) errorMsg = msgs.join(" | ");
+      } else if (typeof errorData === "object" && errorData !== null) {
+        const msgs = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
+        if (msgs.length > 0) errorMsg = msgs.join(" | ");
+      }
+      toast.error(errorMsg);
     } finally {
       setIsSavingProfile(false);
     }
@@ -1055,9 +1087,18 @@ const PatientDetailsPage = () => {
         await archiveDietPlan(dietId);
         toast.success("Diet plan disabled successfully!");
         // Re-fetch all plans to update the UI
-        const { latestPlan } = await fetchAndSetAllPlans();
-        setDiets(latestPlan ? [latestPlan] : []);
-        setSelectedPlanId(latestPlan ? latestPlan.id : null);
+        const { latestPlan, allDietsData } = await fetchAndSetAllPlans();
+        const updatedCurrentPlan = allDietsData?.find((p) => String(p.id) === String(dietId));
+        if (updatedCurrentPlan) {
+          setDiets([{ ...updatedCurrentPlan, is_deleted: true, status: 'disabled' }]);
+          setSelectedPlanId(updatedCurrentPlan.id);
+        } else if (latestPlan) {
+          setDiets([latestPlan]);
+          setSelectedPlanId(latestPlan.id);
+        } else {
+          setDiets([]);
+          setSelectedPlanId(null);
+        }
       } catch (err) {
         console.error("Failed to disable diet plan:", err);
         toast.error("Failed to disable plan.");
@@ -1084,6 +1125,12 @@ const PatientDetailsPage = () => {
     } finally {
       setIsSearchingMeals(false);
     }
+  };
+
+  const handleClearMealDateFilter = () => {
+    setSelectedMealDate("");
+    setFilteredMeals([]);
+    setActiveLogDate(null);
   };
 
   // Inside PatientDetailsPage.jsx
@@ -1813,20 +1860,34 @@ const PatientDetailsPage = () => {
                     <h2 className="text-2xl font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)] mb-6">
                       Patient Meal Log
                     </h2>
-                    <div className="mb-6 flex items-center gap-4">
+                    <div className="mb-6 flex items-center gap-4 flex-wrap">
                       <label
                         htmlFor="mealDate"
                         className="text-sm font-semibold text-[var(--color-text-default)]"
                       >
                         Filter by Date:
                       </label>
-                      <input
-                        type="date"
-                        value={selectedMealDate}
-                        onChange={handleMealSearchByDate}
-                        max={new Date().toISOString().split("T")[0]}
-                        className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-md p-2 text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-[var(--color-primary)] outline-none transition-all"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="mealDate"
+                          type="date"
+                          value={selectedMealDate}
+                          onChange={handleMealSearchByDate}
+                          max={new Date().toISOString().split("T")[0]}
+                          className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-md p-2 text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-[var(--color-primary)] outline-none transition-all"
+                        />
+                        {selectedMealDate && (
+                          <button
+                            type="button"
+                            onClick={handleClearMealDateFilter}
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-[var(--color-danger-bg-subtle)] hover:text-[var(--color-danger-text)] border border-[var(--color-border-default)] transition-all cursor-pointer"
+                            title="Clear date filter"
+                          >
+                            <FaTimes className="w-3.5 h-3.5" />
+                            <span>Clear Filter</span>
+                          </button>
+                        )}
+                      </div>
                       {isSearchingMeals && (
                         <FaSpinner className="animate-spin text-[var(--color-primary)]" />
                       )}
@@ -2552,7 +2613,7 @@ const PatientDetailsPage = () => {
                               <div className="flex items-center gap-3 self-end md:self-center">
                                 <span
                                   className={`px-3 py-1 text-xs font-bold rounded-full capitalize ${
-                                    diet.is_deleted
+                                    diet.is_deleted || diet.status === "disabled" || diet.status === "archived"
                                       ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                       : diet.status === "approved"
                                       ? "bg-[var(--color-success-bg-subtle)] text-[var(--color-success-text)]"
@@ -2561,8 +2622,8 @@ const PatientDetailsPage = () => {
                                       : "bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)]"
                                   }`}
                                 >
-                                  {diet.is_deleted
-                                    ? "Archived"
+                                  {diet.is_deleted || diet.status === "disabled" || diet.status === "archived"
+                                    ? "Disabled"
                                     : diet.status === "approved"
                                     ? "Approved & Active"
                                     : diet.status === "pending"
@@ -2570,7 +2631,7 @@ const PatientDetailsPage = () => {
                                     : diet.status}
                                 </span>
 
-                                {!diet.is_deleted && (diet.status === "approved" || diet.status === "active") && (!latestActiveDietPlan || diet.id === latestActiveDietPlan.id) && (
+                                {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && (diet.status === "approved" || diet.status === "active") && (!latestActiveDietPlan || diet.id === latestActiveDietPlan.id) && (
                                   <button
                                     onClick={() => handleDisablePlan(diet.id)}
                                     disabled={isDisablingPlan === diet.id}
@@ -2833,7 +2894,7 @@ const PatientDetailsPage = () => {
                                   )}
                                 </div>
                               )}
-                              {diet.status === "pending" && (
+                              {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && diet.status === "pending" && (
                                 <div className="p-4 bg-[var(--color-info-bg-subtle)] border-2 border-[var(--color-info-text)]/20 rounded-lg space-y-3">
                                   <h4 className="font-semibold text-[var(--color-info-text)]">
                                     Review This Plan
@@ -2877,7 +2938,7 @@ const PatientDetailsPage = () => {
                                   </div>
                                 </div>
                               )}
-                              {diet.status === "approved" && (
+                              {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && diet.status === "approved" && (
                                 <div className="p-5 bg-[var(--color-bg-app)] border-2 border-dashed border-[var(--color-border-default)] rounded-xl space-y-4 mt-4">
                                   <div>
                                     <h4 className="text-lg font-semibold text-[var(--color-text-strong)]">

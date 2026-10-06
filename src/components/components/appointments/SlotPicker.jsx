@@ -1,13 +1,21 @@
 import React, { useState, useMemo } from "react";
-import { Video, Clock, Building2, Layers, Sun, Sunrise, Sunset, Sparkles } from "lucide-react";
+import { Video, Clock, Building2, Layers, Sun, Sunrise, Sunset, Loader2 } from "lucide-react";
 
-const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => {
+const SlotPicker = ({ slots, onBook, loading, pendingSlotId, appointmentType = "VIRTUAL" }) => {
   const [timeFilter, setTimeFilter] = useState("ALL"); // ALL | MORNING | AFTERNOON | EVENING
 
-  // Filter slots by time of day
-  const filteredSlots = useMemo(() => {
+  // Only consider slots compatible with selected consultation mode (Virtual or In-Clinic)
+  const compatibleSlots = useMemo(() => {
     if (!Array.isArray(slots)) return [];
     return slots.filter((slot) => {
+      const mode = slot.slot_type || "BOTH";
+      return mode === "BOTH" || mode === appointmentType;
+    });
+  }, [slots, appointmentType]);
+
+  // Filter compatible slots by time of day
+  const filteredSlots = useMemo(() => {
+    return compatibleSlots.filter((slot) => {
       if (timeFilter === "ALL") return true;
       const hour = parseInt(slot.start_time.split(":")[0], 10);
       if (timeFilter === "MORNING") return hour < 12;
@@ -15,35 +23,43 @@ const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => 
       if (timeFilter === "EVENING") return hour >= 17;
       return true;
     });
-  }, [slots, timeFilter]);
+  }, [compatibleSlots, timeFilter]);
 
-  if (!Array.isArray(slots) || slots.length === 0) {
+  if (!Array.isArray(slots) || compatibleSlots.length === 0) {
     return (
       <div className="text-center py-8 px-4 rounded-2xl border-2 border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)]">
         <Clock className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-subtle)] opacity-40" />
-        <p className="text-[var(--color-text-muted)] text-sm font-semibold">
-          No open slots found for this date
+        <p className="text-[var(--color-text-strong)] text-sm font-bold">
+          No open {appointmentType === "IN_PERSON" ? "In-Clinic" : "Virtual"} slots found for this date
         </p>
-        <p className="text-[var(--color-text-subtle)] text-xs mt-1">
-          Please select another date or check other consultation modes to view open times.
+        <p className="text-[var(--color-text-muted)] text-xs mt-1 max-w-sm mx-auto">
+          Please check {appointmentType === "IN_PERSON" ? "Virtual Video Consultation" : "In-Clinic Consultation"} or select another date on the calendar.
         </p>
       </div>
     );
   }
 
-  const morningCount = slots.filter((s) => parseInt(s.start_time.split(":")[0], 10) < 12).length;
-  const afternoonCount = slots.filter((s) => {
+  const morningCount = compatibleSlots.filter((s) => parseInt(s.start_time.split(":")[0], 10) < 12).length;
+  const afternoonCount = compatibleSlots.filter((s) => {
     const h = parseInt(s.start_time.split(":")[0], 10);
     return h >= 12 && h < 17;
   }).length;
-  const eveningCount = slots.filter((s) => parseInt(s.start_time.split(":")[0], 10) >= 17).length;
+  const eveningCount = compatibleSlots.filter((s) => parseInt(s.start_time.split(":")[0], 10) >= 17).length;
 
   return (
     <div className="space-y-3 mt-3">
+      {/* Booking in progress feedback banner */}
+      {loading && (
+        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[var(--color-primary-bg-subtle)] border-2 border-[var(--color-primary)] text-[var(--color-text-strong)] text-xs font-bold animate-pulse shadow-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-[var(--color-primary)] shrink-0" />
+          <span>Confirming your appointment booking... Please wait a moment.</span>
+        </div>
+      )}
+
       {/* Time of Day Filter Chips */}
       <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
         {[
-          { key: "ALL", label: `All Times (${slots.length})`, icon: <Clock size={12} /> },
+          { key: "ALL", label: `All Times (${compatibleSlots.length})`, icon: <Clock size={12} /> },
           { key: "MORNING", label: `Morning (${morningCount})`, icon: <Sunrise size={12} /> },
           { key: "AFTERNOON", label: `Afternoon (${afternoonCount})`, icon: <Sun size={12} /> },
           { key: "EVENING", label: `Evening (${eveningCount})`, icon: <Sunset size={12} /> },
@@ -51,8 +67,9 @@ const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => 
           <button
             type="button"
             key={f.key}
+            disabled={loading}
             onClick={() => setTimeFilter(f.key)}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed ${
               timeFilter === f.key
                 ? "bg-[var(--color-primary)] text-white shadow-xs"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -67,7 +84,7 @@ const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => 
       {filteredSlots.length === 0 ? (
         <div className="text-center py-6 px-3 rounded-xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)]">
           <p className="text-xs text-[var(--color-text-muted)]">
-            No slots in the {timeFilter.toLowerCase()} slot window. Try selecting "All Times".
+            No compatible slots in the {timeFilter.toLowerCase()} window. Try selecting "All Times".
           </p>
         </div>
       ) : (
@@ -76,6 +93,7 @@ const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => 
             const mode = slot.slot_type || "VIRTUAL";
             const isInPerson = mode === "IN_PERSON";
             const isBoth = mode === "BOTH";
+            const isThisSlotBooking = loading && pendingSlotId === slot.id;
 
             // Compute the price based on active appointmentType or slot default
             const effectivePrice = appointmentType === "IN_PERSON"
@@ -89,7 +107,11 @@ const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => 
                 key={slot.id}
                 disabled={loading}
                 onClick={() => onBook(slot.id)}
-                className="group relative flex flex-col p-3.5 rounded-2xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-primary)] hover:bg-[var(--color-bg-surface-alt)] transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed shadow-xs hover:shadow-md cursor-pointer"
+                className={`group relative flex flex-col p-3.5 rounded-2xl border-2 transition-all duration-200 text-left shadow-xs hover:shadow-md ${
+                  isThisSlotBooking
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] ring-2 ring-[var(--color-primary)]/30 cursor-wait"
+                    : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-primary)] hover:bg-[var(--color-bg-surface-alt)] cursor-pointer"
+                } ${loading && !isThisSlotBooking ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <div className="flex items-center justify-between w-full mb-1.5">
                   <span className="text-xs sm:text-sm font-black text-[var(--color-text-strong)] group-hover:text-[var(--color-primary)] transition-colors">
@@ -134,9 +156,17 @@ const SlotPicker = ({ slots, onBook, loading, appointmentType = "VIRTUAL" }) => 
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] font-bold text-[var(--color-primary)] group-hover:underline">
-                    Select Slot →
-                  </span>
+
+                  {isThisSlotBooking ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-[var(--color-primary)]">
+                      <Loader2 size={13} className="animate-spin text-[var(--color-primary)]" />
+                      Booking...
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-[var(--color-primary)] group-hover:underline">
+                      Select Slot →
+                    </span>
+                  )}
                 </div>
               </button>
             );

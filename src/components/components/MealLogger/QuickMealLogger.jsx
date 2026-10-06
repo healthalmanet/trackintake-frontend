@@ -315,9 +315,9 @@ const QuickMealLogger = ({ onMealLogged }) => {
               {!editingMeal && (
                 <button
                   type="button"
-                  onClick={() => setScannerOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all transform active:scale-95 cursor-pointer"
-                  title="Snap photo or upload image to log with Gemini 2.5 Flash"
+                  disabled
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 text-xs font-bold shadow-none transition-all cursor-not-allowed opacity-60"
+                  title="Snap / Photo AI is temporarily disabled"
                 >
                   <Camera className="w-3.5 h-3.5" />
                   <span>Snap / Photo AI</span>

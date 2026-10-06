@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 // --- Singleton WebSocket Manager ---
 class WebSocketManager {
@@ -87,8 +87,9 @@ class WebSocketManager {
     socket.onclose = (event) => {
       console.log(`🔌 [WS] ${type} closed: ${event.code}`);
       this.stopHeartbeat(type);
+      this.sockets[type] = null;
       
-      if (event.code !== 1000 && event.code !== 1001) {
+      if (!this.isExplicitDisconnect) {
         const delay = this.getReconnectDelay(type);
         this.reconnectAttempts[type]++;
         console.log(`🔄 [WS] Reconnecting ${type} in ${(delay/1000).toFixed(1)}s...`);
@@ -120,6 +121,7 @@ class WebSocketManager {
   }
 
   disconnectAll() {
+    this.isExplicitDisconnect = true;
     Object.keys(this.sockets).forEach(type => {
       clearTimeout(this.reconnectTimers[type]);
       this.stopHeartbeat(type);
@@ -146,23 +148,34 @@ class WebSocketManager {
 const manager = new WebSocketManager();
 
 const useWebSockets = ({ onReminder, onMessage, onSuggestion } = {}) => {
-  useEffect(() => {
-    // Add listeners
-    manager.addListener('onMessage', onMessage);
-    manager.addListener('onReminder', onReminder);
-    manager.addListener('onSuggestion', onSuggestion);
+  const onReminderRef = useRef(onReminder);
+  const onMessageRef = useRef(onMessage);
+  const onSuggestionRef = useRef(onSuggestion);
 
-    // Connect if not connected
+  useEffect(() => {
+    onReminderRef.current = onReminder;
+    onMessageRef.current = onMessage;
+    onSuggestionRef.current = onSuggestion;
+  });
+
+  useEffect(() => {
+    const handleMsg = (data) => onMessageRef.current?.(data);
+    const handleRem = (data) => onReminderRef.current?.(data);
+    const handleSug = (data) => onSuggestionRef.current?.(data);
+
+    manager.addListener('onMessage', handleMsg);
+    manager.addListener('onReminder', handleRem);
+    manager.addListener('onSuggestion', handleSug);
+
     manager.connect('message');
     manager.connect('reminder');
 
     return () => {
-      // Remove listeners on unmount
-      manager.removeListener('onMessage', onMessage);
-      manager.removeListener('onReminder', onReminder);
-      manager.removeListener('onSuggestion', onSuggestion);
+      manager.removeListener('onMessage', handleMsg);
+      manager.removeListener('onReminder', handleRem);
+      manager.removeListener('onSuggestion', handleSug);
     };
-  }, [onMessage, onReminder, onSuggestion]);
+  }, []);
 };
 
 export default useWebSockets;

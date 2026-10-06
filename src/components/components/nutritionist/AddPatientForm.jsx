@@ -23,7 +23,7 @@ const FormSection = ({ title, icon, children }) => (
   </div>
 );
 
-const InputField = ({ name, label, type, register, errors, placeholder, Icon }) => (
+const InputField = ({ name, label, type, register, errors, placeholder, Icon, maxLength }) => (
   <div className="flex flex-col">
     <label htmlFor={name} className="mb-1.5 font-medium text-xs sm:text-sm text-[var(--color-text-muted)]">{label}</label>
     <div className="relative">
@@ -32,9 +32,16 @@ const InputField = ({ name, label, type, register, errors, placeholder, Icon }) 
         id={name}
         type={type}
         placeholder={placeholder}
+        maxLength={maxLength}
         {...register(name, { 
             valueAsNumber: type === 'number',
-            ...(type === 'number' && { min: { value: 0, message: "Value cannot be negative" } })
+            ...(type === 'number' && { min: { value: 0, message: "Value cannot be negative" } }),
+            ...(maxLength && {
+              maxLength: {
+                value: maxLength,
+                message: `${label} cannot exceed ${maxLength} characters`
+              }
+            })
          })}
         className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-2.5 rounded-xl font-[var(--font-secondary)] text-sm bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] focus:ring-2 focus:ring-[var(--color-border-hover)] focus:border-[var(--color-border-focus)] outline-none transition-all duration-300 placeholder:text-[var(--color-text-subtle)] text-[var(--color-text-strong)]`}
       />
@@ -198,15 +205,15 @@ const AddPatientForm = () => {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* --- Profile Information --- */}
           <FormSection title="Patient Profile" icon={<FiUser size={20} />}>
-            <InputField name="full_name" label="Full Name" type="text" register={register} errors={errors} placeholder="e.g., Rita Sharma" Icon={FiUser} />
-            <InputField name="email" label="Email Address" type="email" register={register} errors={errors} placeholder="e.g., rita@gmail.com" Icon={FiMail} />
+            <InputField name="full_name" label="Full Name" type="text" register={register} errors={errors} placeholder="e.g., Rita Sharma" Icon={FiUser} maxLength={255} />
+            <InputField name="email" label="Email Address" type="email" register={register} errors={errors} placeholder="e.g., rita@gmail.com" Icon={FiMail} maxLength={254} />
             <InputField name="date_of_birth" label="Date of Birth" type="date" register={register} errors={errors} Icon={FiCalendar} />
             <SelectField name="gender" label="Gender" register={register} errors={errors}>
               <option value="female">Female</option>
               <option value="male">Male</option>
               <option value="other">Other</option>
             </SelectField>
-            <InputField name="occupation" label="Occupation" type="text" register={register} errors={errors} placeholder="e.g., Bank Manager" Icon={FiBriefcase} />
+            <InputField name="occupation" label="Occupation" type="text" register={register} errors={errors} placeholder="e.g., Bank Manager" Icon={FiBriefcase} maxLength={100} />
           </FormSection>
 
           {/* --- Physical Metrics & Goals --- */}
@@ -236,14 +243,14 @@ const AddPatientForm = () => {
           {/* --- Health Profile --- */}
           <FormSection title="Health Profile" icon={<FiHeart size={20} />}>
             <div className="md:col-span-2">
-              <InputField name="allergies" label="Allergies (comma-separated)" type="text" register={register} errors={errors} placeholder="e.g., Peanuts, Shellfish" />
+              <InputField name="allergies" label="Allergies (comma-separated)" type="text" register={register} errors={errors} placeholder="e.g., Peanuts, Shellfish" maxLength={500} />
             </div>
             <CheckboxGrid title="Existing Health Conditions" options={healthConditions} control={control} errors={errors} />
             <div className="md:col-span-2">
-              <InputField name="other_chronic_condition" label="Other Chronic Conditions" type="text" register={register} errors={errors} placeholder="Specify if any" />
+              <InputField name="other_chronic_condition" label="Other Chronic Conditions" type="text" register={register} errors={errors} placeholder="Specify if any" maxLength={500} />
             </div>
             <div className="md:col-span-2">
-              <InputField name="family_history" label="Significant Family Medical History" type="text" register={register} errors={errors} placeholder="e.g., Father has Type 2 Diabetes" />
+              <InputField name="family_history" label="Significant Family Medical History" type="text" register={register} errors={errors} placeholder="e.g., Father has Type 2 Diabetes" maxLength={500} />
             </div>
           </FormSection>
           

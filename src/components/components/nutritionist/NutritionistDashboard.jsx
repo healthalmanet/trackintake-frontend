@@ -369,6 +369,25 @@ const NutritionistDashboard = () => {
  // --- [REPLACE THIS ENTIRE FUNCTION] ---
   const handleCreatePatient = async (e) => {
     e.preventDefault();
+
+    // Client-side length validations
+    if (newPatient.full_name && newPatient.full_name.length > 255) {
+      toast.error("Full name cannot exceed 255 characters.");
+      return;
+    }
+    if (newPatient.email && newPatient.email.length > 254) {
+      toast.error("Email address cannot exceed 254 characters.");
+      return;
+    }
+    if (newPatient.occupation && newPatient.occupation.length > 100) {
+      toast.error("Occupation cannot exceed 100 characters.");
+      return;
+    }
+    if (newPatient.mobile_number && newPatient.mobile_number.length > 15) {
+      toast.error("Mobile number cannot exceed 15 characters.");
+      return;
+    }
+
     setIsSubmitting(true);
     const toastId = toast.loading("Creating new patient...");
 
@@ -425,15 +444,25 @@ const NutritionistDashboard = () => {
       let errorMessage = "Failed to create patient.";
 
       if (typeof errorData === 'object' && errorData !== null) {
-        const messages = Object.entries(errorData).map(([field, errors]) => {
-          const errorList = Array.isArray(errors) ? errors.join(' ') : JSON.stringify(errors);
-          return `${field}: ${errorList}`;
-        });
-        errorMessage = messages.join('; ') || errorMessage;
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else {
+          const messages = Object.entries(errorData).map(([field, errors]) => {
+            const errorList = Array.isArray(errors) ? errors.join(' ') : JSON.stringify(errors);
+            return `${field}: ${errorList}`;
+          });
+          errorMessage = messages.join('; ') || errorMessage;
+        }
       } else if (typeof errorData === 'string') {
         errorMessage = errorData;
       }
-      
+
+      if (errorMessage.includes("value too long") || errorMessage.includes("varying(255)")) {
+        errorMessage = "One or more patient details exceed the maximum allowed length (255 characters).";
+      }
+
       toast.error(errorMessage, { id: toastId, duration: 6000 });
     } finally {
       setIsSubmitting(false);
@@ -1160,6 +1189,7 @@ const NutritionistDashboard = () => {
                             key={field}
                             name={field}
                             required
+                            maxLength={field === "full_name" ? 255 : field === "email" ? 254 : field === "mobile_number" ? 15 : 128}
                             placeholder={field
                               .replace(/_/g, " ")
                               .replace(/\b\w/g, (c) => c.toUpperCase())}
@@ -1209,6 +1239,7 @@ const NutritionistDashboard = () => {
                               key={field}
                               name={field}
                               required
+                              maxLength={field === "occupation" ? 100 : 10}
                               placeholder={field
                                 .replace(/_/g, " ")
                                 .replace(/\b\w/g, (c) => c.toUpperCase())}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import {
   CalendarDays, Trash2, Plus, Lock,
@@ -6,7 +6,8 @@ import {
   Clock, Calendar, Sparkles, Zap, ArrowRight, Check,
   RefreshCw, ShieldCheck, Sun, Sunrise, Sunset,
   SlidersHorizontal, CheckCircle2, ChevronLeft,
-  Building2, MapPin, Layers, Info, CheckSquare, Square, DollarSign, FileText
+  Building2, MapPin, Layers, Info, CheckSquare, Square, DollarSign, FileText,
+  Loader2
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getMySlots, addAvailability, deleteAvailability } from "../../../api/availabilityApi";
@@ -322,11 +323,14 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
   const [generatedSlots, setGeneratedSlots] = useState([]);
   const [selectedIdxs, setSelectedIdxs] = useState(new Set());
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const abortControllerRef = useRef(null);
 
   // Fetch nutritionist profile pricing settings
   useEffect(() => {
     if (isOpen) {
       setLoadingProfile(true);
+      setSaveError(null);
       getNutritionistProfile()
         .then((res) => {
           if (res.data?.nutritionist_profile) {
@@ -416,17 +420,34 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
       return;
     }
     setSaving(true);
+    setSaveError(null);
+    abortControllerRef.current = new AbortController();
     try {
-      const res = await addAvailability(slotsToSave);
+      const res = await addAvailability(slotsToSave, { signal: abortControllerRef.current.signal });
       const count = res.data?.created_count ?? slotsToSave.length;
       toast.success(`Successfully created ${count} availability slot${count > 1 ? "s" : ""}!`);
       onCreated();
       onClose();
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || err.response?.data?.errors?.[0] || "Could not create slots.";
-      toast.error(errorMsg);
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        toast.info("Slot generation cancelled.");
+      } else {
+        const errorMsg = err.response?.data?.detail || err.response?.data?.errors?.[0] || "Could not create slots. Please try again.";
+        setSaveError(errorMsg);
+        toast.error(errorMsg);
+      }
     } finally {
       setSaving(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelSave = () => {
+    if (saving && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setSaving(false);
+    } else {
+      onClose();
     }
   };
 
@@ -833,14 +854,50 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
           </div>
         </div>
 
+        {/* Saving / Progress feedback */}
+        {saving && (
+          <div className="mx-5 mb-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex items-center justify-between text-xs text-blue-700 dark:text-blue-300">
+            <div className="flex items-center gap-2">
+              <Loader2 className="animate-spin text-sm" size={16} />
+              <span className="font-semibold">
+                Generating and saving {selectedIdxs.size} availability slots...
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelSave}
+              className="text-xs font-bold underline hover:opacity-80 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {/* Retry on failure feedback */}
+        {saveError && !saving && (
+          <div className="mx-5 mb-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 flex items-center justify-between text-xs text-red-700 dark:text-red-300">
+            <span className="font-medium truncate mr-2">
+              {saveError}
+            </span>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shrink-0 shadow-xs cursor-pointer flex items-center gap-1"
+            >
+              <RefreshCw size={12} />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
+
         {/* Modal Footer Actions */}
         <div className="p-4 sm:p-5 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCancelSave}
             className="px-4 py-2.5 rounded-xl border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] transition-colors cursor-pointer"
           >
-            Cancel
+            {saving ? "Cancel Generation" : "Cancel"}
           </button>
           <button
             type="button"
@@ -848,7 +905,17 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
             disabled={saving || selectedIdxs.size === 0}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-md disabled:opacity-50 transition-all cursor-pointer"
           >
-            <Check size={16} /> Save {selectedIdxs.size} Slots
+            {saving ? (
+              <>
+                <Loader2 className="animate-spin" size={16} />
+                <span>Saving {selectedIdxs.size} Slots...</span>
+              </>
+            ) : (
+              <>
+                <Check size={16} />
+                <span>Save {selectedIdxs.size} Slots</span>
+              </>
+            )}
           </button>
         </div>
       </div>
