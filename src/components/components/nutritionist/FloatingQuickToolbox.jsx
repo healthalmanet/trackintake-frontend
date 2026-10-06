@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Paperclip,
   Compass,
+  AlertCircle,
 } from "lucide-react";
 import InteractiveAppGuide from "./InteractiveAppGuide";
 import ReactMarkdown from "react-markdown";
@@ -249,35 +250,202 @@ export const FloatingQuickToolbox = ({
   // Real-time WebSocket updates for chat
   const handleIncomingChatMessage = useCallback(
     (msg) => {
+      if (!msg) return;
+      const msgSenderId = String(msg.sender_id || msg.sender?.id || "");
+      const msgReceiverId = String(msg.receiver_id || msg.receiver?.id || "");
+      const currentUserId = String(user?.id || "");
+
       if (effectiveRole === "nutritionist" && selectedPatient) {
-        const patientId = selectedPatient.patient_id || selectedPatient.id;
-        if (String(msg.sender_id) === String(patientId)) {
+        const patientId = String(selectedPatient.patient_id || selectedPatient.id || "");
+        const isForThisChat =
+          (msgSenderId === patientId && msgReceiverId === currentUserId) ||
+          (msgSenderId === currentUserId && msgReceiverId === patientId) ||
+          msgSenderId === patientId;
+
+        if (isForThisChat) {
           setChatMessages((prev) => {
-            if (prev.some((m) => m.id === msg.id)) return prev;
-            return [...prev, msg];
+            if (prev.some((m) => m.id && msg.id && String(m.id) === String(msg.id))) return prev;
+            // Also replace any temporary optimistic message with same text
+            const withoutTemp = prev.filter(
+              (m) => !(String(m.id).startsWith("temp_") && m.text === (msg.text || msg.message))
+            );
+            return [...withoutTemp, msg].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
           });
         }
       } else if (effectiveRole === "user") {
-        setChatMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
+        const nutriId = String(myNutritionistInfo?.id || "");
+        const isForThisChat =
+          !nutriId ||
+          (msgSenderId === nutriId && msgReceiverId === currentUserId) ||
+          (msgSenderId === currentUserId && msgReceiverId === nutriId) ||
+          msgSenderId === nutriId;
+
+        if (isForThisChat) {
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id && msg.id && String(m.id) === String(msg.id))) return prev;
+            const withoutTemp = prev.filter(
+              (m) => !(String(m.id).startsWith("temp_") && m.text === (msg.text || msg.message))
+            );
+            return [...withoutTemp, msg].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          });
+        }
       }
     },
-    [effectiveRole, selectedPatient]
+    [effectiveRole, selectedPatient, myNutritionistInfo?.id, user?.id]
   );
 
   useWebSockets({ onMessage: handleIncomingChatMessage });
+
+  // Cross-component synchronizer: when a message is sent from the main Chat page or PatientChat
+  useEffect(() => {
+    const handleCustomMessageEvent = (e) => {
+      const msg = e?.detail;
+      if (msg) handleIncomingChatMessage(msg);
+    };
+    window.addEventListener("trackintake:chat_message", handleCustomMessageEvent);
+    return () => window.removeEventListener("trackintake:chat_message", handleCustomMessageEvent);
+  }, [handleIncomingChatMessage]);
+
+  // Reliable sync polling while quick chat window is open
+  useEffect(() => {
+    if (!isOpen || isMinimized || activeTab !== "chat") return;
+    const targetId =
+      effectiveRole === "nutritionist"
+        ? (selectedPatient?.patient_id || selectedPatient?.id)
+        : myNutritionistInfo?.id;
+    if (!targetId) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const apiFunc = effectiveRole === "nutritionist" ? getMessages : getPatientMessages;
+        const res = await apiFunc({ partner_id: targetId });
+        const serverMsgs = res.data?.results || res.data || [];
+        if (serverMsgs.length > 0) {
+          setChatMessages((prev) => {
+            const map = new Map();
+            prev.forEach((m) => map.set(String(m.id), m));
+            let hasNew = false;
+            serverMsgs.forEach((m) => {
+              const strId = String(m.id);
+              if (!map.has(strId)) {
+                // Find and remove matching temp message
+                for (const [key, val] of map.entries()) {
+                  if (key.startsWith("temp_") && val.text === (m.text || m.message)) {
+                    map.delete(key);
+                    break;
+                  }
+                }
+                map.set(strId, m);
+                hasNew = true;
+              }
+            });
+            if (!hasNew) return prev;
+            return Array.from(map.values()).sort(
+              (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+            );
+          });
+        }
+      } catch {
+        // silent polling catch
+      }
+    }, 2500);
+
+    return () => clearInterval(pollInterval);
+  }, [isOpen, isMinimized, activeTab, effectiveRole, selectedPatient, myNutritionistInfo?.id]);
+
+  const handleRetryChatMessage = async (failedMsg) => {
+    if (!failedMsg || sendingChat) return;
+    const msgId = failedMsg.id;
+    const textToSend = failedMsg.text || failedMsg.message;
+
+    setChatMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, status: "sending" } : m))
+    );
+    setSendingChat(true);
+
+    try {
+      if (effectiveRole === "nutritionist" && selectedPatient) {
+        const patientId = selectedPatient.patient_id || selectedPatient.id;
+        const res = await sendNutriMessage(patientId, textToSend);
+        const serverMsg = res.data || {
+          ...failedMsg,
+          id: Date.now(),
+          status: "sent",
+        };
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === msgId ? { ...serverMsg, status: "sent" } : m))
+        );
+        window.dispatchEvent(new CustomEvent("trackintake:chat_message", { detail: serverMsg }));
+        toast.success("Message sent successfully!");
+      } else if (effectiveRole === "user") {
+        let targetNutriId = myNutritionistInfo?.id;
+        if (!targetNutriId) {
+          try {
+            const nutriRes = await getMyNutritionist();
+            if (nutriRes.data?.id) {
+              setMyNutritionistInfo(nutriRes.data);
+              targetNutriId = nutriRes.data.id;
+            }
+          } catch (fetchErr) {
+            console.warn("Could not fetch nutritionist info:", fetchErr);
+          }
+        }
+        if (!targetNutriId) {
+          throw new Error("No nutritionist is currently assigned to your account.");
+        }
+        const res = await sendPatientMessage(targetNutriId, textToSend);
+        const serverMsg = res.data || {
+          ...failedMsg,
+          id: Date.now(),
+          status: "sent",
+        };
+        setChatMessages((prev) =>
+          prev.map((m) => (m.id === msgId ? { ...serverMsg, status: "sent" } : m))
+        );
+        window.dispatchEvent(new CustomEvent("trackintake:chat_message", { detail: serverMsg }));
+        toast.success("Message sent successfully!");
+      }
+    } catch (err) {
+      console.error("Failed to retry message:", err);
+      const errMsg =
+        err?.response?.data?.text?.[0] ||
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Failed to send message. Please retry.";
+      toast.error(errMsg);
+      setChatMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...failedMsg, status: "failed", error: errMsg } : m))
+      );
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
+  const handleDeleteFailedMessage = (msgId) => {
+    setChatMessages((prev) => prev.filter((m) => m.id !== msgId));
+  };
 
   const handleSendChatMessage = async (e) => {
     e?.preventDefault();
     if (!chatInputText.trim() || sendingChat) return;
 
     const textToSend = chatInputText.trim();
+    if (textToSend.length > 2000) {
+      toast.error("Message exceeds the maximum limit of 2,000 characters. Please shorten it.");
+      return;
+    }
+
     const tempId = `temp_${Date.now()}`;
+    const targetId =
+      effectiveRole === "nutritionist"
+        ? (selectedPatient?.patient_id || selectedPatient?.id)
+        : myNutritionistInfo?.id;
+
     const optimisticMsg = {
       id: tempId,
       sender_id: user?.id,
+      receiver_id: targetId,
       text: textToSend,
       timestamp: new Date().toISOString(),
       status: "sending",
@@ -300,6 +468,7 @@ export const FloatingQuickToolbox = ({
         setChatMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...serverMsg, status: "sent" } : m))
         );
+        window.dispatchEvent(new CustomEvent("trackintake:chat_message", { detail: serverMsg }));
       } else if (effectiveRole === "user") {
         let targetNutriId = myNutritionistInfo?.id;
         if (!targetNutriId) {
@@ -327,18 +496,21 @@ export const FloatingQuickToolbox = ({
         setChatMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...serverMsg, status: "sent" } : m))
         );
+        window.dispatchEvent(new CustomEvent("trackintake:chat_message", { detail: serverMsg }));
       }
     } catch (err) {
       console.error("Failed to send message:", err);
       const errMsg =
+        err?.response?.data?.text?.[0] ||
         err?.response?.data?.error ||
         err?.response?.data?.detail ||
         err?.message ||
         "Failed to send message. Please retry.";
       toast.error(errMsg);
-      // Rollback optimistic message and restore input
-      setChatMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setChatInputText(textToSend);
+      // Fallback: keep optimistic message with 'failed' status and retry option
+      setChatMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...optimisticMsg, status: "failed", error: errMsg } : m))
+      );
     } finally {
       setSendingChat(false);
     }
@@ -804,29 +976,74 @@ User question: "${userQuery}"`;
                         const isMe =
                           String(msg.sender_id) === String(user?.id) ||
                           String(msg.sender) === String(user?.id);
+                        const isSending = msg.status === "sending";
+                        const isFailed = msg.status === "failed";
+
                         return (
                           <div
                             key={msg.id || idx}
                             className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                           >
                             <div
-                              className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs ${isMe
-                                ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-tr-none font-medium"
-                                : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] rounded-tl-none"
-                                }`}
+                              className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs transition-all ${
+                                isMe
+                                  ? isFailed
+                                    ? "bg-red-600 text-white rounded-tr-none font-medium border border-red-500 shadow-md"
+                                    : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-tr-none font-medium"
+                                  : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] rounded-tl-none"
+                              } ${isSending ? "opacity-75" : "opacity-100"}`}
                             >
                               <p className="whitespace-pre-wrap">{msg.text || msg.message}</p>
-                              <span
-                                className={`block text-[9px] mt-1 text-right ${isMe ? "text-white/70" : "text-[var(--color-text-muted)]"
-                                  }`}
-                              >
-                                {msg.timestamp
-                                  ? new Date(msg.timestamp).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                  : ""}
-                              </span>
+
+                              <div className="flex items-center justify-end gap-1.5 mt-1.5 flex-wrap">
+                                {isMe && isSending && (
+                                  <div className="flex items-center gap-1 text-[9px] text-white/80 font-medium">
+                                    <Clock size={10} className="animate-spin" />
+                                    <span>Sending...</span>
+                                  </div>
+                                )}
+
+                                {isMe && isFailed && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-red-100 font-semibold">
+                                    <AlertCircle size={11} className="shrink-0 text-red-200" />
+                                    <span>Failed</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRetryChatMessage(msg)}
+                                      className="underline hover:text-white cursor-pointer ml-1 font-bold"
+                                    >
+                                      Retry
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteFailedMessage(msg.id)}
+                                      className="text-white/70 hover:text-white cursor-pointer ml-1"
+                                      title="Dismiss"
+                                    >
+                                      <X size={11} />
+                                    </button>
+                                  </div>
+                                )}
+
+                                {!isFailed && (
+                                  <span
+                                    className={`text-[9px] ${
+                                      isMe ? "text-white/75" : "text-[var(--color-text-muted)]"
+                                    }`}
+                                  >
+                                    {msg.timestamp
+                                      ? new Date(msg.timestamp).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : ""}
+                                  </span>
+                                )}
+
+                                {isMe && !isSending && !isFailed && (
+                                  <Check size={11} className="text-white/75 ml-0.5" />
+                                )}
+                              </div>
                             </div>
                           </div>
                         );

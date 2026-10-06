@@ -163,12 +163,16 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
 
         const isForThisChat = 
             (msgSenderId === chatPartnerId && msgReceiverId === currentNutriId) ||
-            (msgReceiverId === chatPartnerId && msgSenderId === currentNutriId);
+            (msgReceiverId === chatPartnerId && msgSenderId === currentNutriId) ||
+            msgSenderId === chatPartnerId;
 
         if (isForThisChat) {
             setMessages(prev => {
                 if (prev.some(m => m.id && message.id && String(m.id) === String(message.id))) return prev;
-                return [...prev, message];
+                const withoutTemp = prev.filter(
+                    m => !(String(m.id).startsWith('temp_') && m.text === (message.text || message.message))
+                );
+                return [...withoutTemp, message].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             });
             if (msgSenderId === chatPartnerId) {
                 markMessageAsRead({ sender_id: user.id });
@@ -178,6 +182,14 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
     }, [user?.id, nutritionistId]);
 
     useWebSockets({ onMessage: handleNewMessage });
+
+    useEffect(() => {
+        const handleSync = (e) => {
+            if (e?.detail) handleNewMessage(e.detail);
+        };
+        window.addEventListener('trackintake:chat_message', handleSync);
+        return () => window.removeEventListener('trackintake:chat_message', handleSync);
+    }, [handleNewMessage]);
 
     useEffect(() => {
         const fetchAndFilterMessages = async () => {
@@ -241,6 +253,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
         try {
             const response = await sendMessage(user.id, failedMsg.text);
             setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...response.data, status: 'sent' } : msg));
+            window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: response.data }));
             toast.success("Message sent successfully!");
         } catch (err) {
             const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Failed to deliver message. Please retry.";
@@ -265,6 +278,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
         try {
             const response = await sendMessage(user.id, text);
             setMessages(prev => prev.map(msg => msg.id === tempId ? { ...response.data, status: 'sent' } : msg));
+            window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: response.data }));
         } catch (err) {
             console.error("Failed to send message:", err);
             const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Message delivery failed. Please shorten your message or retry.";
@@ -388,6 +402,14 @@ const Chat = () => {
     }, [NUTRITIONIST_ID, activeUser]);
 
     useWebSockets({ onMessage: handleListUpdate });
+
+    useEffect(() => {
+        const handleSync = (e) => {
+            if (e?.detail) handleListUpdate(e.detail);
+        };
+        window.addEventListener('trackintake:chat_message', handleSync);
+        return () => window.removeEventListener('trackintake:chat_message', handleSync);
+    }, [handleListUpdate]);
 
     useEffect(() => {
         if (!NUTRITIONIST_ID) return;

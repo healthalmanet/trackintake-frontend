@@ -173,7 +173,10 @@ const PatientChatPage = () => {
     if (msgSenderId === nutriId || msgReceiverId === nutriId) {
        setMessages(prev => {
          if (prev.some(msg => msg.id && data.id && String(msg.id) === String(data.id))) return prev;
-         return [...prev, data];
+         const withoutTemp = prev.filter(
+           m => !(String(m.id).startsWith('temp_') && m.text === (data.text || data.message))
+         );
+         return [...withoutTemp, data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
        });
        if (msgSenderId === nutriId) { 
           markMessageAsRead({ sender_id: nutritionist.id }); 
@@ -183,6 +186,14 @@ const PatientChatPage = () => {
   }, [nutritionist]);
   
   useWebSockets({ onMessage, onReminder: () => {} });
+
+  useEffect(() => {
+    const handleSync = (e) => {
+      if (e?.detail) onMessage(e.detail);
+    };
+    window.addEventListener('trackintake:chat_message', handleSync);
+    return () => window.removeEventListener('trackintake:chat_message', handleSync);
+  }, [onMessage]);
 
   // Fallback sync polling to ensure 100% reliable delivery even if socket blips
   useEffect(() => {
@@ -220,6 +231,7 @@ const PatientChatPage = () => {
       const response = await sendMessage(nutritionist.id, failedMsg.text);
       const sentMessageObject = response.data;
       setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...sentMessageObject, status: 'sent' } : msg));
+      window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: sentMessageObject }));
       toast.success("Message sent successfully!");
     } catch (err) {
       const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Failed to deliver message. Please retry.";
@@ -245,6 +257,7 @@ const PatientChatPage = () => {
       const response = await sendMessage(nutritionist.id, text);
       const sentMessageObject = response.data;
       setMessages(prev => prev.map(msg => msg.id === tempId ? { ...sentMessageObject, status: 'sent' } : msg));
+      window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: sentMessageObject }));
     } catch (err) {
       console.error("Failed to send message:", err);
       const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Message delivery failed. Please shorten your message or retry.";
