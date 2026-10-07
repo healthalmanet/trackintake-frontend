@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Select from "react-select";
 import {
   createUserPatient,
@@ -168,6 +168,7 @@ const NutritionistDashboard = () => {
   // State for enhanced search UX, consistent with Chat component
   const [isSearching, setIsSearching] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
+  const hasInitiallyLoaded = useRef(false);
 
   const AVATAR_COLORS = [
     "#FF7043",
@@ -299,8 +300,9 @@ const NutritionistDashboard = () => {
   // --- [REPLACE THIS ENTIRE FUNCTION] ---
   const fetchPatients = useCallback(async () => {
     // Only show the big page loader on the very first load
-    if (patients.length === 0) {
+    if (!hasInitiallyLoaded.current) {
       setIsLoading(true);
+      hasInitiallyLoaded.current = true;
     } else {
       // For subsequent searches, use the smaller spinner
       setIsSearching(true);
@@ -359,7 +361,7 @@ const NutritionistDashboard = () => {
       setIsLoading(false);
       setIsSearching(false);
     }
-  }, [debouncedSearch, patients.length]); // Add patients.length dependency
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchPatients();
