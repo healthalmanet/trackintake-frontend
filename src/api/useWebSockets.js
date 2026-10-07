@@ -29,9 +29,10 @@ class WebSocketManager {
     this.maxReconnectDelay = 30000;
     this.baseReconnectDelay = 2000;
 
-    // Handle page unload
+    // Handle page unload and logout events
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => this.disconnectAll());
+      window.addEventListener('trackintake:logout', () => this.disconnectAll());
     }
   }
 
@@ -44,6 +45,7 @@ class WebSocketManager {
   }
 
   connect(type) {
+    this.isExplicitDisconnect = false;
     const token = localStorage.getItem('token');
     if (!token || !this.wsUrl) return;
 
@@ -89,6 +91,12 @@ class WebSocketManager {
       this.stopHeartbeat(type);
       this.sockets[type] = null;
       
+      // Stop reconnection if token missing or server explicitly rejected unauthorized connection
+      if (event.code === 4001 || !localStorage.getItem('token')) {
+        console.warn(`🔒 [WS] ${type} authentication failed or logged out. Stopping reconnection.`);
+        return;
+      }
+
       if (!this.isExplicitDisconnect) {
         const delay = this.getReconnectDelay(type);
         this.reconnectAttempts[type]++;
