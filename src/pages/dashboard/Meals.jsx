@@ -760,27 +760,60 @@ if (allPlans.length === 0 || !dietData) {
               className="opacity-0 animate-fade-up"
               style={{ animationDelay: "500ms", animationFillMode: "forwards" }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)]">
-                  {dailyMeals.length}-Day Meal Plan
-                </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <div>
+                  <h2 className="text-2xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)]">
+                    {dailyMeals.length}-Day Meal Plan
+                  </h2>
+                  {(() => {
+                    const todayStr = new Date().toISOString().split("T")[0];
+                    const todayDay = dailyMeals.find((d) => d.date === todayStr);
+                    if (todayDay) {
+                      return (
+                        <p className="text-sm text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                          Today's Active Schedule: <button type="button" className="font-bold underline cursor-pointer hover:opacity-80" onClick={() => handleCardClick(todayDay)}>{todayDay.dayOfWeek} ({formatDate(todayDay.date).split(",")[0]})</button>
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {displayedDays.map((day, idx) => (
+                {displayedDays.map((day, idx) => {
+                  const todayStr = new Date().toISOString().split("T")[0];
+                  const isToday = day.date === todayStr;
+                  return (
                   <div
                     key={day.id}
                     onClick={() => handleCardClick(day)}
-                    className="group relative bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl p-5 shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 cursor-pointer opacity-0 animate-fade-up"
+                    className={`group relative bg-[var(--color-bg-surface)] border-2 ${
+                      isToday
+                        ? "border-emerald-500 ring-2 ring-emerald-500/20 shadow-emerald-500/10"
+                        : "border-[var(--color-border-default)]"
+                    } rounded-2xl p-5 shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 cursor-pointer opacity-0 animate-fade-up`}
                     style={{
                       animationDelay: `${idx * 80}ms`,
                       animationFillMode: "forwards",
                     }}
                   >
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-[var(--font-primary)] font-bold text-lg text-[var(--color-text-strong)]">
-                        {day.dayOfWeek}
-                      </h3>
-                      <span className="bg-[var(--color-bg-surface-alt)] text-xs text-[var(--color-text-default)] px-3 py-1 rounded-full font-medium transition-colors duration-300 group-hover:bg-[var(--color-bg-surface)]">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-[var(--font-primary)] font-bold text-lg text-[var(--color-text-strong)]">
+                          {day.dayOfWeek}
+                        </h3>
+                        {isToday && (
+                          <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            Today
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded-full font-medium transition-colors duration-300 ${
+                        isToday
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold"
+                          : "bg-[var(--color-bg-surface-alt)] text-[var(--color-text-default)] group-hover:bg-[var(--color-bg-surface)]"
+                      }`}>
                         {formatDate(day.date).split(",")[0]}
                       </span>
                     </div>
@@ -817,9 +850,9 @@ if (allPlans.length === 0 || !dietData) {
                         kcal
                       </span>
                     </div>
-                    <div className="absolute inset-0 border-2 border-transparent rounded-2xl group-hover:border-[var(--color-primary)] transition-all duration-300 pointer-events-none"></div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               {!showAll && dailyMeals.length > 6 && (
                 <div
