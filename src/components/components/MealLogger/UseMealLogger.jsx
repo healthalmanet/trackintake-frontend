@@ -487,6 +487,8 @@ const useMealLogger = () => {
     recentMeals,
     handleQuickReLog,
     getMealTypeByTime,
+    setFoodInputs,
+    fetchMeals,
   };
 };
 

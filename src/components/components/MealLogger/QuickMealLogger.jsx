@@ -22,10 +22,13 @@ import {
   Leaf,
   X,
   ChevronDown,
-  ExternalLink
+  ExternalLink,
+  Camera,
+  Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import FoodAutocompleteInput from "./FoodAutocompleteInput";
+import MealPhotoScannerModal from "./MealPhotoScannerModal";
 
 import {
   UNIT_GROUPS,
@@ -163,7 +166,30 @@ const QuickMealLogger = ({ onMealLogged }) => {
     handleFoodBlur,
     recentMeals,
     handleQuickReLog,
+    setFoodInputs,
+    fetchMeals,
   } = useMealLogger();
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleApplyPhotoToInputs = (data) => {
+    if (!data.items || data.items.length === 0) return;
+    const newInputs = data.items.map((item, idx) => ({
+      id: Date.now() + idx,
+      name: item.food_name,
+      quantity: item.quantity,
+      unit: item.unit,
+      portionSize: item.portion_size || "Medium",
+      mealType: data.mealType || "Lunch",
+      logDate: data.date,
+      logTime: data.time,
+      remark: data.remarks || item.description || "",
+      selectedFood: null,
+      exact_grams: item.gram_equivalent || null,
+      exact_ml: null,
+    }));
+    setFoodInputs(newInputs);
+  };
 
   const mealTypeMap = {
     "Early-Morning": "Early-Morning",
@@ -281,9 +307,22 @@ const QuickMealLogger = ({ onMealLogged }) => {
             }}
             className="bg-[var(--color-bg-surface)] rounded-2xl p-6 shadow-xl border-2 border-[var(--color-border-default)]"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <FaUtensils size={24} className="text-[var(--color-primary)]" />
-              <h3 className="text-xl font-semibold text-[var(--color-text-strong)]">{editingMeal ? "Edit Meal" : "Add Meals"}</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <FaUtensils size={24} className="text-[var(--color-primary)]" />
+                <h3 className="text-xl font-semibold text-[var(--color-text-strong)]">{editingMeal ? "Edit Meal" : "Add Meals"}</h3>
+              </div>
+              {!editingMeal && (
+                <button
+                  type="button"
+                  disabled
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 text-xs font-bold shadow-none transition-all cursor-not-allowed opacity-60"
+                  title="Snap / Photo AI is temporarily disabled"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Snap / Photo AI</span>
+                </button>
+              )}
             </div>
 
             {/* Quick Re-log chips from recent meals */}
@@ -742,6 +781,17 @@ const QuickMealLogger = ({ onMealLogged }) => {
           </motion.div>
         </div>
       </div>
+
+      <MealPhotoScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onMealLogged={async (loggedDate) => {
+          if (loggedDate) setSearchDate(loggedDate);
+          if (fetchMeals) await fetchMeals(loggedDate || searchDate);
+          if (onMealLogged) onMealLogged();
+        }}
+        onApplyToInputs={handleApplyPhotoToInputs}
+      />
     </section>
   );
 };

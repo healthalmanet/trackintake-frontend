@@ -69,13 +69,32 @@ const UserListItem = ({ user, isActive, onClick }) => (
         </div>
     </motion.li>
 );
-const ChatMessage = ({ message, isNutritionist }) => (
+const ChatMessage = ({ message, isNutritionist, onRetry }) => (
     <motion.div initial={{ opacity: 0, y: 15, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} layout className={`flex my-2 items-end gap-2 ${isNutritionist ? 'justify-end' : 'justify-start'}`}>
         <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] sm:max-w-lg lg:max-w-xl shadow-sm font-[var(--font-secondary)] transition-opacity duration-300 ${isNutritionist ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)] rounded-br-none font-medium' : 'bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] rounded-bl-none border-2 border-[var(--color-border-default)]'} ${message.status === 'sending' ? 'opacity-60' : 'opacity-100'}`}>
-            <p className="break-words text-xs sm:text-sm">{message.text}</p>
-            <span className={`block mt-1 text-[10px] text-right ${isNutritionist ? 'text-white/80' : 'text-[var(--color-text-muted)]'}`}>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <p className="break-words text-xs sm:text-sm whitespace-pre-wrap">{message.text}</p>
+            <div className="flex items-center justify-end gap-2 mt-1">
+                {isNutritionist && message.status === 'sending' && (
+                    <span className="text-[10px] text-white/70 italic">Sending...</span>
+                )}
+                {isNutritionist && message.status === 'failed' && (
+                    <div className="flex items-center gap-1 text-[11px] text-red-200">
+                        <AlertCircle size={12} className="shrink-0" />
+                        <span>Failed</span>
+                        {onRetry && (
+                            <button
+                                type="button"
+                                onClick={() => onRetry(message)}
+                                className="underline font-bold text-white hover:text-red-100 ml-1 cursor-pointer"
+                            >
+                                Retry
+                            </button>
+                        )}
+                    </div>
+                )}
+                <span className={`block text-[10px] ${isNutritionist ? 'text-white/80' : 'text-[var(--color-text-muted)]'}`}>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
         </div>
-        {isNutritionist && message.status === 'failed' && <div className="text-[var(--color-danger-text)]" title="Failed to send"><AlertCircle size={18} /></div>}
     </motion.div>
 );
 
@@ -137,17 +156,40 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
     useClickOutside(emojiPickerRef, () => setShowEmojiPicker(false));
 
     const handleNewMessage = useCallback((message) => {
-        const isForThisChat = (String(message.sender_id) === String(user.id) && String(message.receiver_id) === String(nutritionistId)) || (String(message.receiver_id) === String(user.id) && String(message.sender_id) === String(nutritionistId));
+        const msgSenderId = String(message.sender_id || message.sender?.id || '');
+        const msgReceiverId = String(message.receiver_id || message.receiver?.id || '');
+        const chatPartnerId = String(user?.id || user?.patient_id || user?.user_id || '');
+        const currentNutriId = String(nutritionistId || '');
+
+        const isForThisChat = 
+            (msgSenderId === chatPartnerId && msgReceiverId === currentNutriId) ||
+            (msgReceiverId === chatPartnerId && msgSenderId === currentNutriId) ||
+            msgSenderId === chatPartnerId;
+
         if (isForThisChat) {
-            setMessages(prev => [...prev, message]);
-            if (String(message.sender_id) === String(user.id)) {
+            setMessages(prev => {
+                if (prev.some(m => m.id && message.id && String(m.id) === String(message.id))) return prev;
+                const withoutTemp = prev.filter(
+                    m => !(String(m.id).startsWith('temp_') && m.text === (message.text || message.message))
+                );
+                return [...withoutTemp, message].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            });
+            if (msgSenderId === chatPartnerId) {
                 markMessageAsRead({ sender_id: user.id });
                 clearNotificationsFromSender(user.id);
             }
         }
-    }, [user.id, nutritionistId]);
+    }, [user?.id, nutritionistId]);
 
     useWebSockets({ onMessage: handleNewMessage });
+
+    useEffect(() => {
+        const handleSync = (e) => {
+            if (e?.detail) handleNewMessage(e.detail);
+        };
+        window.addEventListener('trackintake:chat_message', handleSync);
+        return () => window.removeEventListener('trackintake:chat_message', handleSync);
+    }, [handleNewMessage]);
 
     useEffect(() => {
         const fetchAndFilterMessages = async () => {
@@ -176,9 +218,75 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+    // Fallback sync polling to ensure 100% reliable real-time delivery for active chat
+    useEffect(() => {
+        if (!user?.id) return;
+        let isStopped = false;
+        let pollInterval = null;
+
+        const handleStop = () => {
+            isStopped = true;
+            if (pollInterval) clearInterval(pollInterval);
+        };
+        window.addEventListener('trackintake:logout', handleStop);
+
+        pollInterval = setInterval(async () => {
+            if (isStopped || !localStorage.getItem('token')) {
+                handleStop();
+                return;
+            }
+            try {
+                const response = await getMessages({ partner_id: user.id });
+                if (isStopped) return;
+                const serverMessages = response.data?.results || response.data || [];
+                if (serverMessages.length > 0) {
+                    setMessages(prev => {
+                        const map = new Map();
+                        prev.forEach(m => map.set(m.id, m));
+                        let hasNew = false;
+                        serverMessages.forEach(m => {
+                            if (!map.has(m.id)) {
+                                map.set(m.id, m);
+                                hasNew = true;
+                            }
+                        });
+                        if (!hasNew) return prev;
+                        return Array.from(map.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    });
+                }
+            } catch (e) {
+                // Silent poll error
+            }
+        }, 2000);
+
+        return () => {
+            handleStop();
+            window.removeEventListener('trackintake:logout', handleStop);
+        };
+    }, [user?.id]);
+
+    const handleRetry = async (failedMsg) => {
+        if (!failedMsg || !user?.id) return;
+        setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...msg, status: 'sending' } : msg));
+        try {
+            const response = await sendMessage(user.id, failedMsg.text);
+            setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...response.data, status: 'sent' } : msg));
+            window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: response.data }));
+            toast.success("Message sent successfully!");
+        } catch (err) {
+            const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Failed to deliver message. Please retry.";
+            toast.error(errText);
+            setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...failedMsg, status: 'failed' } : msg));
+        }
+    };
+
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
+        if (newMessage.length > 2000) {
+            toast.error("Message exceeds the maximum limit of 2,000 characters. Please shorten it.");
+            return;
+        }
         const tempId = `temp_${Date.now()}`;
         const text = newMessage;
         const optimisticMessage = { id: tempId, sender_id: nutritionistId, receiver_id: user.id, text, timestamp: new Date().toISOString(), status: 'sending' };
@@ -188,8 +296,11 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
         try {
             const response = await sendMessage(user.id, text);
             setMessages(prev => prev.map(msg => msg.id === tempId ? { ...response.data, status: 'sent' } : msg));
+            window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: response.data }));
         } catch (err) {
-            toast.error("Failed to send message.");
+            console.error("Failed to send message:", err);
+            const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Message delivery failed. Please shorten your message or retry.";
+            toast.error(errText);
             setMessages(prev => prev.map(msg => msg.id === tempId ? { ...optimisticMessage, status: 'failed' } : msg));
         }
     };
@@ -207,7 +318,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                 </div>
             </header>
             <div className="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar">
-                {isLoading ? <PulsingDotsLoader text="Loading Messages..." /> : messages.length > 0 ? messages.map(msg => <ChatMessage key={msg.id} message={msg} isNutritionist={String(msg.sender_id) === String(nutritionistId)} />) : (
+                {isLoading ? <PulsingDotsLoader text="Loading Messages..." /> : messages.length > 0 ? messages.map(msg => <ChatMessage key={msg.id} message={msg} isNutritionist={String(msg.sender_id) === String(nutritionistId)} onRetry={handleRetry} />) : (
                     <div className="flex flex-col items-center justify-center h-full text-center text-[var(--color-text-muted)]">
                         <MessagesSquare size={56} className="mb-4 opacity-30" />
                         <h4 className="text-lg font-semibold font-primary text-[var(--color-text-strong)]">Start the Conversation</h4>
@@ -250,7 +361,21 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                         </motion.button>
 
 
-                        <input type="text" placeholder="Type a message..." className="w-full px-4 py-2 bg-transparent focus:outline-none text-[var(--color-text-default)] font-secondary" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} />
+                        <div className="relative flex-1">
+                            <input
+                                type="text"
+                                placeholder="Type a message... (max 2,000 characters)"
+                                maxLength={2000}
+                                className="w-full px-4 py-2 pr-16 bg-transparent focus:outline-none text-[var(--color-text-default)] font-secondary"
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                            />
+                            {newMessage.length > 1500 && (
+                                <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono ${newMessage.length >= 2000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                    {newMessage.length}/2000
+                                </span>
+                            )}
+                        </div>
                         <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="submit" className="p-3 text-white bg-[var(--color-primary)] rounded-lg shadow-md hover:bg-[var(--color-primary-hover)] transition-colors disabled:bg-opacity-50" disabled={!newMessage.trim()}><Send size={20} /></motion.button>
                     </form>
                 </div>
@@ -274,11 +399,21 @@ const Chat = () => {
 
     const handleListUpdate = useCallback((message) => {
         if (!NUTRITIONIST_ID) return;
-        const participantId = String(message.sender_id) === String(NUTRITIONIST_ID) ? message.receiver_id : message.sender_id;
+        const msgSenderId = String(message.sender_id || message.sender?.id || '');
+        const msgReceiverId = String(message.receiver_id || message.receiver?.id || '');
+        const participantId = msgSenderId === String(NUTRITIONIST_ID) ? msgReceiverId : msgSenderId;
+
         setPatients(prev => prev.map(p => {
             if (String(p.id) === String(participantId)) {
-                const isNewUnread = String(message.sender_id) !== String(NUTRITIONIST_ID) && String(activeUser?.id) !== String(participantId);
-                return { ...p, lastMessage: message.text, timestamp: new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), rawTimestamp: new Date(message.timestamp), unreadCount: (isNewUnread && !message.is_read) ? (p.unreadCount || 0) + 1 : p.unreadCount };
+                const isNewUnread = msgSenderId !== String(NUTRITIONIST_ID) && String(activeUser?.id) !== String(participantId);
+                const msgText = message.text || message.message || '';
+                return {
+                    ...p,
+                    lastMessage: msgText,
+                    timestamp: new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    rawTimestamp: new Date(message.timestamp),
+                    unreadCount: (isNewUnread && !message.is_read) ? (p.unreadCount || 0) + 1 : p.unreadCount
+                };
             }
             return p;
         }).sort((a, b) => new Date(b.rawTimestamp) - new Date(a.rawTimestamp)));
@@ -287,36 +422,59 @@ const Chat = () => {
     useWebSockets({ onMessage: handleListUpdate });
 
     useEffect(() => {
+        const handleSync = (e) => {
+            if (e?.detail) handleListUpdate(e.detail);
+        };
+        window.addEventListener('trackintake:chat_message', handleSync);
+        return () => window.removeEventListener('trackintake:chat_message', handleSync);
+    }, [handleListUpdate]);
+
+    useEffect(() => {
         if (!NUTRITIONIST_ID) return;
-        const fetchPatientList = async () => {
-            setIsPageLoading(true);
+        const fetchPatientList = async (isBackground = false) => {
+            if (!isBackground) setIsPageLoading(true);
             try {
-                const [patientsRes, messagesRes] = await Promise.all([getAssignedPatients(debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''), getMessages()]);
-                const patientList = patientsRes.data.results || [];
-                const allMessages = messagesRes.data.results || [];
+                const [patientsRes, messagesRes] = await Promise.all([
+                    getAssignedPatients(debouncedSearchTerm ? `?search=${encodeURIComponent(debouncedSearchTerm)}` : ''),
+                    getMessages()
+                ]);
+                const patientList = patientsRes.data.results || patientsRes.data || [];
+                const allMessages = messagesRes.data.results || messagesRes.data || [];
                 const unreadMap = new Map();
                 const lastMessageMap = new Map();
                 allMessages.forEach(msg => {
-                    const participantId = String(msg.sender_id) === String(NUTRITIONIST_ID) ? String(msg.receiver_id) : String(msg.sender_id);
+                    const senderId = String(msg.sender_id || msg.sender?.id || '');
+                    const receiverId = String(msg.receiver_id || msg.receiver?.id || '');
+                    const participantId = senderId === String(NUTRITIONIST_ID) ? receiverId : senderId;
                     if (!lastMessageMap.has(participantId) || new Date(msg.timestamp) > new Date(lastMessageMap.get(participantId).timestamp)) {
                         lastMessageMap.set(participantId, msg);
                     }
-                    if (String(msg.sender_id) === participantId && !msg.is_read) {
+                    if (senderId === participantId && !msg.is_read) {
                         unreadMap.set(participantId, (unreadMap.get(participantId) || 0) + 1);
                     }
                 });
                 const enrichedPatients = patientList.map(p => {
                     const lastMsg = lastMessageMap.get(String(p.id));
-                    return { ...p, name: p.full_name, lastMessage: lastMsg?.text || "Click to start a conversation.", timestamp: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '', unreadCount: unreadMap.get(String(p.id)) || 0, rawTimestamp: lastMsg ? new Date(lastMsg.timestamp) : new Date(0) };
+                    return {
+                        ...p,
+                        name: p.full_name,
+                        lastMessage: lastMsg?.text || lastMsg?.message || "Click to start a conversation.",
+                        timestamp: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                        unreadCount: unreadMap.get(String(p.id)) || 0,
+                        rawTimestamp: lastMsg ? new Date(lastMsg.timestamp) : new Date(0)
+                    };
                 });
                 setPatients(enrichedPatients.sort((a, b) => new Date(b.rawTimestamp) - new Date(a.rawTimestamp)));
             } catch (err) {
-                setError("Could not load conversations.");
+                if (!isBackground) setError("Could not load conversations.");
             } finally {
-                setIsPageLoading(false);
+                if (!isBackground) setIsPageLoading(false);
             }
         };
+
         fetchPatientList();
+        const listInterval = setInterval(() => fetchPatientList(true), 3000);
+        return () => clearInterval(listInterval);
     }, [debouncedSearchTerm, NUTRITIONIST_ID]);
 
     // This is a clean and simple state update.

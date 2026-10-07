@@ -68,17 +68,41 @@ const InitialsAvatar = ({ name, size = "w-11 h-11", className = "" }) => {
 };
 const formatTime = (timestamp) => { if (!timestamp) return ''; return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
-const ChatMessage = ({ message, senderType, nutritionist }) => {
+const ChatMessage = ({ message, senderType, nutritionist, onRetry }) => {
   const isPatient = senderType === 'patient';
   const messageStatus = message.status;
   return (
     <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }} layout className={`flex my-2 items-end gap-3 ${isPatient ? 'justify-end' : 'justify-start'}`}>
       {!isPatient && <InitialsAvatar name={nutritionist.full_name} size="w-10 h-10"/>}
       <div className={`px-4 py-3 rounded-2xl max-w-md md:max-w-xl shadow-md font-[var(--font-secondary)] ${isPatient ? 'bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] rounded-br-lg rounded-tl-2xl' : 'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-default)] rounded-bl-lg rounded-tr-2xl'}`}>
-        <p className="break-words leading-relaxed">{message.text}</p>
-        <div className="flex items-center justify-end gap-1.5 mt-1.5">
+        <p className="break-words leading-relaxed whitespace-pre-wrap">{message.text}</p>
+        <div className="flex items-center justify-end gap-2 mt-1.5 flex-wrap">
           <AnimatePresence>
-            {isPatient && ( <> {messageStatus === 'sending' && (<motion.div initial={{scale:0}} animate={{scale:1}} exit={{scale:0}} title="Sending..."><Clock size={12} className="opacity-70" /></motion.div>)} {messageStatus === 'failed' && (<motion.div initial={{scale:0}} animate={{scale:1}} exit={{scale:0}} className="text-red-200" title="Failed to send"><AlertCircle size={14} /></motion.div>)}</>)}
+            {isPatient && (
+              <>
+                {messageStatus === 'sending' && (
+                  <motion.div initial={{scale:0}} animate={{scale:1}} exit={{scale:0}} title="Sending..." className="flex items-center gap-1 text-xs opacity-75">
+                    <Clock size={12} className="opacity-70 animate-spin" />
+                    <span>Sending...</span>
+                  </motion.div>
+                )}
+                {messageStatus === 'failed' && (
+                  <motion.div initial={{scale:0}} animate={{scale:1}} exit={{scale:0}} className="flex items-center gap-1.5 text-xs text-red-200">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>Failed to send</span>
+                    {onRetry && (
+                      <button
+                        type="button"
+                        onClick={() => onRetry(message)}
+                        className="underline font-bold text-white hover:text-red-100 cursor-pointer ml-1"
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </>
+            )}
           </AnimatePresence>
           <span className={`text-xs ${isPatient ? 'text-white/70' : 'text-[var(--color-text-subtle)]'}`}>{formatTime(message.timestamp)}</span>
         </div>
@@ -141,14 +165,21 @@ const PatientChatPage = () => {
   }, [user, authLoading]);
 
   const onMessage = useCallback((data) => {
-    if (nutritionist && (data.sender_id === nutritionist.id || data.receiver_id === nutritionist.id)) {
+    if (!nutritionist || !data) return;
+    const msgSenderId = String(data.sender_id || data.sender?.id || '');
+    const msgReceiverId = String(data.receiver_id || data.receiver?.id || '');
+    const nutriId = String(nutritionist.id || '');
+
+    if (msgSenderId === nutriId || msgReceiverId === nutriId) {
        setMessages(prev => {
-         if (prev.some(msg => msg.id === data.id)) return prev;
-         return [...prev, data];
+         if (prev.some(msg => msg.id && data.id && String(msg.id) === String(data.id))) return prev;
+         const withoutTemp = prev.filter(
+           m => !(String(m.id).startsWith('temp_') && m.text === (data.text || data.message))
+         );
+         return [...withoutTemp, data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
        });
-       if (data.sender_id === nutritionist.id) { 
+       if (msgSenderId === nutriId) { 
           markMessageAsRead({ sender_id: nutritionist.id }); 
-          // --- CHANGE: CALL THE FUNCTION WHEN A NEW MESSAGE IS SEEN IN REAL-TIME ---
           clearMessageNotifications();
         }
     }
@@ -156,9 +187,84 @@ const PatientChatPage = () => {
   
   useWebSockets({ onMessage, onReminder: () => {} });
 
+  useEffect(() => {
+    const handleSync = (e) => {
+      if (e?.detail) onMessage(e.detail);
+    };
+    window.addEventListener('trackintake:chat_message', handleSync);
+    return () => window.removeEventListener('trackintake:chat_message', handleSync);
+  }, [onMessage]);
+
+  // Fallback sync polling to ensure 100% reliable delivery even if socket blips
+  useEffect(() => {
+    if (!nutritionist?.id || !user?.id) return;
+    let isStopped = false;
+    let pollInterval = null;
+
+    const handleStop = () => {
+      isStopped = true;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+    window.addEventListener('trackintake:logout', handleStop);
+
+    pollInterval = setInterval(async () => {
+      if (isStopped || !localStorage.getItem('token')) {
+        handleStop();
+        return;
+      }
+      try {
+        const res = await getMessages({ partner_id: nutritionist.id });
+        if (isStopped) return;
+        const serverMessages = res?.data?.results || res?.data || [];
+        if (serverMessages.length > 0) {
+          setMessages(prev => {
+            const map = new Map();
+            prev.forEach(m => map.set(m.id, m));
+            let hasNew = false;
+            serverMessages.forEach(m => {
+              if (!map.has(m.id)) {
+                map.set(m.id, m);
+                hasNew = true;
+              }
+            });
+            if (!hasNew) return prev;
+            return Array.from(map.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          });
+        }
+      } catch (e) {
+        // Silent poll error
+      }
+    }, 2000);
+
+    return () => {
+      handleStop();
+      window.removeEventListener('trackintake:logout', handleStop);
+    };
+  }, [nutritionist?.id, user?.id]);
+
+  const handleRetry = async (failedMsg) => {
+    if (!failedMsg || !nutritionist || !user?.id) return;
+    setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...msg, status: 'sending' } : msg));
+    try {
+      const response = await sendMessage(nutritionist.id, failedMsg.text);
+      const sentMessageObject = response.data;
+      setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...sentMessageObject, status: 'sent' } : msg));
+      window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: sentMessageObject }));
+      toast.success("Message sent successfully!");
+    } catch (err) {
+      const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Failed to deliver message. Please retry.";
+      toast.error(errText);
+      setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...failedMsg, status: 'failed' } : msg));
+    }
+  };
+
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if (!newMessage.trim() || !nutritionist || !user?.id) return;
+    if (newMessage.length > 2000) {
+      toast.error("Message exceeds the maximum limit of 2,000 characters. Please shorten it.");
+      return;
+    }
     const text = newMessage;
     const tempId = `temp_${Date.now()}`;
     const optimisticMessage = { id: tempId, sender_id: user.id, receiver_id: nutritionist.id, text, timestamp: new Date().toISOString(), status: 'sending', is_read: false };
@@ -169,9 +275,11 @@ const PatientChatPage = () => {
       const response = await sendMessage(nutritionist.id, text);
       const sentMessageObject = response.data;
       setMessages(prev => prev.map(msg => msg.id === tempId ? { ...sentMessageObject, status: 'sent' } : msg));
+      window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: sentMessageObject }));
     } catch (err) {
       console.error("Failed to send message:", err);
-      toast.error("Failed to send message.");
+      const errText = err.response?.data?.text?.[0] || err.response?.data?.detail || "Message delivery failed. Please shorten your message or retry.";
+      toast.error(errText);
       setMessages(prev => prev.map(msg => msg.id === tempId ? { ...optimisticMessage, status: 'failed' } : msg));
     }
   };
@@ -257,7 +365,7 @@ const PatientChatPage = () => {
                <div className="flex items-center justify-center h-full"><PulsingDotsLoader text="Loading Messages..." /></div>
             ) : messages.length > 0 ? (
               messages.map(msg => (
-                <ChatMessage key={msg.id} message={msg} senderType={msg.sender_id === user.id ? 'patient' : 'nutritionist'} nutritionist={nutritionist} />
+                <ChatMessage key={msg.id} message={msg} senderType={msg.sender_id === user.id ? 'patient' : 'nutritionist'} nutritionist={nutritionist} onRetry={handleRetry} />
               ))
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center text-[var(--color-text-muted)]">
@@ -280,10 +388,22 @@ const PatientChatPage = () => {
               </AnimatePresence>
               <form onSubmit={handleSendMessage} className="flex items-center gap-4">
                 <div className="relative flex-1">
-                  <input type="text" placeholder="Type a message..." className="w-full pl-12 pr-4 py-3 bg-[var(--color-bg-interactive-subtle)] border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-[var(--color-text-default)] placeholder:text-[var(--color-text-muted)] transition-all" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} />
+                  <input
+                    type="text"
+                    placeholder="Type a message... (max 2,000 characters)"
+                    maxLength={2000}
+                    className="w-full pl-12 pr-20 py-3 bg-[var(--color-bg-interactive-subtle)] border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-[var(--color-text-default)] placeholder:text-[var(--color-text-muted)] transition-all"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                  />
                   <button type="button" onClick={() => setShowEmojiPicker(prev => !prev)} className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors rounded-full">
                     <Smile size={24}/>
                   </button>
+                  {newMessage.length > 1500 && (
+                    <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono ${newMessage.length >= 2000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                      {newMessage.length}/2000
+                    </span>
+                  )}
                 </div>
                 <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} type="submit" className="p-3.5 text-[var(--color-text-on-primary)] bg-[var(--color-primary)] rounded-full shadow-lg hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-lg" style={{boxShadow: '0 4px 14px 0 rgba(255, 112, 67, 0.39)'}} disabled={!newMessage.trim()}>
                   <Send size={22}/>

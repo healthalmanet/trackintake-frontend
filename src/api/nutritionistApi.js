@@ -139,11 +139,11 @@ export const getTargetNutrients = (patientId, date) => {
 // --------- General API Calls (/api/...) ---------
 // These are not under the /nutritionist scope.
 
-export const generateDietPlan = (patientId) => {
+export const generateDietPlan = (patientId, payload = {}) => {
   return axiosInstance.post(
     `/nutritionist/patients/${patientId}/generate-plan/`,
-    {}, // empty body (if needed)
-    { timeout: 15000 } // 10 seconds timeout
+    payload,
+    { timeout: 15000 }
   );
 };
 

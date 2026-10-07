@@ -116,6 +116,9 @@ const login = (newToken, refreshToken, userInfo) => {
 
 const logout = async () => {
   try {
+    // Immediately notify all active pollers, sockets, and components to stop
+    window.dispatchEvent(new Event("trackintake:logout"));
+
     const refresh = localStorage.getItem("refreshToken");
     if (refresh) {
       await logoutUser(refresh); // ✅ send to backend

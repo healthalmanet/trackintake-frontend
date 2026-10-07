@@ -9,11 +9,44 @@ import { toast } from "react-toastify";
 // Import advertisement image
 import bpMonitorAd from "../../../assets/download.jpg";
 
-const getTodayStr = () => new Date().toISOString().split("T")[0];
+const formatLocalDate = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayStr = () => formatLocalDate(new Date());
 const getTomorrowStr = () => {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
+  return formatLocalDate(d);
+};
+
+export const extractErrorMessage = (error, fallback = "Booking failed. Try again.") => {
+  if (!error) return fallback;
+  const data = error.response?.data || error.data || error;
+  if (typeof data === "string") return data;
+  if (Array.isArray(data)) {
+    return typeof data[0] === "string" ? data[0] : extractErrorMessage(data[0], fallback);
+  }
+  if (typeof data === "object") {
+    if (data.detail && typeof data.detail === "string") return data.detail;
+    if (data.message && typeof data.message === "string") return data.message;
+    if (data.error && typeof data.error === "string") return data.error;
+    if (data.non_field_errors) {
+      return Array.isArray(data.non_field_errors)
+        ? data.non_field_errors[0]
+        : String(data.non_field_errors);
+    }
+    const firstVal = Object.values(data)[0];
+    if (firstVal) {
+      if (typeof firstVal === "string") return firstVal;
+      if (Array.isArray(firstVal) && typeof firstVal[0] === "string") return firstVal[0];
+      if (typeof firstVal === "object") return extractErrorMessage(firstVal, fallback);
+    }
+  }
+  return error.message || fallback;
 };
 
 const BookAppointment = ({ onBooked }) => {
@@ -93,6 +126,21 @@ const BookAppointment = ({ onBooked }) => {
     setNutritionistInfo(found || null);
   };
 
+  const handleCategoryChange = (cat) => {
+    setAppointmentCategory(cat);
+    setSlots([]);
+  };
+
+  const handleTypeChange = (type) => {
+    setAppointmentType(type);
+    setSlots([]); // Immediately clear slots to avoid displaying incompatible previous slots
+  };
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    setSlots([]); // Immediately clear slots to avoid displaying old date slots
+  };
+
   // -------------------------------
   // Fetch slots
   // -------------------------------
@@ -132,10 +180,15 @@ const BookAppointment = ({ onBooked }) => {
       setLoading(true);
       setPendingSlotId(slotId);
 
+      const activeSlot = slots.find((s) => s.id === slotId);
+      const resolvedAppointmentType = (activeSlot?.slot_type && activeSlot.slot_type !== "BOTH")
+        ? activeSlot.slot_type
+        : appointmentType;
+
       await bookAppointment({
         slot_id: slotId,
         appointment_category: appointmentCategory,
-        appointment_type: appointmentType,
+        appointment_type: resolvedAppointmentType,
         expert_id: appointmentCategory === "EXPERT" ? expertId : null,
       });
 
@@ -161,12 +214,12 @@ const BookAppointment = ({ onBooked }) => {
         setConsultType(errData.consult_type);
         setShowConsultPayment(true);
       } else {
-        toast.error(
-          errData?.message || errData?.detail || "Booking failed. Try again."
-        );
+        const friendlyError = extractErrorMessage(error, "Booking failed. Try again.");
+        toast.error(friendlyError);
       }
     } finally {
       setLoading(false);
+      setPendingSlotId(null);
     }
   };
 
@@ -198,10 +251,16 @@ const BookAppointment = ({ onBooked }) => {
             await verifyPayment(response);
 
             // Complete slot booking
+            const bookingSlotId = pendingSlotId || consultPaymentDetails?.slotId;
+            const activeSlot = slots.find((s) => s.id === bookingSlotId);
+            const resolvedBookingType = (activeSlot?.slot_type && activeSlot.slot_type !== "BOTH")
+              ? activeSlot.slot_type
+              : (consultPaymentDetails?.appointmentType || appointmentType);
+
             await bookAppointment({
-              slot_id: pendingSlotId || consultPaymentDetails?.slotId,
+              slot_id: bookingSlotId,
               appointment_category: appointmentCategory,
-              appointment_type: appointmentType,
+              appointment_type: resolvedBookingType,
               expert_id: appointmentCategory === "EXPERT" ? expertId : null,
             });
 
@@ -213,15 +272,17 @@ const BookAppointment = ({ onBooked }) => {
             onBooked?.();
           } catch (err) {
             console.error("Post-payment booking error:", err);
-            const msg = err.response?.data?.message || err.response?.data?.detail || "Payment verified, but booking failed. Please refresh or contact support.";
+            const msg = extractErrorMessage(err, "Payment verified, but booking failed. Please refresh or contact support.");
             toast.error(msg);
           } finally {
             setLoading(false);
+            setPendingSlotId(null);
           }
         },
         modal: {
           ondismiss: () => {
             setLoading(false);
+            setPendingSlotId(null);
           }
         },
         theme: { color: "#2563eb" }
@@ -230,14 +291,17 @@ const BookAppointment = ({ onBooked }) => {
       rzp.on("payment.failed", (res) => {
         toast.error(res.error?.description || "Payment failed. Please try again.");
         setLoading(false);
+        setPendingSlotId(null);
       });
 
       rzp.open();
 
     } catch (err) {
       console.error("Consultation fee order creation failed:", err);
+      const msg = extractErrorMessage(err, "Could not initialize consultation payment. Please try again.");
       toast.error(msg);
       setLoading(false);
+      setPendingSlotId(null);
     }
   };
 
@@ -385,70 +449,39 @@ const BookAppointment = ({ onBooked }) => {
         </div>
       )}
 
-      {/* Mobile View - Stacked Layout */}
-      <div className="block lg:hidden">
+      {/* Responsive Unified Layout (Single BookingForm in DOM to avoid duplicate input IDs) */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left / Main Column - Booking Form */}
+        <div className="w-full lg:w-[70%] order-2 lg:order-1">
+          <BookingForm 
+            appointmentCategory={appointmentCategory}
+            setAppointmentCategory={handleCategoryChange}
+            appointmentType={appointmentType}
+            setAppointmentType={handleTypeChange}
+            experts={experts}
+            expertId={expertId}
+            handleSelectExpert={handleSelectExpert}
+            date={date}
+            setDate={handleDateChange}
+            nutritionistId={nutritionistId}
+            nutritionistInfo={nutritionistInfo}
+            fetchSlots={fetchSlots}
+            fetchingSlots={fetchingSlots}
+            slots={slots}
+            handleBook={handleBook}
+            loading={loading}
+            pendingSlotId={pendingSlotId}
+          />
+        </div>
+
+        {/* Right / Top Column - Advertisement */}
         {showAd && (
-          <div className="mb-6">
-            <AdvertisementCard />
-          </div>
-        )}
-        
-        <BookingForm 
-          {...{
-            appointmentCategory,
-            setAppointmentCategory,
-            appointmentType,
-            setAppointmentType,
-            experts,
-            expertId,
-            handleSelectExpert,
-            date,
-            setDate,
-            nutritionistId,
-            nutritionistInfo,
-            fetchSlots,
-            fetchingSlots,
-            slots,
-            handleBook,
-            loading,
-          }}
-        />
-      </div>
-
-      {/* Desktop View - Side by Side */}
-      <div className="hidden lg:block">
-        <div className="flex gap-6">
-          {/* Left Column - Booking Form */}
-          <div className="w-[70%]">
-            <BookingForm 
-              {...{
-                appointmentCategory,
-                setAppointmentCategory,
-                appointmentType,
-                setAppointmentType,
-                experts,
-                expertId,
-                handleSelectExpert,
-                date,
-                setDate,
-                nutritionistId,
-                nutritionistInfo,
-                fetchSlots,
-                fetchingSlots,
-                slots,
-                handleBook,
-                loading,
-              }}
-            />
-          </div>
-
-          {/* Right Column - Advertisement */}
-          <div className="w-[30%]">
+          <div className="w-full lg:w-[30%] order-1 lg:order-2">
             <div className="sticky top-24">
               <AdvertisementCard />
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -474,6 +507,7 @@ const BookingForm = ({
   slots,
   handleBook,
   loading,
+  pendingSlotId,
 }) => {
   const isOnline = appointmentType === "VIRTUAL";
   const onlinePrice = nutritionistInfo?.online_price;
@@ -708,6 +742,7 @@ const BookingForm = ({
           slots={slots}
           onBook={handleBook}
           loading={loading}
+          pendingSlotId={pendingSlotId}
           appointmentType={appointmentType}
         />
       </div>

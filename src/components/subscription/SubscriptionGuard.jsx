@@ -44,7 +44,18 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
     }
   }, [subscription]);
 
-  // Load plans based on role
+  // Determine active subscription & plan
+  const activeSubData = (localSub && localSub.has_plan) ? localSub : (subscription && subscription.has_plan ? subscription : null);
+  const hasActiveSubscription = Boolean(activeSubData && activeSubData.is_active);
+  const activePlan = activeSubData?.plan;
+
+  // Check feature permission if feature prop is provided
+  const isFeatureAllowed = feature
+    ? Boolean(activePlan && (activePlan[feature] === true || activePlan[feature] > 0))
+    : true;
+  const isFeatureLocked = Boolean(hasActiveSubscription && !isFeatureAllowed);
+
+  // Load plans based on role only if access is locked
   const fetchPlans = useCallback(async () => {
     setLoadingPlans(true);
     setLoadError(null);
@@ -64,8 +75,10 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
   }, [role]);
 
   useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+    if (!hookLoading && (!hasActiveSubscription || isFeatureLocked)) {
+      fetchPlans();
+    }
+  }, [hookLoading, hasActiveSubscription, isFeatureLocked, fetchPlans]);
 
   // Direct In-Place Razorpay Purchase
   const handleBuyPlan = async (plan) => {
@@ -175,16 +188,6 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
     }
   };
 
-  // Determine active subscription & plan
-  const activeSubData = (localSub && localSub.has_plan) ? localSub : (subscription && subscription.has_plan ? subscription : null);
-  const hasActiveSubscription = activeSubData && activeSubData.is_active;
-  const activePlan = activeSubData?.plan;
-
-  // Check feature permission if feature prop is provided
-  const isFeatureAllowed = feature
-    ? Boolean(activePlan && (activePlan[feature] === true || activePlan[feature] > 0))
-    : true;
-
   // If active and feature is allowed, render guarded children immediately
   if (hasActiveSubscription && isFeatureAllowed) {
     return children;
@@ -213,8 +216,6 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
     if (days === 365) return "1 Year";
     return `${days} Days`;
   };
-
-  const isFeatureLocked = hasActiveSubscription && !isFeatureAllowed;
 
   return (
     <div className="min-h-[85vh] py-8 px-4 sm:px-6 lg:px-8 font-[var(--font-secondary)] flex flex-col items-center justify-center">

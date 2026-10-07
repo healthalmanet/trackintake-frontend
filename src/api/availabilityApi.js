@@ -7,10 +7,11 @@ export const getMySlots = (params = {}) => {
   );
 };
 
-export const addAvailability = (data) => {
+export const addAvailability = (data, config = {}) => {
   return axiosInstance.post(
     "/appointments/nutritionist/add-availability/",
-    data
+    data,
+    config
   );
 };
 

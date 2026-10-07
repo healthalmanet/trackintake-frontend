@@ -168,6 +168,27 @@ const PatientDetailsPage = () => {
   const [editableReport, setEditableReport] = useState(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
 
+  // Diet plan generation date selection state & helpers
+  const getLocalDateStr = useCallback((offsetDays = 0) => {
+    const d = new Date();
+    if (offsetDays !== 0) {
+      d.setDate(d.getDate() + offsetDays);
+    }
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [selectedStartDate, setSelectedStartDate] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  });
+
   // States for Meal Log tab
   const [filteredMeals, setFilteredMeals] = useState([]);
   const [selectedMealDate, setSelectedMealDate] = useState("");
@@ -203,8 +224,7 @@ const PatientDetailsPage = () => {
     }
   }, [id]);
   const [isDisablingPlan, setIsDisablingPlan] = useState(null);
-
-  console.log('[RENDER] Page rendering. Current "diets" state:', JSON.parse(JSON.stringify(diets)));
+  const [isEnablingPlan, setIsEnablingPlan] = useState(null);
 
   // --- [CORRECTED] Sorting constant matching the backend model ---
   // --- [CORRECTED] Sorting constant matching the backend model ---
@@ -622,8 +642,6 @@ const PatientDetailsPage = () => {
     try {
       const dietRes = await getDietByPatientId(id);
 
-      console.log('[FETCH-A] Inside fetchAndSetAllPlans. Raw API Response:', JSON.parse(JSON.stringify(dietRes.data)));
-
       const allDietsData = (dietRes.data.results || dietRes.data || []).sort(
         (a, b) => new Date(b.for_week_starting || b.created_at) - new Date(a.for_week_starting || a.created_at)
       );
@@ -634,11 +652,9 @@ const PatientDetailsPage = () => {
         (diet) => !diet.is_deleted && diet.status !== "rejected" && diet.status !== "failed"
       ) || allDietsData[0] || null;
 
-      console.log('[FETCH-B] Inside fetchAndSetAllPlans. Identified latest plan for display:', JSON.parse(JSON.stringify(latestPlanForDisplay)));
-
       // Filter for displayable plans in the dropdown with clear date ranges and accurate status tags
       const options = allDietsData.map((plan) => {
-        const isArchived = plan.is_deleted || plan.status === 'archived';
+        const isArchived = plan.is_deleted || plan.status === 'archived' || plan.status === 'disabled';
         const isLatest = latestPlanForDisplay && plan.id === latestPlanForDisplay.id;
         const startDate = new Date((plan.for_week_starting || plan.created_at?.slice(0, 10)) + "T00:00:00");
         const planDaysCount = plan.meals ? Object.keys(plan.meals).filter(k => k.toLowerCase().startsWith('day ')).length : 0;
@@ -649,7 +665,7 @@ const PatientDetailsPage = () => {
         const dateRangeStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
         let statusTag = "Approved";
-        if (isArchived) statusTag = "Archived";
+        if (isArchived) statusTag = "Disabled";
         else if (plan.status === 'pending' || plan.status === 'generating') statusTag = "Pending Review";
         else if (plan.status === 'rejected') statusTag = "Rejected";
         else if (plan.status === 'failed') statusTag = "Failed";
@@ -690,8 +706,8 @@ const PatientDetailsPage = () => {
       try {
         const today = new Date().toISOString().split("T")[0];
 
-        // --- [REVISED] Fetch profile, lab reports, meals, targets, and diet plans concurrently in parallel.
-        const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes, plansResult] =
+        // --- [OPTIMIZED] Fetch profile, lab reports, meals, targets, diet plans, and appointments concurrently in parallel.
+        const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes, plansResult, apptsRes] =
           await Promise.all([
             getPatientProfile(id).catch((err) => {
               if (err.response && err.response.status === 404) {
@@ -703,9 +719,10 @@ const PatientDetailsPage = () => {
             getPatientMeals(id).catch(() => ({ data: { results: [] } })),
             getTargetNutrients(id, today).catch(() => ({ data: null })),
             fetchAndSetAllPlans().catch(() => ({ latestPlan: null, allDietsData: [] })),
+            getPatientAppointmentHistory(id).catch(() => ({ data: [] })),
           ]);
 
-        // --- [REVISED] State setting logic based on parallel API responses ---
+        // --- State setting logic based on parallel API responses ---
         const { profile, latest_lab_report } = profileAndReportRes.data || {};
 
         // 1. Set the Basic Profile State
@@ -729,9 +746,13 @@ const PatientDetailsPage = () => {
         );
         setAllLabReportsHistory(allReports);
 
-        // Set other states as before
+        // Set meals and targets
         setMeals(mealsRes?.data?.results || []);
         setTargetNutrients(targetNutrientsRes?.data);
+
+        // Set appointments from concurrent fetch
+        const apptsList = Array.isArray(apptsRes.data) ? apptsRes.data : apptsRes.data?.results || [];
+        setPatientAppointments(apptsList);
 
         // Set diet plans from parallel result
         const latestPlan = plansResult?.latestPlan;
@@ -744,9 +765,6 @@ const PatientDetailsPage = () => {
           setDiets([]);
           setSelectedPlanId(null);
         }
-
-        // Fetch appointment history for this patient
-        fetchAppointments();
       } catch (err) {
         console.error("Critical error fetching patient details:", err);
         toast.error("Could not load critical patient data.");
@@ -825,13 +843,22 @@ const PatientDetailsPage = () => {
     const payload = { meals: { [apiDayKey]: apiMealsForDay } };
 
     try {
-      await editDiet(dietId, payload);
+      const res = await editDiet(dietId, payload);
       toast.success("Changes saved!");
 
+      const updatedFromRes = res?.data?.data || res?.data;
+      if (updatedFromRes && updatedFromRes.id) {
+        setDiets((prev) =>
+          prev.map((d) => (d.id === dietId ? { ...d, ...updatedFromRes } : d))
+        );
+      }
+
       const { allDietsData } = await fetchAndSetAllPlans();
-      const updatedPlan = allDietsData.find((p) => p.id === dietId);
-      if (updatedPlan) {
-        setDiets([updatedPlan]);
+      if (allDietsData && Array.isArray(allDietsData)) {
+        const updatedPlan = allDietsData.find((p) => p.id === dietId);
+        if (updatedPlan) {
+          setDiets([updatedPlan]);
+        }
       }
 
       setEditingDay(null);
@@ -880,10 +907,29 @@ const PatientDetailsPage = () => {
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
     try {
-      // We assume updatePatientProfile takes (patientId, data)
-      const res = await updatePatientProfile(id, editableProfile);
+      const payload = { ...editableProfile };
+      // Parse numbers if present and clean empty strings
+      if (payload.weight_kg !== undefined && payload.weight_kg !== "" && payload.weight_kg !== null) {
+        payload.weight_kg = parseFloat(payload.weight_kg);
+      } else {
+        payload.weight_kg = null;
+      }
+      if (payload.height_cm !== undefined && payload.height_cm !== "" && payload.height_cm !== null) {
+        payload.height_cm = parseFloat(payload.height_cm);
+      } else {
+        payload.height_cm = null;
+      }
+      // Remove read-only fields
+      delete payload.email;
+      delete payload.full_name;
+      delete payload.bmi;
 
-      // [FIXED] Use res.data directly, as it is the profile object.
+      // Clean empty strings for optional date/string fields
+      if (!payload.date_of_birth) payload.date_of_birth = null;
+
+      const res = await updatePatientProfile(id, payload);
+
+      // Use res.data directly, as it is the updated profile object.
       setProfile(res.data);
 
       setIsEditingProfile(false);
@@ -891,7 +937,20 @@ const PatientDetailsPage = () => {
       toast.success("Profile updated successfully!");
     } catch (err) {
       console.error("Failed to update profile:", err);
-      toast.error(err.response?.data?.detail || "Failed to update profile.");
+      let errorMsg = "Failed to update profile.";
+      const errorData = err.response?.data;
+      if (typeof errorData === "string") {
+        errorMsg = errorData;
+      } else if (errorData?.detail) {
+        errorMsg = errorData.detail;
+      } else if (errorData?.errors) {
+        const msgs = Object.entries(errorData.errors).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
+        if (msgs.length > 0) errorMsg = msgs.join(" | ");
+      } else if (typeof errorData === "object" && errorData !== null) {
+        const msgs = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
+        if (msgs.length > 0) errorMsg = msgs.join(" | ");
+      }
+      toast.error(errorMsg);
     } finally {
       setIsSavingProfile(false);
     }
@@ -1055,14 +1114,51 @@ const PatientDetailsPage = () => {
         await archiveDietPlan(dietId);
         toast.success("Diet plan disabled successfully!");
         // Re-fetch all plans to update the UI
-        const { latestPlan } = await fetchAndSetAllPlans();
-        setDiets(latestPlan ? [latestPlan] : []);
-        setSelectedPlanId(latestPlan ? latestPlan.id : null);
+        const { latestPlan, allDietsData } = await fetchAndSetAllPlans();
+        const updatedCurrentPlan = allDietsData?.find((p) => String(p.id) === String(dietId));
+        if (updatedCurrentPlan) {
+          setDiets([{ ...updatedCurrentPlan, is_deleted: true, status: 'disabled' }]);
+          setSelectedPlanId(updatedCurrentPlan.id);
+        } else if (latestPlan) {
+          setDiets([latestPlan]);
+          setSelectedPlanId(latestPlan.id);
+        } else {
+          setDiets([]);
+          setSelectedPlanId(null);
+        }
       } catch (err) {
         console.error("Failed to disable diet plan:", err);
         toast.error("Failed to disable plan.");
       } finally {
         setIsDisablingPlan(null);
+      }
+    }
+  };
+
+  const handleEnablePlan = async (dietId) => {
+    if (window.confirm("Are you sure you want to enable and restore this diet plan as active?")) {
+      setIsEnablingPlan(dietId);
+      try {
+        await restoreDietPlan(dietId);
+        toast.success("Diet plan enabled and restored successfully!");
+        // Re-fetch all plans to update the UI
+        const { latestPlan, allDietsData } = await fetchAndSetAllPlans();
+        const updatedCurrentPlan = allDietsData?.find((p) => String(p.id) === String(dietId));
+        if (updatedCurrentPlan) {
+          setDiets([{ ...updatedCurrentPlan, is_deleted: false, status: 'approved' }]);
+          setSelectedPlanId(updatedCurrentPlan.id);
+        } else if (latestPlan) {
+          setDiets([latestPlan]);
+          setSelectedPlanId(latestPlan.id);
+        } else {
+          setDiets([]);
+          setSelectedPlanId(null);
+        }
+      } catch (err) {
+        console.error("Failed to enable diet plan:", err);
+        toast.error(err.response?.data?.error || "Failed to enable plan.");
+      } finally {
+        setIsEnablingPlan(null);
       }
     }
   };
@@ -1084,6 +1180,12 @@ const PatientDetailsPage = () => {
     } finally {
       setIsSearchingMeals(false);
     }
+  };
+
+  const handleClearMealDateFilter = () => {
+    setSelectedMealDate("");
+    setFilteredMeals([]);
+    setActiveLogDate(null);
   };
 
   // Inside PatientDetailsPage.jsx
@@ -1151,16 +1253,25 @@ const PatientDetailsPage = () => {
     }
   };
 
-  // --- [CORRECTED] handleGenerateDiet with polling for real-time updates ---
-  const handleGenerateDiet = async () => {
-    if (
-      !window.confirm(
-        "Generate a new AI diet plan? This will run in background."
-      )
-    ) {
+  const handleOpenGenerateModal = () => {
+    const todayStr = getLocalDateStr(0);
+    if (!selectedStartDate || selectedStartDate < todayStr) {
+      setSelectedStartDate(todayStr);
+    }
+    setIsGenerateModalOpen(true);
+  };
+
+  // --- [CORRECTED] handleGenerateDiet with start date selection and polling ---
+  const handleGenerateDiet = async (startDateToUse) => {
+    const targetDate = startDateToUse || selectedStartDate || getLocalDateStr(0);
+    const todayStr = getLocalDateStr(0);
+
+    if (targetDate < todayStr) {
+      toast.error("Cannot generate diet plan for a past date. Please select today or a future date.");
       return;
     }
 
+    setIsGenerateModalOpen(false);
     setIsGenerating(true);
     // Immediately clear suggestions for the generating session
     if (id) {
@@ -1169,11 +1280,16 @@ const PatientDetailsPage = () => {
     setAiSuggestions([]);
 
     try {
-      // 1️⃣ Backend returns placeholder plan immediately
-      const res = await generateDietPlan(id);
+      // 1️⃣ Backend returns placeholder plan immediately with start_date
+      const res = await generateDietPlan(id, { start_date: targetDate });
       const placeholderPlan = res.data;
 
-      toast.info("AI generation started in background...");
+      const dateLabel = new Date(targetDate + "T00:00:00").toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      toast.info(`AI generation started for start date: ${dateLabel}...`);
 
       // Show placeholder immediately
       setDiets([placeholderPlan]);
@@ -1206,6 +1322,10 @@ const PatientDetailsPage = () => {
           if (updatedPlan.status === "pending" || updatedPlan.status === "approved") {
             toast.success("Diet plan generated successfully!");
             setDiets([updatedPlan]);
+            const planDays = Object.keys(updatedPlan.meals || {}).filter(k => k.toLowerCase().startsWith('day '));
+            if (planDays.length > 0) {
+              setActiveDayPerDiet(prev => ({ ...prev, [updatedPlan.id]: planDays[0] }));
+            }
             const newSugs = updatedPlan.meals?.suggestions || updatedPlan.original_ai_plan?.suggestions;
             if (Array.isArray(newSugs) && newSugs.length > 0) {
               setAiSuggestions(newSugs);
@@ -1298,15 +1418,13 @@ const PatientDetailsPage = () => {
     });
   };
 
-  // --- [NEW] Calculate daily totals for the active diet plan day ---
-  const dailyTotals = useMemo(() => {
-    const activeDietPlan = diets[0];
-    const activeDay = activeDietPlan
-      ? activeDayPerDiet[activeDietPlan.id]
-      : null;
-    if (!activeDietPlan || !activeDay || !activeDietPlan.meals[activeDay]) {
-      return null;
-    }
+  // --- Calculate daily totals for a diet plan day (including active edits) ---
+  const getDailyTotals = useCallback((diet, day) => {
+    if (!diet || !diet.meals) return null;
+    const planDays = Object.keys(diet.meals || {}).filter(k => k.toLowerCase().startsWith('day '));
+    const targetDay = day || activeDayPerDiet[diet.id] || (planDays.length > 0 ? planDays[0] : null);
+    if (!targetDay || !diet.meals[targetDay]) return null;
+
     const totals = {
       Calories: 0,
       Protein: 0,
@@ -1315,15 +1433,25 @@ const PatientDetailsPage = () => {
       Fiber: 0,
       Sugar: 0,
     };
-    const mealsForDay = activeDietPlan.meals[activeDay];
-    for (const mealType in mealsForDay) {
-      const mealDetails = mealsForDay[mealType];
+    const mealsForDay = diet.meals[targetDay];
+    for (const mealKey in mealsForDay) {
+      const defaultMeal = mealsForDay[mealKey] || {};
+      const editedMeal = editStates[diet.id]?.[targetDay]?.[mealKey] || {};
       for (const nutrient in totals) {
-        totals[nutrient] += parseFloat(mealDetails[nutrient] || 0);
+        const val = editedMeal[nutrient] !== undefined ? editedMeal[nutrient] : defaultMeal[nutrient];
+        totals[nutrient] += parseFloat(val || 0);
       }
     }
     return totals;
-  }, [diets, activeDayPerDiet]);
+  }, [activeDayPerDiet, editStates]);
+
+  const dailyTotals = useMemo(() => {
+    const activeDietPlan = diets[0];
+    if (!activeDietPlan || !activeDietPlan.meals) return null;
+    const planDays = Object.keys(activeDietPlan.meals || {}).filter(k => k.toLowerCase().startsWith('day '));
+    const activeDay = activeDayPerDiet[activeDietPlan.id] || (planDays.length > 0 ? planDays[0] : null);
+    return getDailyTotals(activeDietPlan, activeDay);
+  }, [diets, activeDayPerDiet, getDailyTotals]);
 
   const TABS = [
     { key: "profile", label: "Profile", icon: <FaUser /> },
@@ -1813,20 +1941,34 @@ const PatientDetailsPage = () => {
                     <h2 className="text-2xl font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)] mb-6">
                       Patient Meal Log
                     </h2>
-                    <div className="mb-6 flex items-center gap-4">
+                    <div className="mb-6 flex items-center gap-4 flex-wrap">
                       <label
                         htmlFor="mealDate"
                         className="text-sm font-semibold text-[var(--color-text-default)]"
                       >
                         Filter by Date:
                       </label>
-                      <input
-                        type="date"
-                        value={selectedMealDate}
-                        onChange={handleMealSearchByDate}
-                        max={new Date().toISOString().split("T")[0]}
-                        className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-md p-2 text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-[var(--color-primary)] outline-none transition-all"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="mealDate"
+                          type="date"
+                          value={selectedMealDate}
+                          onChange={handleMealSearchByDate}
+                          max={new Date().toISOString().split("T")[0]}
+                          className="bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-md p-2 text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-[var(--color-primary)] outline-none transition-all"
+                        />
+                        {selectedMealDate && (
+                          <button
+                            type="button"
+                            onClick={handleClearMealDateFilter}
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-[var(--color-danger-bg-subtle)] hover:text-[var(--color-danger-text)] border border-[var(--color-border-default)] transition-all cursor-pointer"
+                            title="Clear date filter"
+                          >
+                            <FaTimes className="w-3.5 h-3.5" />
+                            <span>Clear Filter</span>
+                          </button>
+                        )}
+                      </div>
                       {isSearchingMeals && (
                         <FaSpinner className="animate-spin text-[var(--color-primary)]" />
                       )}
@@ -2138,11 +2280,11 @@ const PatientDetailsPage = () => {
                           }
                         >
                           <button
-                            onClick={handleGenerateDiet}
+                            onClick={handleOpenGenerateModal}
                             disabled={!isProfileComplete || hasPendingPlan || isGenerating}
                             className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-44 ${!isProfileComplete || hasPendingPlan || isGenerating
                                 ? "bg-[var(--color-bg-interactive-subtle)] opacity-60 cursor-not-allowed text-[var(--color-text-muted)]"
-                                : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:-translate-y-0.5"
+                                : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
                               }`}
                           >
                             {isGenerating ? (
@@ -2456,8 +2598,8 @@ const PatientDetailsPage = () => {
                           AI failed to generate the plan.
                         </p>
                         <button
-                          onClick={handleGenerateDiet}
-                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                          onClick={handleOpenGenerateModal}
+                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 cursor-pointer"
                         >
                           Retry
                         </button>
@@ -2526,6 +2668,11 @@ const PatientDetailsPage = () => {
                                   <span className="text-xs px-2 py-0.5 font-semibold rounded bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)]">
                                     {durationDays}-Day Plan
                                   </span>
+                                  {startDate && startDate > new Date(getLocalDateStr(0) + "T23:59:59") && (
+                                    <span className="text-xs px-2.5 py-0.5 font-bold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                      Upcoming · Starts {startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
                                   <span>
@@ -2552,7 +2699,7 @@ const PatientDetailsPage = () => {
                               <div className="flex items-center gap-3 self-end md:self-center">
                                 <span
                                   className={`px-3 py-1 text-xs font-bold rounded-full capitalize ${
-                                    diet.is_deleted
+                                    diet.is_deleted || diet.status === "disabled" || diet.status === "archived"
                                       ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                       : diet.status === "approved"
                                       ? "bg-[var(--color-success-bg-subtle)] text-[var(--color-success-text)]"
@@ -2561,8 +2708,8 @@ const PatientDetailsPage = () => {
                                       : "bg-[var(--color-danger-bg-subtle)] text-[var(--color-danger-text)]"
                                   }`}
                                 >
-                                  {diet.is_deleted
-                                    ? "Archived"
+                                  {diet.is_deleted || diet.status === "disabled" || diet.status === "archived"
+                                    ? "Disabled"
                                     : diet.status === "approved"
                                     ? "Approved & Active"
                                     : diet.status === "pending"
@@ -2570,11 +2717,11 @@ const PatientDetailsPage = () => {
                                     : diet.status}
                                 </span>
 
-                                {!diet.is_deleted && (diet.status === "approved" || diet.status === "active") && (!latestActiveDietPlan || diet.id === latestActiveDietPlan.id) && (
+                                {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && (diet.status === "approved" || diet.status === "active") && (!latestActiveDietPlan || diet.id === latestActiveDietPlan.id) && (
                                   <button
                                     onClick={() => handleDisablePlan(diet.id)}
                                     disabled={isDisablingPlan === diet.id}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-text)] bg-[var(--color-danger-bg-subtle)] border border-[var(--color-danger-border)] hover:bg-[var(--color-danger-bg)] hover:text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-text)] bg-[var(--color-danger-bg-subtle)] border border-[var(--color-danger-border)] hover:bg-[var(--color-danger-bg)] hover:text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
                                     title="Disable Plan"
                                     aria-label={`Disable plan ${diet.id}`}
                                   >
@@ -2586,6 +2733,23 @@ const PatientDetailsPage = () => {
                                     <span>Disable</span>
                                   </button>
                                 )}
+
+                                {(diet.is_deleted || diet.status === "disabled" || diet.status === "archived") && (
+                                  <button
+                                    onClick={() => handleEnablePlan(diet.id)}
+                                    disabled={isEnablingPlan === diet.id}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
+                                    title="Enable and Restore Plan"
+                                    aria-label={`Enable plan ${diet.id}`}
+                                  >
+                                    {isEnablingPlan === diet.id ? (
+                                      <FaSpinner className="animate-spin" />
+                                    ) : (
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>Enable Plan</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
 
@@ -2593,24 +2757,45 @@ const PatientDetailsPage = () => {
 
                             {planDays.length > 0 && (
                               <div className="flex flex-wrap gap-2 border-b-2 border-[var(--color-border-default)] pb-4">
-                                {planDays.map((day) => (
-                                  <button
-                                    key={day}
-                                    onClick={() => {
-                                      setActiveDayPerDiet((prev) => ({
-                                        ...prev,
-                                        [diet.id]: day,
-                                      }));
-                                      setEditingDay(null);
-                                    }}
-                                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-all capitalize ${activeDay === day
-                                        ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] shadow-md"
-                                        : "bg-[var(--color-bg-app)] text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)]"
-                                      }`}
-                                  >
-                                    {day.replace(/_/g, " ")}
-                                  </button>
-                                ))}
+                                {planDays.map((day) => {
+                                  const dayNum = parseInt(day.replace(/[^0-9]/g, ""), 10);
+                                  const dayDate = startDate && !isNaN(dayNum) && !isNaN(startDate.getTime())
+                                    ? new Date(startDate.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000)
+                                    : null;
+                                  const formattedDayDate = dayDate
+                                    ? dayDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                                    : null;
+
+                                  return (
+                                    <button
+                                      key={day}
+                                      onClick={() => {
+                                        setActiveDayPerDiet((prev) => ({
+                                          ...prev,
+                                          [diet.id]: day,
+                                        }));
+                                        setEditingDay(null);
+                                      }}
+                                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all capitalize cursor-pointer ${activeDay === day
+                                          ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] shadow-md"
+                                          : "bg-[var(--color-bg-app)] text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)]"
+                                        }`}
+                                    >
+                                      <span>{day.replace(/_/g, " ")}</span>
+                                      {formattedDayDate && (
+                                        <span
+                                          className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                            activeDay === day
+                                              ? "bg-white/20 text-white"
+                                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] border border-[var(--color-border-default)]"
+                                          }`}
+                                        >
+                                          {formattedDayDate}
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
 
@@ -2682,6 +2867,9 @@ const PatientDetailsPage = () => {
                                           const originalKeyForState = meal.originalKey;
                                           const inputClass =
                                             "w-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded px-2 py-1 text-sm focus:ring-1 focus:ring-[var(--color-primary)] focus:outline-none";
+                                          const displayMealName = (meal.quantity && !meal.food_name?.includes("(") && (meal.quantity.includes("(") || /bowl|katori|cup|tbsp|tsp|roti|glass/i.test(meal.quantity)))
+                                            ? meal.quantity
+                                            : (meal.food_name || meal.quantity || "");
 
                                           return (
                                             <tr
@@ -2697,7 +2885,7 @@ const PatientDetailsPage = () => {
                                                     type="text"
                                                     value={
                                                       editStates[diet.id]?.[activeDay]?.[originalKeyForState]?.food_name ??
-                                                      meal.food_name ??
+                                                      displayMealName ??
                                                       ""
                                                     }
                                                     onChange={(e) =>
@@ -2714,7 +2902,7 @@ const PatientDetailsPage = () => {
                                                     className={`${inputClass} ${diet.status === 'approved' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                                   />
                                                 ) : (
-                                                  meal.food_name || ""
+                                                  displayMealName || ""
                                                 )}
                                               </td>
                                               <td className="py-3 px-3">{meal.Calories ?? "-"}</td>
@@ -2748,38 +2936,42 @@ const PatientDetailsPage = () => {
                                         });
                                       })()}
                                     </tbody>
-                                    {/* --- [NEW] Table footer for displaying daily totals --- */}
-                                    {dailyTotals && (
-                                      <tfoot className="bg-[var(--color-bg-app)] border-t-2 border-[var(--color-border-default)]">
-                                        <tr>
-                                          <td
-                                            colSpan="2"
-                                            className="py-3 px-3 text-right font-bold text-[var(--color-text-strong)]"
-                                          >
-                                            Daily Totals:
-                                          </td>
-                                          <td className="py-3 px-3 font-bold text-[var(--color-primary)]">
-                                            {dailyTotals.Calories.toFixed(1)}
-                                          </td>
-                                          <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
-                                            {dailyTotals.Carbs.toFixed(1)}
-                                          </td>
-                                          <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
-                                            {dailyTotals.Fiber.toFixed(1)}
-                                          </td>
-                                          <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
-                                            {dailyTotals.Protein.toFixed(1)}
-                                          </td>
-                                          <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
-                                            {dailyTotals.Sugar.toFixed(1)}
-                                          </td>
-                                          <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
-                                            {dailyTotals.Fats.toFixed(1)}
-                                          </td>
-                                          <td className="py-3 px-3"></td>
-                                        </tr>
-                                      </tfoot>
-                                    )}
+                                    {/* --- Table footer for displaying daily totals --- */}
+                                    {(() => {
+                                      const currentTotals = getDailyTotals(diet, activeDay) || dailyTotals;
+                                      if (!currentTotals) return null;
+                                      return (
+                                        <tfoot className="bg-[var(--color-bg-app)] border-t-2 border-[var(--color-border-default)]">
+                                          <tr>
+                                            <td
+                                              colSpan="2"
+                                              className="py-3 px-3 text-right font-bold text-[var(--color-text-strong)]"
+                                            >
+                                              Daily Totals:
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-[var(--color-primary)]">
+                                              {currentTotals.Calories.toFixed(1)}
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
+                                              {currentTotals.Carbs.toFixed(1)}
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
+                                              {currentTotals.Fiber.toFixed(1)}
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
+                                              {currentTotals.Protein.toFixed(1)}
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
+                                              {currentTotals.Sugar.toFixed(1)}
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-[var(--color-text-strong)]">
+                                              {currentTotals.Fats.toFixed(1)}
+                                            </td>
+                                            <td className="py-3 px-3"></td>
+                                          </tr>
+                                        </tfoot>
+                                      );
+                                    })()}
                                   </table>
                                 </motion.div>
                               </AnimatePresence>
@@ -2833,7 +3025,7 @@ const PatientDetailsPage = () => {
                                   )}
                                 </div>
                               )}
-                              {diet.status === "pending" && (
+                              {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && diet.status === "pending" && (
                                 <div className="p-4 bg-[var(--color-info-bg-subtle)] border-2 border-[var(--color-info-text)]/20 rounded-lg space-y-3">
                                   <h4 className="font-semibold text-[var(--color-info-text)]">
                                     Review This Plan
@@ -2877,7 +3069,7 @@ const PatientDetailsPage = () => {
                                   </div>
                                 </div>
                               )}
-                              {diet.status === "approved" && (
+                              {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && diet.status === "approved" && (
                                 <div className="p-5 bg-[var(--color-bg-app)] border-2 border-dashed border-[var(--color-border-default)] rounded-xl space-y-4 mt-4">
                                   <div>
                                     <h4 className="text-lg font-semibold text-[var(--color-text-strong)]">
@@ -3134,6 +3326,239 @@ const PatientDetailsPage = () => {
           </div>
         </motion.div>
       </main>
+
+      {/* Diet Plan Generation Start Date Selection Modal */}
+      <AnimatePresence>
+        {isGenerateModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm font-[var(--font-secondary)]"
+            onClick={() => !isGenerating && setIsGenerateModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 15 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl p-6 sm:p-7 space-y-6"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-[var(--color-border-default)]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+                      Generate AI Diet Plan
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      Select when this patient's 3-day meal plan should begin
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={isGenerating}
+                  onClick={() => setIsGenerateModalOpen(false)}
+                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Quick Select Start Date
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[
+                    { label: "Today", offset: 0, icon: Sun },
+                    { label: "Tomorrow", offset: 1, icon: CalendarCheck },
+                    { label: "In 2 Days", offset: 2, icon: Calendar },
+                  ].map((preset) => {
+                    const presetDate = getLocalDateStr(preset.offset);
+                    const isSelected = selectedStartDate === presetDate;
+                    const dateObj = new Date(presetDate + "T00:00:00");
+                    const dateLabel = dateObj.toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    });
+                    const IconComponent = preset.icon;
+
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => setSelectedStartDate(presetDate)}
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)] text-[var(--color-primary)] shadow-sm"
+                            : "bg-[var(--color-bg-app)] border-[var(--color-border-default)] text-[var(--color-text-default)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-bg-interactive-subtle)]"
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4 mb-1.5" />
+                        <span className="text-xs font-bold">{preset.label}</span>
+                        <span className={`text-[11px] font-medium mt-0.5 ${isSelected ? "text-[var(--color-primary)] font-semibold" : "text-[var(--color-text-muted)]"}`}>
+                          {dateLabel}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Date Picker */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Or Pick Custom Date
+                  </label>
+                  <span className="text-[11px] text-[var(--color-text-muted)] font-medium">
+                    (Past dates blocked)
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="date"
+                    min={getLocalDateStr(0)}
+                    value={selectedStartDate}
+                    onChange={(e) => setSelectedStartDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-2xl text-sm font-semibold text-[var(--color-text-strong)] focus:border-[var(--color-primary)] outline-none transition-all cursor-pointer"
+                  />
+                </div>
+
+                {/* Validation message if past date is selected */}
+                {selectedStartDate && selectedStartDate < getLocalDateStr(0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold"
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>Past dates are blocked. Please select today or a future date.</span>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Schedule Preview Card */}
+              {selectedStartDate && selectedStartDate >= getLocalDateStr(0) && (() => {
+                const sDate = new Date(selectedStartDate + "T00:00:00");
+                const eDate = new Date(sDate.getTime() + 2 * 24 * 60 * 60 * 1000);
+                const sDateStr = sDate.toLocaleDateString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+                const eDateStr = eDate.toLocaleDateString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+
+                const todayStr = getLocalDateStr(0);
+                const tomorrowStr = getLocalDateStr(1);
+                let timingBadge = {
+                  text: `Starts in ${Math.round((sDate - new Date(todayStr + "T00:00:00")) / (24 * 60 * 60 * 1000))} days`,
+                  cls: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+                };
+                if (selectedStartDate === todayStr) {
+                  timingBadge = {
+                    text: "Starts Today",
+                    cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+                  };
+                } else if (selectedStartDate === tomorrowStr) {
+                  timingBadge = {
+                    text: "Starts Tomorrow",
+                    cls: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+                  };
+                }
+
+                return (
+                  <div className="p-4 rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold font-[var(--font-primary)] text-[var(--color-text-strong)] flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+                        Plan Timeline (3 Days)
+                      </span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${timingBadge.cls}`}>
+                        {timingBadge.text}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                      <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)]">
+                        <span className="block text-[10px] uppercase font-bold text-[var(--color-text-muted)]">
+                          Start Date (Day 1)
+                        </span>
+                        <span className="font-bold text-[var(--color-text-strong)] mt-0.5 block truncate">
+                          {sDateStr}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)]">
+                        <span className="block text-[10px] uppercase font-bold text-[var(--color-text-muted)]">
+                          End Date (Day 3)
+                        </span>
+                        <span className="font-bold text-[var(--color-text-strong)] mt-0.5 block truncate">
+                          {eDateStr}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                      AI will customize nutrients and schedule meals starting precisely from <strong>{sDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</strong> onwards.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* Modal Footer / Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--color-border-default)]">
+                <button
+                  type="button"
+                  disabled={isGenerating}
+                  onClick={() => setIsGenerateModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-[var(--color-text-muted)] hover:bg-[var(--color-bg-interactive-subtle)] hover:text-[var(--color-text-strong)] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    isGenerating ||
+                    !selectedStartDate ||
+                    selectedStartDate < getLocalDateStr(0)
+                  }
+                  onClick={() => handleGenerateDiet(selectedStartDate)}
+                  className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-extrabold text-[var(--color-text-on-primary)] transition-all shadow-md cursor-pointer ${
+                    isGenerating ||
+                    !selectedStartDate ||
+                    selectedStartDate < getLocalDateStr(0)
+                      ? "bg-[var(--color-bg-interactive-subtle)] opacity-60 cursor-not-allowed text-[var(--color-text-muted)]"
+                      : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:-translate-y-0.5"
+                  }`}
+                >
+                  {isGenerating ? (
+                    <FaSpinner className="animate-spin text-sm" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>
+                    {isGenerating
+                      ? "Generating Plan..."
+                      : selectedStartDate
+                      ? `Generate for ${new Date(selectedStartDate + "T00:00:00").toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                      : "Generate Plan"}
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Appointment Details & Notes Modal */}
       <AppointmentDetailModal

@@ -52,7 +52,7 @@ const NutritionistPage = () => {
       }
     };
     fetchStatus();
-  }, [location.pathname]);
+  }, []); // Only fetch once on mount, avoiding unnecessary blocking API calls on every route transition
 
   const isProfileRoute = location.pathname.includes("/profile") || location.pathname.includes("/subscription");
 
