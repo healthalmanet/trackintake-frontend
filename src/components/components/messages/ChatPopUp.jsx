@@ -44,6 +44,53 @@ const PulsingDotsLoader = ({ text }) => (
 const getInitials = (name = '') => { const words = name.trim().split(' ').filter(Boolean); if (words.length === 0) return '?'; if (words.length === 1) return words[0][0].toUpperCase(); return (words[0][0] + words[words.length - 1][0]).toUpperCase(); };
 const formatTime = (timestamp) => { if (!timestamp) return ''; return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
+const deduplicateAndMergeMessages = (prevMessages, incoming) => {
+    const incomingList = Array.isArray(incoming) ? incoming : (incoming ? [incoming] : []);
+    if (!incomingList.length) return prevMessages;
+
+    let updated = [...prevMessages];
+
+    for (const newMsg of incomingList) {
+        if (!newMsg || (!newMsg.text && !newMsg.message)) continue;
+        const newIdStr = String(newMsg.id ?? '');
+        const newText = (newMsg.text || newMsg.message || '').trim();
+        const newSenderId = String(newMsg.sender_id || newMsg.sender?.id || '');
+
+        const existingIndexById = updated.findIndex(
+            m => m.id && !String(m.id).startsWith('temp_') && String(m.id) === newIdStr
+        );
+
+        if (existingIndexById !== -1) {
+            updated[existingIndexById] = { ...updated[existingIndexById], ...newMsg };
+            continue;
+        }
+
+        const tempIndex = updated.findIndex(
+            m => String(m.id).startsWith('temp_') &&
+                 String(m.sender_id || m.sender?.id || '') === newSenderId &&
+                 (m.text || '').trim() === newText
+        );
+
+        if (tempIndex !== -1) {
+            updated[tempIndex] = { ...newMsg, status: 'sent' };
+        } else {
+            updated.push(newMsg);
+        }
+    }
+
+    const seenIds = new Set();
+    const finalMessages = [];
+    for (const msg of updated) {
+        const idKey = String(msg.id);
+        if (!seenIds.has(idKey)) {
+            seenIds.add(idKey);
+            finalMessages.push(msg);
+        }
+    }
+
+    return finalMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+};
+
 // --- [UI COMPONENT] An individual chat message bubble ---
 const ChatMessage = ({ message, isPatient }) => {
   const messageStatus = message.status;
@@ -58,7 +105,7 @@ const ChatMessage = ({ message, isPatient }) => {
       <div 
         className={`px-3.5 py-2.5 rounded-t-xl max-w-xs shadow-lg font-[var(--font-secondary)] ${isPatient ? 'bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] rounded-l-xl shadow-orange-500/20' : 'bg-[var(--color-bg-surface)] text-[var(--color-text-default)] rounded-r-xl shadow-gray-400/10'}`}
       >
-        <p className="break-words leading-relaxed">{message.text}</p>
+        <p className="break-words leading-relaxed whitespace-pre-wrap">{message.text}</p>
         <div className="flex items-center justify-end gap-1.5 mt-1.5 text-right">
           <AnimatePresence>
             {isPatient && ( <> {messageStatus === 'sending' && (<motion.div initial={{scale:0}} animate={{scale:1}} exit={{scale:0}} title="Sending..."><Clock size={12} className="opacity-70" /></motion.div>)} {messageStatus === 'failed' && (<motion.div initial={{scale:0}} animate={{scale:1}} exit={{scale:0}} className="text-red-200" title="Failed to send"><AlertCircle size={14} /></motion.div>)}</>)}
@@ -132,8 +179,8 @@ const ChatPopUp = ({ isOpen, onClose }) => {
         setNutritionist(fetchedNutritionist);
         
         const messagesRes = await getMessages({ partner_id: fetchedNutritionist.id });
-        const serverMessages = messagesRes?.data?.results || [];
-        setMessages(serverMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
+        const serverMessages = messagesRes?.data?.results || messagesRes?.data || [];
+        setMessages(deduplicateAndMergeMessages([], serverMessages));
         
         const hasUnread = serverMessages.some(m => m.sender_id === fetchedNutritionist.id && !m.is_read);
         if (hasUnread) {
@@ -159,10 +206,7 @@ const ChatPopUp = ({ isOpen, onClose }) => {
 
    const onMessage = useCallback((data) => {
     if (isOpen && nutritionist && (data.sender_id === nutritionist.id || data.receiver_id === nutritionist.id)) {
-      setMessages(prev => {
-        if (prev.some(msg => msg.id === data.id)) return prev;
-        return [...prev, data];
-      });
+      setMessages(prev => deduplicateAndMergeMessages(prev, data));
 
       if (data.sender_id === nutritionist.id) {
         markMessageAsRead({ sender_id: nutritionist.id });
@@ -177,15 +221,19 @@ const ChatPopUp = ({ isOpen, onClose }) => {
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if (!newMessage.trim() || !nutritionist || !user) return;
+    if (newMessage.length > 10000) {
+      toast.error("Message exceeds maximum limit of 10,000 characters.");
+      return;
+    }
     const tempId = `temp_${Date.now()}`;
     const text = newMessage;
     setNewMessage('');
     setShowEmojiPicker(false);
     const optimisticMessage = { id: tempId, sender_id: user.id, text, timestamp: new Date().toISOString(), status: 'sending' };
-    setMessages(prev => [...prev, optimisticMessage]);
+    setMessages(prev => deduplicateAndMergeMessages(prev, optimisticMessage));
     try {
       const response = await sendMessage(nutritionist.id, text);
-      setMessages(prev => prev.map(msg => (msg.id === tempId ? { ...response.data, status: 'sent' } : msg)));
+      setMessages(prev => deduplicateAndMergeMessages(prev, response.data));
     } catch (err) {
       toast.error("Message failed to send.");
       setMessages(prev => prev.map(msg => (msg.id === tempId ? { ...optimisticMessage, status: 'failed' } : msg)));

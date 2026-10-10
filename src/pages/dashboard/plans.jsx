@@ -473,10 +473,15 @@ const PlansPage = () => {
                         return (
                           <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
                             <td className="py-4 px-6 text-gray-900 font-bold flex items-center gap-2">
-                              <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
+                              <div className={`p-1.5 rounded-lg ${item.plan_type === "consultation" || item.payment_type === "consultation_fee" ? "bg-blue-100 text-blue-600" : "bg-orange-100 text-orange-600"}`}>
                                 <CreditCard className="w-4 h-4" />
                               </div>
-                              {item.plan_name}
+                              <div>
+                                <span>{item.plan_name}</span>
+                                {(item.plan_type === "consultation" || item.payment_type === "consultation_fee") && (
+                                  <span className="block text-[10px] text-blue-600 font-semibold font-mono">Consultation Fee</span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-4 px-6 text-gray-600 text-xs">
                               {item.created_at ? new Date(item.created_at).toLocaleString() : "—"}

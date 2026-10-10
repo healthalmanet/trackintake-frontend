@@ -124,6 +124,53 @@ const AwaitingNutritionistUI = () => {
 };
 
 
+const deduplicateAndMergeMessages = (prevMessages, incoming) => {
+    const incomingList = Array.isArray(incoming) ? incoming : (incoming ? [incoming] : []);
+    if (!incomingList.length) return prevMessages;
+
+    let updated = [...prevMessages];
+
+    for (const newMsg of incomingList) {
+        if (!newMsg || (!newMsg.text && !newMsg.message)) continue;
+        const newIdStr = String(newMsg.id ?? '');
+        const newText = (newMsg.text || newMsg.message || '').trim();
+        const newSenderId = String(newMsg.sender_id || newMsg.sender?.id || '');
+
+        const existingIndexById = updated.findIndex(
+            m => m.id && !String(m.id).startsWith('temp_') && String(m.id) === newIdStr
+        );
+
+        if (existingIndexById !== -1) {
+            updated[existingIndexById] = { ...updated[existingIndexById], ...newMsg };
+            continue;
+        }
+
+        const tempIndex = updated.findIndex(
+            m => String(m.id).startsWith('temp_') &&
+                 String(m.sender_id || m.sender?.id || '') === newSenderId &&
+                 (m.text || '').trim() === newText
+        );
+
+        if (tempIndex !== -1) {
+            updated[tempIndex] = { ...newMsg, status: 'sent' };
+        } else {
+            updated.push(newMsg);
+        }
+    }
+
+    const seenIds = new Set();
+    const finalMessages = [];
+    for (const msg of updated) {
+        const idKey = String(msg.id);
+        if (!seenIds.has(idKey)) {
+            seenIds.add(idKey);
+            finalMessages.push(msg);
+        }
+    }
+
+    return finalMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+};
+
 const PatientChatPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [nutritionist, setNutritionist] = useState(null);
@@ -148,8 +195,8 @@ const PatientChatPage = () => {
         const fetchedNutritionist = nutritionistResponse.data;
         setNutritionist(fetchedNutritionist);
         const messagesResponse = await getMessages({ partner_id: fetchedNutritionist.id });
-        const serverMessages = messagesResponse?.data?.results || [];
-        setMessages(serverMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
+        const serverMessages = messagesResponse?.data?.results || messagesResponse?.data || [];
+        setMessages(deduplicateAndMergeMessages([], serverMessages));
         const hasUnread = serverMessages.some(msg => msg.sender_id === fetchedNutritionist.id && !msg.is_read);
         if (hasUnread) { 
           await markMessageAsRead({ sender_id: fetchedNutritionist.id }); 
@@ -171,13 +218,7 @@ const PatientChatPage = () => {
     const nutriId = String(nutritionist.id || '');
 
     if (msgSenderId === nutriId || msgReceiverId === nutriId) {
-       setMessages(prev => {
-         if (prev.some(msg => msg.id && data.id && String(msg.id) === String(data.id))) return prev;
-         const withoutTemp = prev.filter(
-           m => !(String(m.id).startsWith('temp_') && m.text === (data.text || data.message))
-         );
-         return [...withoutTemp, data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-       });
+       setMessages(prev => deduplicateAndMergeMessages(prev, data));
        if (msgSenderId === nutriId) { 
           markMessageAsRead({ sender_id: nutritionist.id }); 
           clearMessageNotifications();
@@ -217,19 +258,7 @@ const PatientChatPage = () => {
         if (isStopped) return;
         const serverMessages = res?.data?.results || res?.data || [];
         if (serverMessages.length > 0) {
-          setMessages(prev => {
-            const map = new Map();
-            prev.forEach(m => map.set(m.id, m));
-            let hasNew = false;
-            serverMessages.forEach(m => {
-              if (!map.has(m.id)) {
-                map.set(m.id, m);
-                hasNew = true;
-              }
-            });
-            if (!hasNew) return prev;
-            return Array.from(map.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-          });
+          setMessages(prev => deduplicateAndMergeMessages(prev, serverMessages));
         }
       } catch (e) {
         // Silent poll error
@@ -248,7 +277,7 @@ const PatientChatPage = () => {
     try {
       const response = await sendMessage(nutritionist.id, failedMsg.text);
       const sentMessageObject = response.data;
-      setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...sentMessageObject, status: 'sent' } : msg));
+      setMessages(prev => deduplicateAndMergeMessages(prev, sentMessageObject));
       window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: sentMessageObject }));
       toast.success("Message sent successfully!");
     } catch (err) {
@@ -261,20 +290,20 @@ const PatientChatPage = () => {
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if (!newMessage.trim() || !nutritionist || !user?.id) return;
-    if (newMessage.length > 2000) {
-      toast.error("Message exceeds the maximum limit of 2,000 characters. Please shorten it.");
+    if (newMessage.length > 10000) {
+      toast.error("Message exceeds the maximum limit of 10,000 characters. Please shorten it.");
       return;
     }
     const text = newMessage;
     const tempId = `temp_${Date.now()}`;
     const optimisticMessage = { id: tempId, sender_id: user.id, receiver_id: nutritionist.id, text, timestamp: new Date().toISOString(), status: 'sending', is_read: false };
-    setMessages(prev => [...prev, optimisticMessage]);
+    setMessages(prev => deduplicateAndMergeMessages(prev, optimisticMessage));
     setNewMessage('');
     setShowEmojiPicker(false);
     try {
       const response = await sendMessage(nutritionist.id, text);
       const sentMessageObject = response.data;
-      setMessages(prev => prev.map(msg => msg.id === tempId ? { ...sentMessageObject, status: 'sent' } : msg));
+      setMessages(prev => deduplicateAndMergeMessages(prev, sentMessageObject));
       window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: sentMessageObject }));
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -390,8 +419,8 @@ const PatientChatPage = () => {
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="Type a message... (max 2,000 characters)"
-                    maxLength={2000}
+                    placeholder="Type a message... (max 10,000 characters)"
+                    maxLength={10000}
                     className="w-full pl-12 pr-20 py-3 bg-[var(--color-bg-interactive-subtle)] border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-[var(--color-text-default)] placeholder:text-[var(--color-text-muted)] transition-all"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -399,9 +428,9 @@ const PatientChatPage = () => {
                   <button type="button" onClick={() => setShowEmojiPicker(prev => !prev)} className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors rounded-full">
                     <Smile size={24}/>
                   </button>
-                  {newMessage.length > 1500 && (
-                    <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono ${newMessage.length >= 2000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-                      {newMessage.length}/2000
+                  {newMessage.length > 8000 && (
+                    <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono ${newMessage.length >= 10000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                      {newMessage.length}/10000
                     </span>
                   )}
                 </div>

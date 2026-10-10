@@ -88,5 +88,12 @@ export const getPatientAppointmentHistory = (patientId) => {
   return axiosInstance.get(`/appointments/patient-history/${patientId}/`);
 };
 
+/**
+ * Nutritionist marks an in-person offline appointment as paid at clinic
+ */
+export const markAppointmentPaidAtClinic = (appointmentId) => {
+  return axiosInstance.post(`/appointments/${appointmentId}/mark-paid/`);
+};
+
 
 
