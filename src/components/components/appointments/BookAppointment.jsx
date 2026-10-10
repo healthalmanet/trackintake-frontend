@@ -150,9 +150,17 @@ const BookAppointment = ({ onBooked }) => {
     setFetchingSlots(true);
     try {
       const res = await getAvailableSlots(nutritionistId, date, appointmentType);
-      const data = Array.isArray(res.data)
+      let data = Array.isArray(res.data)
         ? res.data
         : res.data?.results || [];
+
+      const todayStr = getTodayStr();
+      if (date === todayStr) {
+        const nowStr = new Date().toTimeString().slice(0, 5);
+        data = data.filter((s) => s.start_time > nowStr);
+      } else if (date < todayStr) {
+        data = [];
+      }
 
       setSlots(data);
     } catch {

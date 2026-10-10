@@ -382,12 +382,21 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
     }
 
     const temp = [];
+    const now = new Date();
+    const todayStr = getTodayStr();
+
     dates.forEach((d) => {
+      if (d < todayStr) return; // Skip past dates
+
       let cur = new Date(`${d}T${startTime}`);
       const end = new Date(`${d}T${endTime}`);
       while (cur < end) {
         const next = new Date(cur.getTime() + duration * 60000);
         if (next > end) break;
+        if (d === todayStr && cur <= now) {
+          cur = next;
+          continue;
+        }
         temp.push({
           date: d,
           start_time: cur.toTimeString().slice(0, 5),
@@ -417,6 +426,13 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
     const slotsToSave = generatedSlots.filter((_, i) => selectedIdxs.has(i));
     if (slotsToSave.length === 0) {
       toast.error("Please select at least 1 slot to create.");
+      return;
+    }
+    const todayStr = getTodayStr();
+    const nowStr = new Date().toTimeString().slice(0, 5);
+    const hasPastSlot = slotsToSave.some((s) => s.date < todayStr || (s.date === todayStr && s.start_time <= nowStr));
+    if (hasPastSlot) {
+      toast.error("Cannot create availability slots in the past. Please select future time slots.");
       return;
     }
     setSaving(true);
