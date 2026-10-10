@@ -7,7 +7,7 @@ import {
   MapPin, ChevronRight, ShieldCheck, MessageSquare, Award, Star
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAppointmentDetails, updateAppointmentNotes } from "../../../api/appointmentApi";
+import { getAppointmentDetails, updateAppointmentNotes, markAppointmentPaidAtClinic } from "../../../api/appointmentApi";
 import RescheduleModal from "./RescheduleModal";
 import CancelModal from "./CancelModal";
 
@@ -116,6 +116,24 @@ const AppointmentDetailModal = ({
       toast.error(err.response?.data?.detail || "Could not save notes. Please try again.");
     } finally {
       setSavingNotes(false);
+    }
+  };
+
+  const [markingPaid, setMarkingPaid] = useState(false);
+
+  const handleMarkPaid = async () => {
+    if (!appointmentId) return;
+    setMarkingPaid(true);
+    try {
+      const res = await markAppointmentPaidAtClinic(appointmentId);
+      setAppointment(res.data?.appointment || { ...appointment, payment_status: "PAID" });
+      toast.success(res.data?.detail || "Payment marked as collected at clinic!");
+      onNotesSaved?.(res.data?.appointment);
+    } catch (err) {
+      console.error("Failed to mark appointment as paid:", err);
+      toast.error(err.response?.data?.detail || "Could not update payment status.");
+    } finally {
+      setMarkingPaid(false);
     }
   };
 
@@ -254,16 +272,31 @@ const AppointmentDetailModal = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] min-w-[120px] text-right">
+                <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] min-w-[140px] text-right">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block">
                     Consultation Fee
                   </span>
                   <span className="text-sm font-black text-[var(--color-text-strong)]">
                     ₹{price}{" "}
                     <span className="text-[10px] font-bold text-emerald-600 block">
-                      {isPayAtClinic ? "Pay at Clinic" : "Paid Online / Plan"}
+                      {isPayAtClinic
+                        ? appointment?.payment_status === "PAID"
+                          ? "Paid at Clinic"
+                          : "Pay at Clinic (Unpaid)"
+                        : "Paid Online / Plan"}
                     </span>
                   </span>
+                  {isNutritionist && appointment?.appointment_type === "IN_PERSON" && appointment?.payment_status === "UNPAID" && (
+                    <button
+                      type="button"
+                      disabled={markingPaid}
+                      onClick={handleMarkPaid}
+                      className="mt-2 w-full text-[10px] font-bold px-2 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1 shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                    >
+                      <ShieldCheck size={11} />
+                      <span>{markingPaid ? "Updating..." : "Mark Paid at Clinic"}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

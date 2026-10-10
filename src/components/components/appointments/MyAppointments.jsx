@@ -297,7 +297,7 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
               </p>
               {!isVirtual && a.offline_payment_required === false ? (
                 <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
-                  Pay at Clinic
+                  {a.payment_status === "PAID" ? "Paid at Clinic" : "Pay at Clinic (Cash)"}
                 </span>
               ) : (
                 <span className="inline-flex items-center text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">

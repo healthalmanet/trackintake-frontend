@@ -114,11 +114,28 @@ export const getLabReportByDate = (patientId, date) => {
   });
 };
 
+export const createLabReport = (patientId, data) => {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+  return axiosInstance.post(
+    `/nutritionist/patients/${patientId}/lab-reports/`,
+    data,
+    isFormData ? fileUploadConfig : undefined
+  );
+};
+
 // The patientId is needed to build the correct, secure API endpoint path.
 export const updateLabReport = (patientId, reportId, updatedData) => {
+  const isFormData = typeof FormData !== 'undefined' && updatedData instanceof FormData;
   return axiosInstance.patch(
     `/nutritionist/patients/${patientId}/lab-reports/${reportId}/`,
-    updatedData
+    updatedData,
+    isFormData ? fileUploadConfig : undefined
+  );
+};
+
+export const deleteLabReport = (patientId, reportId) => {
+  return axiosInstance.delete(
+    `/nutritionist/patients/${patientId}/lab-reports/${reportId}/`
   );
 };
 

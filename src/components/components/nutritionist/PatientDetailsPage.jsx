@@ -19,14 +19,15 @@ import {
   Utensils, CalendarCheck, Flame, Zap, Wheat, Droplets, Leaf, Drumstick, Apple,
   Sandwich, Salad, Soup, FileDown, MessageSquare, Heart, Sun, Ban, Anchor, AlertTriangle,
   Clock, Video, Building2, Calendar, FileText, CheckCircle2, XCircle, Info, Edit3, Star,
-  Sparkles, Plus, Trash2, Copy, RotateCcw, Check, PlusCircle, Pencil, X, Loader2, RefreshCw
+  Sparkles, Plus, Trash2, Copy, RotateCcw, Check, PlusCircle, Pencil, X, Loader2, RefreshCw,
+  UploadCloud, FileUp
 } from "lucide-react";
 
 // --- [CORRECTED] Complete react-icons/fa imports ---
 import {
   FaUser, FaEnvelope, FaVenusMars, FaBirthdayCake, FaFileMedicalAlt, FaCheck,
   FaTimes, FaSave, FaPlus, FaThumbsUp, FaThumbsDown, FaBullseye, FaAllergies,
-  FaChevronDown, FaSpinner, FaPencilAlt, FaClock
+  FaChevronDown, FaSpinner, FaPencilAlt, FaClock, FaTrashAlt
 } from "react-icons/fa";
 
 import {
@@ -38,10 +39,12 @@ import {
   submitFeedbackForML,
   generateDietPlan,
   getAllLabReports,
+  createLabReport,
   getPatientMealsByDate,
   getTargetNutrients,
   getDailySummary,
   updateLabReport,
+  deleteLabReport,
   updatePatientProfile,
   archiveDietPlan,
   restoreDietPlan
@@ -115,6 +118,72 @@ const MEAL_TYPE_API_MAPPING = {
   "dinner": "Dinner",
   "bedtime": "Bedtime",
 };
+
+const LAB_REPORT_FIELDS_DEF = [
+  {
+    category: "Physical Measurements",
+    fields: [
+      { key: "weight_kg", label: "Weight", unit: "kg", placeholder: "e.g. 70.5" },
+      { key: "height_cm", label: "Height", unit: "cm", placeholder: "e.g. 175" },
+      { key: "waist_circumference_cm", label: "Waist Circumference", unit: "cm", placeholder: "e.g. 82" },
+    ],
+  },
+  {
+    category: "Blood Pressure",
+    fields: [
+      { key: "blood_pressure_systolic", label: "Systolic BP", unit: "mmHg", placeholder: "e.g. 120" },
+      { key: "blood_pressure_diastolic", label: "Diastolic BP", unit: "mmHg", placeholder: "e.g. 80" },
+    ],
+  },
+  {
+    category: "Blood Sugar Panel",
+    fields: [
+      { key: "fasting_blood_sugar", label: "Fasting Blood Sugar", unit: "mg/dL", placeholder: "e.g. 95" },
+      { key: "postprandial_sugar", label: "Postprandial Sugar", unit: "mg/dL", placeholder: "e.g. 140" },
+      { key: "hba1c", label: "HbA1c", unit: "%", placeholder: "e.g. 5.4" },
+    ],
+  },
+  {
+    category: "Lipid Profile",
+    fields: [
+      { key: "ldl_cholesterol", label: "LDL Cholesterol", unit: "mg/dL", placeholder: "e.g. 100" },
+      { key: "hdl_cholesterol", label: "HDL Cholesterol", unit: "mg/dL", placeholder: "e.g. 50" },
+      { key: "triglycerides", label: "Triglycerides", unit: "mg/dL", placeholder: "e.g. 150" },
+    ],
+  },
+  {
+    category: "Kidney & Liver Function",
+    fields: [
+      { key: "creatinine", label: "Serum Creatinine", unit: "mg/dL", placeholder: "e.g. 0.9" },
+      { key: "urea", label: "Blood Urea", unit: "mg/dL", placeholder: "e.g. 20" },
+      { key: "uric_acid", label: "Uric Acid", unit: "mg/dL", placeholder: "e.g. 5.5" },
+      { key: "alt", label: "ALT / SGPT", unit: "U/L", placeholder: "e.g. 25" },
+      { key: "ast", label: "AST / SGOT", unit: "U/L", placeholder: "e.g. 22" },
+    ],
+  },
+  {
+    category: "Vitamins & Thyroid",
+    fields: [
+      { key: "vitamin_d3", label: "Vitamin D3", unit: "ng/mL", placeholder: "e.g. 35" },
+      { key: "vitamin_b12", label: "Vitamin B12", unit: "pg/mL", placeholder: "e.g. 450" },
+      { key: "tsh", label: "TSH", unit: "µIU/mL", placeholder: "e.g. 2.1" },
+    ],
+  },
+  {
+    category: "Inflammation Markers",
+    fields: [
+      { key: "crp", label: "CRP", unit: "mg/L", placeholder: "e.g. 1.2" },
+      { key: "esr", label: "ESR", unit: "mm/hr", placeholder: "e.g. 10" },
+    ],
+  },
+];
+
+const LAB_FIELD_META = {};
+LAB_REPORT_FIELDS_DEF.forEach((cat) => {
+  cat.fields.forEach((f) => {
+    LAB_FIELD_META[f.key] = f;
+  });
+});
 
 const PatientDetailsPage = () => {
   const { id } = useParams();
@@ -204,6 +273,12 @@ const PatientDetailsPage = () => {
   const [selectedReportId, setSelectedReportId] = useState("");
   const [labReports, setLabReports] = useState([]);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [isAddReportModalOpen, setIsAddReportModalOpen] = useState(false);
+  const [newReportDate, setNewReportDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [newReportFile, setNewReportFile] = useState(null);
+  const [newReportBiomarkers, setNewReportBiomarkers] = useState({});
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [editReportFile, setEditReportFile] = useState(null);
 
   // States for Appointments & History tab
   const [patientAppointments, setPatientAppointments] = useState([]);
@@ -271,8 +346,8 @@ const PatientDetailsPage = () => {
 
   // [NEW] A separate check to see if lab reports exist (This will be used for showing messages)
   const hasLabReports = useMemo(() => {
-    return labReports && labReports.length > 0;
-  }, [labReports]);
+    return (labReports && labReports.length > 0) || (allLabReportsHistory && allLabReportsHistory.length > 0);
+  }, [labReports, allLabReportsHistory]);
 
   // --- [NEW] LLM-Powered & Editable AI Suggestions System ---
   const [aiSuggestions, setAiSuggestions] = useState([]);
@@ -956,10 +1031,108 @@ const PatientDetailsPage = () => {
     }
   };
 
+  const handleOpenAddReportModal = () => {
+    setNewReportDate(new Date().toISOString().split("T")[0]);
+    setNewReportFile(null);
+    setNewReportBiomarkers({});
+    setIsAddReportModalOpen(true);
+  };
+
+  const handleCloseAddReportModal = () => {
+    setIsAddReportModalOpen(false);
+    setNewReportFile(null);
+    setNewReportBiomarkers({});
+  };
+
+  const handleBiomarkerInputChange = (key, value) => {
+    setNewReportBiomarkers((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleNewReportFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+      toast.error("Only PDF, JPG, PNG, and WebP files are allowed.");
+      e.target.value = "";
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      toast.error("File size must be under 10MB.");
+      e.target.value = "";
+      return;
+    }
+    setNewReportFile(f);
+  };
+
+  const handleEditReportFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+      toast.error("Only PDF, JPG, PNG, and WebP files are allowed.");
+      e.target.value = "";
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      toast.error("File size must be under 10MB.");
+      e.target.value = "";
+      return;
+    }
+    setEditReportFile(f);
+  };
+
+  const handleCreateLabReport = async (e) => {
+    e.preventDefault();
+    if (!newReportDate) {
+      toast.error("Please select a valid report date.");
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    try {
+      const formData = new FormData();
+      formData.append("report_date", newReportDate);
+      if (newReportFile) {
+        formData.append("report_file", newReportFile);
+      }
+      for (const [key, value] of Object.entries(newReportBiomarkers)) {
+        if (value !== "" && value !== null && value !== undefined) {
+          formData.append(key, value);
+        }
+      }
+
+      const res = await createLabReport(id, formData);
+      toast.success("Lab report created and uploaded successfully!");
+
+      const allReportsRes = await getAllLabReports(id);
+      const allReports = (Array.isArray(allReportsRes?.data) ? allReportsRes?.data : allReportsRes?.data?.results || []).sort(
+        (a, b) => new Date(b.report_date) - new Date(a.report_date)
+      );
+      setAllLabReportsHistory(allReports);
+
+      const createdId = res?.data?.id;
+      const targetReport = (createdId && allReports.find((r) => r.id === createdId)) || allReports[0];
+      if (targetReport) {
+        setLabReports([targetReport]);
+        setSelectedReportId(String(targetReport.id));
+      }
+
+      handleCloseAddReportModal();
+    } catch (err) {
+      console.error("Failed to add lab report:", err.response || err);
+      const errorDetail = err.response?.data?.detail || err.response?.data?.error || (typeof err.response?.data === 'object' ? JSON.stringify(err.response?.data) : "Failed to add lab report.");
+      toast.error(errorDetail);
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   const handleEditReportClick = () => {
-    // Assumes we are editing the first (and only) displayed report
     if (labReports.length > 0) {
       setEditableReport(JSON.parse(JSON.stringify(labReports[0])));
+      setEditReportFile(null);
       setIsEditingReport(true);
     }
   };
@@ -967,6 +1140,7 @@ const PatientDetailsPage = () => {
   const handleCancelReportEdit = () => {
     setIsEditingReport(false);
     setEditableReport(null);
+    setEditReportFile(null);
   };
 
   const handleReportInputChange = (key, value) => {
@@ -980,7 +1154,7 @@ const PatientDetailsPage = () => {
     if (!editableReport) return;
     setIsSavingReport(true);
 
-    const originalReport = labReports[0];
+    const originalReport = labReports[0] || {};
     const changesPayload = {};
 
     for (const key in editableReport) {
@@ -994,10 +1168,15 @@ const PatientDetailsPage = () => {
       }
     }
 
-    if (Object.keys(changesPayload).length === 0) {
+    if (editableReport.report_date && editableReport.report_date !== originalReport.report_date) {
+      changesPayload.report_date = editableReport.report_date;
+    }
+
+    if (Object.keys(changesPayload).length === 0 && !editReportFile) {
       toast.info("No changes were made.");
       setIsEditingReport(false);
       setEditableReport(null);
+      setEditReportFile(null);
       setIsSavingReport(false);
       return;
     }
@@ -1006,28 +1185,74 @@ const PatientDetailsPage = () => {
       const reportId = editableReport.id;
       const patientId = id;
 
-      // This call will now work perfectly with the corrected API function
-      await updateLabReport(patientId, reportId, changesPayload);
+      let payloadData = changesPayload;
+      if (editReportFile) {
+        const formData = new FormData();
+        for (const [k, v] of Object.entries(changesPayload)) {
+          if (v !== null && v !== undefined) {
+            formData.append(k, v);
+          }
+        }
+        formData.append("report_file", editReportFile);
+        payloadData = formData;
+      }
+
+      await updateLabReport(patientId, reportId, payloadData);
 
       // Refresh the lab reports list after successful update
       const allReportsRes = await getAllLabReports(patientId);
-      const allReports = (allReportsRes?.data?.results || []).sort(
+      const allReports = (Array.isArray(allReportsRes?.data) ? allReportsRes?.data : allReportsRes?.data?.results || []).sort(
         (a, b) => new Date(b.report_date) - new Date(a.report_date)
       );
       setAllLabReportsHistory(allReports);
 
-      const updatedReport = allReports.find(r => r.id === reportId);
+      const updatedReport = allReports.find((r) => r.id === reportId);
       if (updatedReport) {
         setLabReports([updatedReport]);
       }
 
       setIsEditingReport(false);
       setEditableReport(null);
+      setEditReportFile(null);
       toast.success("Lab report updated successfully!");
     } catch (err) {
       console.error("Failed to update lab report:", err.response || err);
-      const errorDetail = err.response?.data?.detail || JSON.stringify(err.response?.data) || "Failed to update lab report.";
+      const errorDetail = err.response?.data?.detail || err.response?.data?.error || (typeof err.response?.data === 'object' ? JSON.stringify(err.response?.data) : "Failed to update lab report.");
       toast.error(errorDetail);
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm("Are you sure you want to delete this lab report? This action cannot be undone.")) {
+      return;
+    }
+    setIsSavingReport(true);
+    try {
+      await deleteLabReport(id, reportId);
+      toast.success("Lab report deleted successfully.");
+
+      const allReportsRes = await getAllLabReports(id);
+      const allReports = (Array.isArray(allReportsRes?.data) ? allReportsRes?.data : allReportsRes?.data?.results || []).sort(
+        (a, b) => new Date(b.report_date) - new Date(a.report_date)
+      );
+      setAllLabReportsHistory(allReports);
+
+      if (allReports.length > 0) {
+        setLabReports([allReports[0]]);
+        setSelectedReportId(String(allReports[0].id));
+      } else {
+        setLabReports([]);
+        setSelectedReportId("");
+      }
+      setIsEditingReport(false);
+      setEditableReport(null);
+      setEditReportFile(null);
+    } catch (err) {
+      console.error("Failed to delete lab report:", err.response || err);
+      const errDetail = err.response?.data?.detail || err.response?.data?.error || "Failed to delete lab report.";
+      toast.error(errDetail);
     } finally {
       setIsSavingReport(false);
     }
@@ -1834,11 +2059,18 @@ const PatientDetailsPage = () => {
                 {activeTab === "reports" && (
                   <div>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                      <h2 className="text-2xl font-[var(--font-secondary)] font-bold text-[var(--color-text-strong)]">
-                        Lab Reports
-                      </h2>
-                      {allLabReportsHistory.length > 0 && (
-                        <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-[var(--font-secondary)] font-bold text-[var(--color-text-strong)]">
+                          Lab Reports
+                        </h2>
+                        {allLabReportsHistory.length > 0 && (
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-primary)]/20">
+                            {allLabReportsHistory.length} {allLabReportsHistory.length === 1 ? "Report" : "Reports"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+                        {allLabReportsHistory.length > 0 && (
                           <div className="relative group w-full sm:w-auto">
                             <select
                               id="report-selector"
@@ -1848,32 +2080,58 @@ const PatientDetailsPage = () => {
                               className="appearance-none w-full sm:w-56 cursor-pointer bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2.5 pl-4 pr-10 rounded-lg shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-surface)] focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {allLabReportsHistory.map((report) => (
-                                <option key={report.id} value={report.id}>Report: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}</option>
+                                <option key={report.id} value={report.id}>
+                                  Report: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}
+                                </option>
                               ))}
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[var(--color-text-muted)] transition-colors duration-300 group-hover:text-[var(--color-primary)]">
                               <FaChevronDown size={14} />
                             </div>
                           </div>
-                          {/* --- [NEW] Edit button for Lab Report --- */}
-                          {!isEditingReport && (
-                            <button
-                              onClick={handleEditReportClick}
-                              className="p-2.5 rounded-lg text-sm bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg)] hover:text-[var(--color-text-on-primary)] transition-all duration-200"
-                              title="Edit this report"
-                            >
-                              <FaPencilAlt />
-                            </button>
-                          )}
-                        </div>
-                      )}
+                        )}
+                        {!isEditingReport && allLabReportsHistory.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleEditReportClick}
+                            className="p-2.5 rounded-lg text-sm bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg)] hover:text-[var(--color-text-on-primary)] transition-all duration-200 cursor-pointer"
+                            title="Edit this report"
+                          >
+                            <FaPencilAlt />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleOpenAddReportModal}
+                          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer w-full sm:w-auto"
+                        >
+                          <Plus size={16} />
+                          <span>Add Lab Report</span>
+                        </button>
+                      </div>
                     </div>
 
                     {allLabReportsHistory.length === 0 ? (
-                      <div className="text-center py-16 bg-[var(--color-bg-app)] rounded-lg border-2 border-dashed border-[var(--color-border-default)]">
-                        <FaFileMedicalAlt className="mx-auto h-12 w-12 text-[var(--color-text-muted)]" />
-                        <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-strong)]">No Lab Reports Uploaded</h3>
-                        <p className="mt-1 text-sm text-[var(--color-text-default)]">The patient has not uploaded any lab reports yet.</p>
+                      <div className="text-center py-16 px-4 bg-[var(--color-bg-app)] rounded-2xl border-2 border-dashed border-[var(--color-border-default)]">
+                        <div className="mx-auto w-16 h-16 rounded-full bg-[var(--color-primary-bg-subtle)] flex items-center justify-center text-[var(--color-primary)] mb-4 shadow-sm">
+                          <FaFileMedicalAlt className="h-8 w-8" />
+                        </div>
+                        <h3 className="text-xl font-bold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+                          No Lab Reports Uploaded
+                        </h3>
+                        <p className="mt-2 text-sm text-[var(--color-text-default)] max-w-md mx-auto">
+                          The patient has not uploaded any diagnostic lab reports yet. As their nutritionist, you can upload lab documents and record biomarker test metrics on their behalf.
+                        </p>
+                        <div className="mt-6">
+                          <button
+                            type="button"
+                            onClick={handleOpenAddReportModal}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
+                          >
+                            <Plus size={16} />
+                            <span>Upload Patient Lab Report</span>
+                          </button>
+                        </div>
                       </div>
                     ) : loadingReport ? (
                       <div className="flex justify-center items-center py-10">
@@ -1882,51 +2140,173 @@ const PatientDetailsPage = () => {
                     ) : (
                       <div className="space-y-8">
                         {(isEditingReport ? [editableReport] : labReports).map((report) => (
-                          <div key={report.id} className="bg-[var(--color-bg-app)] p-5 rounded-xl border-2 border-[var(--color-border-default)] shadow-sm">
-                            <h4 className="text-lg font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)] mb-4 pb-3 border-b-2 border-dashed border-[var(--color-border-default)]">
-                              Report Date: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}
-                            </h4>
+                          <div key={report.id || "report-view"} className="bg-[var(--color-bg-app)] p-5 sm:p-6 rounded-2xl border-2 border-[var(--color-border-default)] shadow-sm space-y-6">
+                            {/* Card Header */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b-2 border-dashed border-[var(--color-border-default)] gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="p-2 rounded-lg bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]">
+                                  <FaFileMedicalAlt size={18} />
+                                </span>
+                                {isEditingReport ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-[var(--color-text-strong)]">Report Date:</span>
+                                    <input
+                                      type="date"
+                                      value={editableReport.report_date || ""}
+                                      max={new Date().toISOString().split("T")[0]}
+                                      onChange={(e) => handleReportInputChange("report_date", e.target.value)}
+                                      className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-lg px-2.5 py-1 text-sm font-semibold text-[var(--color-text-strong)] focus:outline-none focus:border-[var(--color-primary)]"
+                                    />
+                                  </div>
+                                ) : (
+                                  <h4 className="text-lg font-bold font-[var(--font-secondary)] text-[var(--color-text-strong)]">
+                                    Report Date: {new Date(report.report_date + 'T00:00:00').toLocaleDateString()}
+                                  </h4>
+                                )}
+                              </div>
+
+                              {/* Document Action / Status */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {report.report_file && !isEditingReport && (
+                                  <a
+                                    href={report.report_file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-all shadow-sm"
+                                  >
+                                    <FileDown size={14} />
+                                    <span>Download Report File</span>
+                                  </a>
+                                )}
+                                {!report.report_file && !isEditingReport && (
+                                  <button
+                                    type="button"
+                                    onClick={handleEditReportClick}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all cursor-pointer"
+                                  >
+                                    <UploadCloud size={14} />
+                                    <span>+ Attach Document</span>
+                                  </button>
+                                )}
+                                {!isEditingReport && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteReport(report.id)}
+                                    className="p-2 rounded-lg text-xs text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] transition-all cursor-pointer"
+                                    title="Delete this lab report"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Document Upload section in Edit Mode */}
+                            {isEditingReport && (
+                              <div className="p-4 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl space-y-2">
+                                <label className="block text-xs font-bold text-[var(--color-text-strong)] uppercase tracking-wider">
+                                  {report.report_file ? "Replace Report Document (PDF / Image)" : "Upload Report Document (PDF / Image)"}
+                                </label>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <input
+                                    type="file"
+                                    id="edit-report-file-input"
+                                    accept=".pdf,image/png,image/jpeg,image/webp"
+                                    onChange={handleEditReportFileChange}
+                                    className="hidden"
+                                  />
+                                  <label
+                                    htmlFor="edit-report-file-input"
+                                    className="flex items-center gap-2 px-4 py-2 bg-[var(--color-bg-app)] border-2 border-dashed border-[var(--color-border-default)] hover:border-[var(--color-primary)] rounded-lg text-xs font-semibold text-[var(--color-primary)] cursor-pointer transition-all"
+                                  >
+                                    <UploadCloud size={15} />
+                                    <span>{editReportFile ? "Change Chosen File" : report.report_file ? "Choose New File to Replace" : "Browse File to Attach"}</span>
+                                  </label>
+                                  {editReportFile && (
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-strong)] bg-[var(--color-primary-bg-subtle)] px-3 py-1.5 rounded-lg">
+                                      <FileText size={14} className="text-[var(--color-primary)]" />
+                                      <span className="truncate max-w-xs">{editReportFile.name}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditReportFile(null)}
+                                        className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] ml-1"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {report.report_file && !editReportFile && (
+                                    <span className="text-xs text-[var(--color-text-muted)]">
+                                      Current document attached.
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Biomarker cards grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                               {Object.entries(report)
                                 .filter(([key]) => !["id", "user", "report_date", "report_file"].includes(key))
-                                .map(([key, value]) => (
-                                  <ContentCard key={key} className="bg-[var(--color-bg-surface)]">
-                                    <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{key.replace(/_/g, " ")}</p>
-                                    {isEditingReport ? (
-                                      <input
-                                        type="text"
-                                        value={editableReport[key] ?? ""}
-                                        onChange={(e) => handleReportInputChange(key, e.target.value)}
-                                        className="text-2xl font-bold text-[var(--color-text-strong)] mt-1 bg-transparent w-full focus:outline-none"
-                                      />
-                                    ) : (
-                                      <p className="text-2xl font-bold text-[var(--color-text-strong)] mt-1">{value ?? "—"}</p>
-                                    )}
-                                  </ContentCard>
-                                ))}
-                              {report.report_file && !isEditingReport && (
-                                <a href={report.report_file} target="_blank" rel="noopener noreferrer" download className="bg-[var(--color-primary-bg-subtle)] border-2 border-dashed border-[var(--color-primary)]/30 rounded-lg p-3 transition-all duration-300 hover:shadow-lg hover:bg-[var(--color-primary)] hover:text-white hover:border-solid text-[var(--color-primary)] flex flex-col justify-center items-center gap-2 text-center group">
-                                  <FileDown className="w-10 h-10 transition-transform duration-300 group-hover:scale-110" />
-                                  <span className="font-bold text-lg">Download Report</span>
-                                </a>
-                              )}
+                                .map(([key, value]) => {
+                                  const fieldMeta = LAB_FIELD_META[key];
+                                  const labelText = fieldMeta?.label || key.replace(/_/g, " ");
+                                  const unitText = fieldMeta?.unit ? ` (${fieldMeta.unit})` : "";
+
+                                  return (
+                                    <ContentCard key={key} className="bg-[var(--color-bg-surface)]">
+                                      <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                                        {labelText}{unitText}
+                                      </p>
+                                      {isEditingReport ? (
+                                        <input
+                                          type="number"
+                                          step="any"
+                                          value={editableReport[key] ?? ""}
+                                          placeholder={fieldMeta?.placeholder || ""}
+                                          onChange={(e) => handleReportInputChange(key, e.target.value)}
+                                          className="text-2xl font-bold text-[var(--color-text-strong)] mt-1 bg-transparent w-full focus:outline-none border-b border-[var(--color-border-default)] focus:border-[var(--color-primary)]"
+                                        />
+                                      ) : (
+                                        <p className="text-2xl font-bold text-[var(--color-text-strong)] mt-1">
+                                          {value !== null && value !== undefined && value !== "" ? `${value}${fieldMeta?.unit ? ` ${fieldMeta.unit}` : ""}` : "—"}
+                                        </p>
+                                      )}
+                                    </ContentCard>
+                                  );
+                                })}
                             </div>
-                            {/* --- [NEW] Save/Cancel controls for Lab Report --- */}
+
+                            {/* Save/Cancel controls for Lab Report in Edit Mode */}
                             {isEditingReport && (
-                              <div className="flex justify-end items-center mt-6 gap-3 border-t-2 border-dashed border-[var(--color-border-default)] pt-4">
+                              <div className="flex justify-between items-center mt-6 gap-3 border-t-2 border-dashed border-[var(--color-border-default)] pt-4">
                                 <button
-                                  onClick={handleCancelReportEdit}
-                                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80"
-                                >
-                                  <FaTimes /> Cancel
-                                </button>
-                                <button
-                                  onClick={handleSaveReport}
+                                  type="button"
+                                  onClick={() => handleDeleteReport(editableReport.id)}
                                   disabled={isSavingReport}
-                                  className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50"
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] transition-all cursor-pointer"
                                 >
-                                  {isSavingReport ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
+                                  <Trash2 size={14} /> Delete Report
                                 </button>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelReportEdit}
+                                    disabled={isSavingReport}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-default)] hover:bg-opacity-80 transition-all cursor-pointer"
+                                  >
+                                    <FaTimes /> Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveReport}
+                                    disabled={isSavingReport}
+                                    className="flex items-center justify-center gap-2 px-4 py-2 w-28 rounded-lg font-semibold text-sm bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] disabled:opacity-50 transition-all cursor-pointer"
+                                  >
+                                    {isSavingReport ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2328,12 +2708,25 @@ const PatientDetailsPage = () => {
                           <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300 text-xs"
+                            className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300 text-xs flex-wrap"
                           >
-                            <Zap size={16} className="text-amber-500 flex-shrink-0" />
-                            <div>
-                              <span className="font-bold">Lab Reports Tip:</span> AI clinical suggestions and diet plans are tailored using the patient's baseline profile. Adding blood lab reports unlocks deeper biomarker precision.
+                            <div className="flex items-center gap-3">
+                              <Zap size={16} className="text-amber-500 flex-shrink-0" />
+                              <div>
+                                <span className="font-bold">Lab Reports Tip:</span> AI clinical suggestions and diet plans are tailored using the patient's baseline profile. Adding blood lab reports unlocks deeper biomarker precision.
+                              </div>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTab("reports");
+                                handleOpenAddReportModal();
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-200 font-bold transition-all text-xs cursor-pointer"
+                            >
+                              <Plus size={14} />
+                              <span>Upload Lab Report</span>
+                            </button>
                           </motion.div>
                         )}
 
@@ -3242,7 +3635,11 @@ const PatientDetailsPage = () => {
                                     <span className="text-[10px] text-[var(--color-text-muted)] block mb-0.5 font-bold uppercase">Fee</span>
                                     <span className="font-extrabold text-[var(--color-text-strong)]">₹{fee}</span>
                                     <span className="text-[10px] text-emerald-600 block">
-                                      {isPayAtClinic ? "Pay at Clinic" : "Paid Online"}
+                                      {isPayAtClinic
+                                        ? appt.payment_status === "PAID"
+                                          ? "Paid at Clinic"
+                                          : "Pay at Clinic (Unpaid)"
+                                        : "Paid Online"}
                                     </span>
                                   </div>
 
@@ -3568,6 +3965,196 @@ const PatientDetailsPage = () => {
         userRole="nutritionist"
         onNotesSaved={fetchAppointments}
       />
+
+      {/* Upload & Add Patient Lab Report Modal */}
+      <AnimatePresence>
+        {isAddReportModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden my-auto"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] flex items-center justify-center">
+                    <FaFileMedicalAlt size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+                      Upload Patient Lab Report
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Record diagnostic documents and biomarker metrics for {profile?.full_name || "patient"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseAddReportModal}
+                  disabled={isSubmittingReport}
+                  className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Form Body */}
+              <form onSubmit={handleCreateLabReport} className="flex flex-col flex-1 overflow-hidden">
+                <div className="overflow-y-auto p-6 space-y-6 flex-1">
+                  {/* Top Bar: Date & File Upload */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Report Date */}
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--color-text-strong)] uppercase tracking-wider mb-2">
+                        Report Date <span className="text-[var(--color-danger-text)]">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={newReportDate}
+                        onChange={(e) => setNewReportDate(e.target.value)}
+                        max={new Date().toISOString().split("T")[0]}
+                        required
+                        className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--color-text-strong)] focus:outline-none focus:border-[var(--color-primary)] transition-all font-medium"
+                      />
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                        Date when diagnostic tests were conducted
+                      </p>
+                    </div>
+
+                    {/* Report File Upload */}
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--color-text-strong)] uppercase tracking-wider mb-2">
+                        Lab Report Document (PDF / Image)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          id="new-report-file-input"
+                          accept=".pdf,image/png,image/jpeg,image/webp"
+                          onChange={handleNewReportFileChange}
+                          className="hidden"
+                        />
+                        {newReportFile ? (
+                          <div className="flex items-center justify-between p-2.5 bg-[var(--color-primary-bg-subtle)] border-2 border-[var(--color-primary)]/30 rounded-xl">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <FileText className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0" />
+                              <span className="text-xs font-semibold text-[var(--color-text-strong)] truncate">
+                                {newReportFile.name}
+                              </span>
+                              <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
+                                ({(newReportFile.size / (1024 * 1024)).toFixed(2)} MB)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setNewReportFile(null)}
+                              className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] p-1 transition-colors cursor-pointer"
+                              title="Remove file"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <label
+                            htmlFor="new-report-file-input"
+                            className="flex items-center justify-center gap-2 w-full p-2.5 bg-[var(--color-bg-app)] border-2 border-dashed border-[var(--color-border-default)] hover:border-[var(--color-primary)] rounded-xl text-xs font-semibold text-[var(--color-primary)] cursor-pointer transition-all hover:bg-[var(--color-primary-bg-subtle)]"
+                          >
+                            <UploadCloud size={16} />
+                            <span>Attach Document (PDF, JPG, PNG &lt;10MB)</span>
+                          </label>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                        Optional: File will be securely stored and downloadable
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Biomarkers Categorized Form */}
+                  <div className="space-y-5">
+                    <div className="border-b border-[var(--color-border-default)] pb-2">
+                      <h4 className="text-sm font-extrabold text-[var(--color-text-strong)] uppercase tracking-wider">
+                        Biomarker Measurements & Test Results
+                      </h4>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Enter any available biomarkers below. Fields left blank will be recorded as unmeasured.
+                      </p>
+                    </div>
+
+                    {LAB_REPORT_FIELDS_DEF.map((section) => (
+                      <div key={section.category} className="bg-[var(--color-bg-app)] p-4 rounded-xl border border-[var(--color-border-default)]">
+                        <h5 className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider mb-3">
+                          {section.category}
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {section.fields.map((field) => (
+                            <div key={field.key}>
+                              <label className="block text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-1">
+                                {field.label} <span className="text-[10px] lowercase text-[var(--color-text-subtle)] font-normal">({field.unit})</span>
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={newReportBiomarkers[field.key] || ""}
+                                onChange={(e) => handleBiomarkerInputChange(field.key, e.target.value)}
+                                placeholder={field.placeholder}
+                                className="w-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-strong)] focus:outline-none focus:border-[var(--color-primary)] transition-all font-medium"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
+                  <button
+                    type="button"
+                    onClick={() => setNewReportBiomarkers({})}
+                    disabled={isSubmittingReport}
+                    className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] transition-colors cursor-pointer"
+                  >
+                    Clear Biomarkers
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCloseAddReportModal}
+                      disabled={isSubmittingReport}
+                      className="px-4 py-2 rounded-xl text-sm font-semibold bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-default)] hover:bg-[var(--color-bg-interactive-subtle)] transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingReport}
+                      className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] shadow-sm hover:shadow-md transition-all disabled:opacity-50 cursor-pointer min-w-[140px]"
+                    >
+                      {isSubmittingReport ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} />
+                          <span>Save Report</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <QuickTools
         onOpenAssistant={handleOpenAssistant}

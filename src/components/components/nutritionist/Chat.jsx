@@ -98,6 +98,53 @@ const ChatMessage = ({ message, isNutritionist, onRetry }) => (
     </motion.div>
 );
 
+const deduplicateAndMergeMessages = (prevMessages, incoming) => {
+    const incomingList = Array.isArray(incoming) ? incoming : (incoming ? [incoming] : []);
+    if (!incomingList.length) return prevMessages;
+
+    let updated = [...prevMessages];
+
+    for (const newMsg of incomingList) {
+        if (!newMsg || (!newMsg.text && !newMsg.message)) continue;
+        const newIdStr = String(newMsg.id ?? '');
+        const newText = (newMsg.text || newMsg.message || '').trim();
+        const newSenderId = String(newMsg.sender_id || newMsg.sender?.id || '');
+
+        const existingIndexById = updated.findIndex(
+            m => m.id && !String(m.id).startsWith('temp_') && String(m.id) === newIdStr
+        );
+
+        if (existingIndexById !== -1) {
+            updated[existingIndexById] = { ...updated[existingIndexById], ...newMsg };
+            continue;
+        }
+
+        const tempIndex = updated.findIndex(
+            m => String(m.id).startsWith('temp_') &&
+                 String(m.sender_id || m.sender?.id || '') === newSenderId &&
+                 (m.text || '').trim() === newText
+        );
+
+        if (tempIndex !== -1) {
+            updated[tempIndex] = { ...newMsg, status: 'sent' };
+        } else {
+            updated.push(newMsg);
+        }
+    }
+
+    const seenIds = new Set();
+    const finalMessages = [];
+    for (const msg of updated) {
+        const idKey = String(msg.id);
+        if (!seenIds.has(idKey)) {
+            seenIds.add(idKey);
+            finalMessages.push(msg);
+        }
+    }
+
+    return finalMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+};
+
 // --- CHAT WINDOW SUB-COMPONENT ---
 const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => {
     const navigate = useNavigate();
@@ -167,13 +214,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
             msgSenderId === chatPartnerId;
 
         if (isForThisChat) {
-            setMessages(prev => {
-                if (prev.some(m => m.id && message.id && String(m.id) === String(message.id))) return prev;
-                const withoutTemp = prev.filter(
-                    m => !(String(m.id).startsWith('temp_') && m.text === (message.text || message.message))
-                );
-                return [...withoutTemp, message].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-            });
+            setMessages(prev => deduplicateAndMergeMessages(prev, message));
             if (msgSenderId === chatPartnerId) {
                 markMessageAsRead({ sender_id: user.id });
                 clearNotificationsFromSender(user.id);
@@ -197,10 +238,8 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
             try {
                 // Fetch messages specifically for this active conversation
                 const response = await getMessages({ partner_id: user.id });
-                const conversationMessages = (response.data?.results || response.data || [])
-                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-                setMessages(conversationMessages);
+                const conversationMessages = (response.data?.results || response.data || []);
+                setMessages(deduplicateAndMergeMessages([], conversationMessages));
 
                 const hasUnread = conversationMessages.some(msg => !msg.is_read && String(msg.sender_id) === String(user.id));
                 if (hasUnread) {
@@ -240,19 +279,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                 if (isStopped) return;
                 const serverMessages = response.data?.results || response.data || [];
                 if (serverMessages.length > 0) {
-                    setMessages(prev => {
-                        const map = new Map();
-                        prev.forEach(m => map.set(m.id, m));
-                        let hasNew = false;
-                        serverMessages.forEach(m => {
-                            if (!map.has(m.id)) {
-                                map.set(m.id, m);
-                                hasNew = true;
-                            }
-                        });
-                        if (!hasNew) return prev;
-                        return Array.from(map.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                    });
+                    setMessages(prev => deduplicateAndMergeMessages(prev, serverMessages));
                 }
             } catch (e) {
                 // Silent poll error
@@ -270,7 +297,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
         setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...msg, status: 'sending' } : msg));
         try {
             const response = await sendMessage(user.id, failedMsg.text);
-            setMessages(prev => prev.map(msg => msg.id === failedMsg.id ? { ...response.data, status: 'sent' } : msg));
+            setMessages(prev => deduplicateAndMergeMessages(prev, response.data));
             window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: response.data }));
             toast.success("Message sent successfully!");
         } catch (err) {
@@ -281,21 +308,21 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
     };
 
     const handleSendMessage = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!newMessage.trim()) return;
-        if (newMessage.length > 2000) {
-            toast.error("Message exceeds the maximum limit of 2,000 characters. Please shorten it.");
+        if (newMessage.length > 10000) {
+            toast.error("Message exceeds the maximum limit of 10,000 characters. Please shorten it.");
             return;
         }
         const tempId = `temp_${Date.now()}`;
         const text = newMessage;
         const optimisticMessage = { id: tempId, sender_id: nutritionistId, receiver_id: user.id, text, timestamp: new Date().toISOString(), status: 'sending' };
-        setMessages(prev => [...prev, optimisticMessage]);
+        setMessages(prev => deduplicateAndMergeMessages(prev, optimisticMessage));
         onNewMessageSent(text);
         setNewMessage('');
         try {
             const response = await sendMessage(user.id, text);
-            setMessages(prev => prev.map(msg => msg.id === tempId ? { ...response.data, status: 'sent' } : msg));
+            setMessages(prev => deduplicateAndMergeMessages(prev, response.data));
             window.dispatchEvent(new CustomEvent('trackintake:chat_message', { detail: response.data }));
         } catch (err) {
             console.error("Failed to send message:", err);
@@ -364,15 +391,15 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                         <div className="relative flex-1">
                             <input
                                 type="text"
-                                placeholder="Type a message... (max 2,000 characters)"
-                                maxLength={2000}
+                                placeholder="Type a message... (max 10,000 characters)"
+                                maxLength={10000}
                                 className="w-full px-4 py-2 pr-16 bg-transparent focus:outline-none text-[var(--color-text-default)] font-secondary"
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                             />
-                            {newMessage.length > 1500 && (
-                                <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono ${newMessage.length >= 2000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-                                    {newMessage.length}/2000
+                            {newMessage.length > 8000 && (
+                                <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono ${newMessage.length >= 10000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                    {newMessage.length}/10000
                                 </span>
                             )}
                         </div>

@@ -205,13 +205,23 @@ const UserProfileForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const optionalFields = [
+      "city",
+      "country",
+      "occupation",
+      "allergies",
+      "other_chronic_condition",
+      "family_history",
+      "due_date",
+      "mobile_number",
+      "is_pregnant",
+      "is_breastfeeding",
+    ];
+
     for (const [key, value] of Object.entries(formData)) {
       if (
         (value === "" || value === null || value === undefined) &&
-        key !== "other_chronic_condition" &&
-        key !== "family_history" &&
-        key !== "due_date" &&
-        !(key === "is_pregnant" || key === "is_breastfeeding")
+        !optionalFields.includes(key)
       ) {
         toast.error(`Please fill in the ${key.replace(/_/g, " ")} field.`);
         return;
