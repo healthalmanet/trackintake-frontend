@@ -84,8 +84,15 @@ const RescheduleModal = ({
           appointment.appointment_type
         );
         const data = Array.isArray(res.data) ? res.data : res.data?.results || [];
-        // Filter out slots that are already booked (unless it's the current appointment's slot)
-        const openSlots = data.filter((s) => !s.is_booked && s.id !== currentSlotId);
+        const todayStr = getTodayStr();
+        const nowStr = new Date().toTimeString().slice(0, 5);
+        // Filter out slots that are already booked or in the past
+        const openSlots = data.filter((s) => {
+          if (s.is_booked && s.id !== currentSlotId) return false;
+          if (s.date < todayStr) return false;
+          if (s.date === todayStr && s.start_time <= nowStr) return false;
+          return true;
+        });
         setAvailableSlots(openSlots);
       } catch (err) {
         console.error("Failed to fetch slots for rescheduling:", err);
