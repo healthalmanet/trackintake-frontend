@@ -201,3 +201,17 @@ export const getAdminNutritionistPricingRequests = (statusFilter = 'pending') =>
 export const approveAdminNutritionistPricing = (profileId, data) =>
   axiosInstance.post(`/admin/nutritionist-pricing/${profileId}/approve/`, data);
 
+export const getPatientWeightLogs = (patientId, params = {}) => {
+  return axiosInstance.get(`/nutritionist/patients/${patientId}/weight-logs/`, {
+    params
+  });
+};
+
+export const getPatientWaterLogs = (patientId, params = {}) => {
+  return axiosInstance.get(`/nutritionist/patients/${patientId}/water-logs/`, {
+    params
+  });
+};
+
+
+
