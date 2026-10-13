@@ -20,8 +20,18 @@ import {
   Sandwich, Salad, Soup, FileDown, MessageSquare, Heart, Sun, Ban, Anchor, AlertTriangle,
   Clock, Video, Building2, Calendar, FileText, CheckCircle2, XCircle, Info, Edit3, Star,
   Sparkles, Plus, Trash2, Copy, RotateCcw, Check, PlusCircle, Pencil, X, Loader2, RefreshCw,
-  UploadCloud, FileUp
+  UploadCloud, FileUp, Scale, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Target, ArrowUpRight
 } from "lucide-react";
+
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 // --- [CORRECTED] Complete react-icons/fa imports ---
 import {
@@ -47,7 +57,9 @@ import {
   deleteLabReport,
   updatePatientProfile,
   archiveDietPlan,
-  restoreDietPlan
+  restoreDietPlan,
+  getPatientWeightLogs,
+  getPatientWaterLogs
 } from "../../../api/nutritionistApi";
 import { getPatientAppointmentHistory } from "../../../api/appointmentApi";
 import AppointmentDetailModal from "../appointments/AppointmentDetailModal";
@@ -61,6 +73,52 @@ import QuickTools from "./QuickTools";
 import FloatingQuickToolbox from "./FloatingQuickToolbox";
 import BackButton from "./BackButton";
 
+
+// --- Canonical meal slot order map & ranking helper ---
+export const MEAL_SLOT_ORDER_MAP = {
+  "early morning": 1,
+  "early-morning": 1,
+  "early_morning": 1,
+  "breakfast": 2,
+  "mid morning": 3,
+  "mid-morning": 3,
+  "mid_morning": 3,
+  "mid morning snack": 3,
+  "mid-morning-snack": 3,
+  "mid_morning_snack": 3,
+  "morning snack": 3,
+  "lunch": 4,
+  "afternoon snack": 5,
+  "afternoon-snack": 5,
+  "afternoon_snack": 5,
+  "evening snack": 5,
+  "evening-snack": 5,
+  "evening_snack": 5,
+  "snack": 5,
+  "snacks": 5,
+  "dinner": 6,
+  "bedtime": 7,
+  "bed time": 7,
+  "bed-time": 7,
+  "post dinner": 7,
+  "post-dinner": 7,
+};
+
+export const getMealSlotRank = (slot = "") => {
+  if (!slot) return 99;
+  const s = String(slot).toLowerCase().trim();
+  if (MEAL_SLOT_ORDER_MAP[s]) return MEAL_SLOT_ORDER_MAP[s];
+  const cleaned = s.replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ").trim();
+  if (MEAL_SLOT_ORDER_MAP[cleaned]) return MEAL_SLOT_ORDER_MAP[cleaned];
+  if (cleaned.includes("early")) return 1;
+  if (cleaned.includes("breakfast")) return 2;
+  if (cleaned.includes("mid") || (cleaned.includes("morn") && cleaned.includes("snack"))) return 3;
+  if (cleaned.includes("lunch")) return 4;
+  if (cleaned.includes("afternoon") || cleaned.includes("evening") || cleaned.includes("snack")) return 5;
+  if (cleaned.includes("dinner")) return 6;
+  if (cleaned.includes("bed") || cleaned.includes("night") || cleaned.includes("post dinner")) return 7;
+  return 99;
+};
 
 // --- All sub-components remain unchanged ---
 const PulsingDotsLoader = ({ text = "Loading Patient Details..." }) => (
@@ -197,6 +255,10 @@ const PatientDetailsPage = () => {
   const [feedback, setFeedback] = useState("");
   const [editStates, setEditStates] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMeals, setIsLoadingMeals] = useState(false);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
+  const [isLoadingWeightLogs, setIsLoadingWeightLogs] = useState(false);
+  const [isLoadingReportsHistory, setIsLoadingReportsHistory] = useState(false);
   const [allDietPlans, setAllDietPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -211,6 +273,7 @@ const PatientDetailsPage = () => {
   const [toolboxOpen, setToolboxOpen] = useState(false);
   const [toolboxTab, setToolboxTab] = useState("chat");
   const [toolboxMinimized, setToolboxMinimized] = useState(false);
+  const [targetMealsModal, setTargetMealsModal] = useState(null);
 
   const handleOpenAssistant = () => {
     setToolboxTab("assistant");
@@ -232,6 +295,77 @@ const PatientDetailsPage = () => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editableProfile, setEditableProfile] = useState(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Water logs state for nutritionist
+  const [patientWaterLogs, setPatientWaterLogs] = useState([]);
+  const [filteredWaterLogs, setFilteredWaterLogs] = useState([]);
+
+  // Weight logs state for nutritionist
+  const [patientWeightLogs, setPatientWeightLogs] = useState([]);
+  const [weightDateFilter, setWeightDateFilter] = useState("");
+  const [loadingWeightLogs, setLoadingWeightLogs] = useState(false);
+
+  const fetchWeightLogsForPatient = async (dateParam) => {
+    setLoadingWeightLogs(true);
+    try {
+      const params = {};
+      const targetDate = dateParam !== undefined ? dateParam : weightDateFilter;
+      if (targetDate) params.date = targetDate;
+      const res = await getPatientWeightLogs(id, params);
+      const list = Array.isArray(res?.data?.results)
+        ? res.data.results
+        : (Array.isArray(res?.data) ? res.data : []);
+      const sorted = [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+      setPatientWeightLogs(sorted);
+    } catch (err) {
+      console.error("Failed to fetch patient weight logs:", err);
+      toast.error("Could not load weight logs.");
+    } finally {
+      setLoadingWeightLogs(false);
+    }
+  };
+
+  const filteredWeightLogs = useMemo(() => {
+    if (!weightDateFilter) return patientWeightLogs;
+    return patientWeightLogs.filter((log) => log.date === weightDateFilter);
+  }, [patientWeightLogs, weightDateFilter]);
+
+  const currentWeight = useMemo(() => {
+    if (patientWeightLogs.length > 0) return parseFloat(patientWeightLogs[0].weight_kg);
+    if (profile?.weight_kg) return parseFloat(profile.weight_kg);
+    return null;
+  }, [patientWeightLogs, profile]);
+
+  const startingWeight = useMemo(() => {
+    if (patientWeightLogs.length > 0) {
+      return parseFloat(patientWeightLogs[patientWeightLogs.length - 1].weight_kg);
+    }
+    return currentWeight;
+  }, [patientWeightLogs, currentWeight]);
+
+  const netChange = useMemo(() => {
+    if (currentWeight != null && startingWeight != null) {
+      return currentWeight - startingWeight;
+    }
+    return 0;
+  }, [currentWeight, startingWeight]);
+
+  const chartWeightData = useMemo(() => {
+    return [...patientWeightLogs]
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map((log) => ({
+        date: new Date(log.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        weight: parseFloat(log.weight_kg),
+      }));
+  }, [patientWeightLogs]);
+
+  const calculatedBmi = useMemo(() => {
+    if (currentWeight && profile?.height_cm) {
+      const heightM = profile.height_cm / 100;
+      return (currentWeight / (heightM * heightM)).toFixed(1);
+    }
+    return null;
+  }, [currentWeight, profile]);
 
   const [isEditingReport, setIsEditingReport] = useState(false);
   const [editableReport, setEditableReport] = useState(null);
@@ -776,38 +910,100 @@ const PatientDetailsPage = () => {
 
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchPatientData = async () => {
       setIsLoading(true);
+      setIsLoadingMeals(true);
+      setIsLoadingAppointments(true);
+      setIsLoadingWeightLogs(true);
+      setIsLoadingReportsHistory(true);
+
+      const today = new Date().toISOString().split("T")[0];
+
+      // --- [ASYNC STREAMING] Launch secondary tab datasets concurrently without blocking initial page render ---
+      getPatientMeals(id)
+        .then((mealsRes) => {
+          if (isMounted) {
+            setMeals(mealsRes?.data?.results || (Array.isArray(mealsRes?.data) ? mealsRes.data : []));
+          }
+        })
+        .catch((err) => console.warn("Failed to load meals:", err))
+        .finally(() => {
+          if (isMounted) setIsLoadingMeals(false);
+        });
+
+      getPatientWaterLogs(id)
+        .then((waterRes) => {
+          if (isMounted) {
+            const list = Array.isArray(waterRes?.data?.results) ? waterRes.data.results : (Array.isArray(waterRes?.data) ? waterRes.data : []);
+            setPatientWaterLogs(list);
+          }
+        })
+        .catch((err) => console.warn("Failed to load water logs:", err));
+
+      getPatientWeightLogs(id)
+        .then((weightRes) => {
+          if (isMounted) {
+            const list = Array.isArray(weightRes?.data?.results) ? weightRes.data.results : (Array.isArray(weightRes?.data) ? weightRes.data : []);
+            const sorted = [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+            setPatientWeightLogs(sorted);
+          }
+        })
+        .catch((err) => console.warn("Failed to load weight logs:", err))
+        .finally(() => {
+          if (isMounted) setIsLoadingWeightLogs(false);
+        });
+
+      getPatientAppointmentHistory(id)
+        .then((apptsRes) => {
+          if (isMounted) {
+            const list = Array.isArray(apptsRes?.data) ? apptsRes.data : apptsRes?.data?.results || [];
+            setPatientAppointments(list);
+          }
+        })
+        .catch((err) => console.warn("Failed to load appointments:", err))
+        .finally(() => {
+          if (isMounted) setIsLoadingAppointments(false);
+        });
+
+      getAllLabReports(id)
+        .then((allReportsHistoryRes) => {
+          if (isMounted) {
+            const allReports = (allReportsHistoryRes?.data?.results || (Array.isArray(allReportsHistoryRes?.data) ? allReportsHistoryRes.data : [])).sort(
+              (a, b) => new Date(b.report_date) - new Date(a.report_date)
+            );
+            setAllLabReportsHistory(allReports);
+          }
+        })
+        .catch((err) => console.warn("Failed to load lab reports history:", err))
+        .finally(() => {
+          if (isMounted) setIsLoadingReportsHistory(false);
+        });
+
+      // --- [FAST CORE DATA] Fetch only Profile, Diet Plans & Clinical Targets to render page INSTANTLY ---
       try {
-        const today = new Date().toISOString().split("T")[0];
+        const [profileAndReportRes, plansResult, targetNutrientsRes] = await Promise.all([
+          getPatientProfile(id).catch((err) => {
+            if (err.response && err.response.status === 404) {
+              return { data: { profile: null, latest_lab_report: null } };
+            }
+            throw err;
+          }),
+          fetchAndSetAllPlans().catch(() => ({ latestPlan: null, allDietsData: [] })),
+          getTargetNutrients(id, today).catch(() => ({ data: null })),
+        ]);
 
-        // --- [OPTIMIZED] Fetch profile, lab reports, meals, targets, diet plans, and appointments concurrently in parallel.
-        const [profileAndReportRes, allReportsHistoryRes, mealsRes, targetNutrientsRes, plansResult, apptsRes] =
-          await Promise.all([
-            getPatientProfile(id).catch((err) => {
-              if (err.response && err.response.status === 404) {
-                return { data: { profile: null, latest_lab_report: null } };
-              }
-              throw err;
-            }),
-            getAllLabReports(id).catch(() => ({ data: { results: [] } })),
-            getPatientMeals(id).catch(() => ({ data: { results: [] } })),
-            getTargetNutrients(id, today).catch(() => ({ data: null })),
-            fetchAndSetAllPlans().catch(() => ({ latestPlan: null, allDietsData: [] })),
-            getPatientAppointmentHistory(id).catch(() => ({ data: [] })),
-          ]);
+        if (!isMounted) return;
 
-        // --- State setting logic based on parallel API responses ---
-        const { profile, latest_lab_report } = profileAndReportRes.data || {};
+        const { profile: profData, latest_lab_report } = profileAndReportRes.data || {};
 
-        // 1. Set the Basic Profile State
-        if (profile) {
-          setProfile(profile);
+        if (profData) {
+          setProfile(profData);
         } else {
           setProfile({ full_name: "New Patient (Profile Incomplete)" });
         }
 
-        // 2. Set the Lab Report State for Display
         if (latest_lab_report) {
           setLabReports([latest_lab_report]);
           setSelectedReportId(latest_lab_report.id);
@@ -815,21 +1011,8 @@ const PatientDetailsPage = () => {
           setLabReports([]);
         }
 
-        // 3. Set the Lab Report History for the Dropdown
-        const allReports = (allReportsHistoryRes?.data?.results || []).sort(
-          (a, b) => new Date(b.report_date) - new Date(a.report_date)
-        );
-        setAllLabReportsHistory(allReports);
-
-        // Set meals and targets
-        setMeals(mealsRes?.data?.results || []);
         setTargetNutrients(targetNutrientsRes?.data);
 
-        // Set appointments from concurrent fetch
-        const apptsList = Array.isArray(apptsRes.data) ? apptsRes.data : apptsRes.data?.results || [];
-        setPatientAppointments(apptsList);
-
-        // Set diet plans from parallel result
         const latestPlan = plansResult?.latestPlan;
         if (latestPlan) {
           setDiets([latestPlan]);
@@ -845,11 +1028,17 @@ const PatientDetailsPage = () => {
         toast.error("Could not load critical patient data.");
         setProfile({ full_name: "Error Loading Patient" });
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false); // Unblock screen immediately!
+        }
       }
     };
 
     fetchPatientData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id, fetchAndSetAllPlans]);
 
   useEffect(() => {
@@ -1393,15 +1582,23 @@ const PatientDetailsPage = () => {
     setSelectedMealDate(input);
     if (!input) {
       setFilteredMeals([]);
+      setFilteredWaterLogs([]);
       setActiveLogDate(null);
       return;
     }
     setIsSearchingMeals(true);
     try {
-      const res = await getPatientMealsByDate(id, input);
-      setFilteredMeals(res.data?.results || []);
+      const [mealsRes, waterRes] = await Promise.all([
+        getPatientMealsByDate(id, input).catch(() => ({ data: { results: [] } })),
+        getPatientWaterLogs(id, { date: input }).catch(() => ({ data: [] })),
+      ]);
+      setFilteredMeals(mealsRes.data?.results || mealsRes.data || []);
+      const wList = Array.isArray(waterRes.data?.results)
+        ? waterRes.data.results
+        : (Array.isArray(waterRes.data) ? waterRes.data : []);
+      setFilteredWaterLogs(wList);
     } catch (err) {
-      toast.error("Failed to fetch meals.");
+      toast.error("Failed to fetch logs.");
     } finally {
       setIsSearchingMeals(false);
     }
@@ -1410,6 +1607,7 @@ const PatientDetailsPage = () => {
   const handleClearMealDateFilter = () => {
     setSelectedMealDate("");
     setFilteredMeals([]);
+    setFilteredWaterLogs([]);
     setActiveLogDate(null);
   };
 
@@ -1678,10 +1876,179 @@ const PatientDetailsPage = () => {
     return getDailyTotals(activeDietPlan, activeDay);
   }, [diets, activeDayPerDiet, getDailyTotals]);
 
+  // --- Calculate daily targets for a specific date based on diet plans & clinical targets ---
+  const getTargetForDate = useCallback((dateInput) => {
+    if (!dateInput) return null;
+    const targetDateObj = new Date(dateInput);
+    if (isNaN(targetDateObj.getTime())) return null;
+
+    const tYear = targetDateObj.getFullYear();
+    const tMonth = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+    const tDay = String(targetDateObj.getDate()).padStart(2, '0');
+
+    const candidatePlans = [...(allDietPlans || []), ...(diets || [])].filter(
+      (p, idx, self) =>
+        p &&
+        !p.is_deleted &&
+        p.status !== "rejected" &&
+        p.status !== "failed" &&
+        self.findIndex((s) => s.id === p.id) === idx
+    );
+
+    let matchedPlan = null;
+    let matchedDayKey = null;
+    let matchType = "";
+
+    // 1. Direct calendar match with plan start date
+    for (const plan of candidatePlans) {
+      if (!plan?.meals) continue;
+      const planDays = Object.keys(plan.meals)
+        .filter((k) => k.toLowerCase().startsWith("day "))
+        .sort((a, b) => {
+          const numA = parseInt(a.replace(/[^0-9]/g, ""), 10) || 0;
+          const numB = parseInt(b.replace(/[^0-9]/g, ""), 10) || 0;
+          return numA - numB;
+        });
+      if (planDays.length === 0) continue;
+
+      const startRaw = plan.for_week_starting || plan.created_at?.slice(0, 10);
+      if (!startRaw) continue;
+
+      const [pY, pM, pD] = startRaw.split("-").map(Number);
+      if (!pY || !pM || !pD) continue;
+      const planStartUTC = Date.UTC(pY, pM - 1, pD);
+      const targetUTC = Date.UTC(tYear, parseInt(tMonth, 10) - 1, parseInt(tDay, 10));
+      const diffDays = Math.round((targetUTC - planStartUTC) / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0 && diffDays < planDays.length) {
+        const candidateKey = planDays[diffDays];
+        if (candidateKey && plan.meals[candidateKey]) {
+          matchedPlan = plan;
+          matchedDayKey = candidateKey;
+          matchType = "exact";
+          break;
+        }
+      }
+    }
+
+    // 2. Cycle match on approved or active plan if outside exact duration
+    if (!matchedPlan && candidatePlans.length > 0) {
+      const activePlan = candidatePlans.find((p) => p.status === "approved") || candidatePlans[0];
+      if (activePlan?.meals) {
+        const planDays = Object.keys(activePlan.meals)
+          .filter((k) => k.toLowerCase().startsWith("day "))
+          .sort((a, b) => {
+            const numA = parseInt(a.replace(/[^0-9]/g, ""), 10) || 0;
+            const numB = parseInt(b.replace(/[^0-9]/g, ""), 10) || 0;
+            return numA - numB;
+          });
+        if (planDays.length > 0) {
+          const startRaw = activePlan.for_week_starting || activePlan.created_at?.slice(0, 10);
+          if (startRaw) {
+            const [pY, pM, pD] = startRaw.split("-").map(Number);
+            if (pY && pM && pD) {
+              const planStartUTC = Date.UTC(pY, pM - 1, pD);
+              const targetUTC = Date.UTC(tYear, parseInt(tMonth, 10) - 1, parseInt(tDay, 10));
+              const diffDays = Math.round((targetUTC - planStartUTC) / (1000 * 60 * 60 * 24));
+              if (diffDays >= 0) {
+                const cyclicIndex = diffDays % planDays.length;
+                matchedPlan = activePlan;
+                matchedDayKey = planDays[cyclicIndex];
+                matchType = "cycle";
+              }
+            }
+          }
+          if (!matchedPlan) {
+            matchedPlan = activePlan;
+            matchedDayKey = planDays[0];
+            matchType = "plan_default";
+          }
+        }
+      }
+    }
+
+    let totals = null;
+    if (matchedPlan && matchedDayKey) {
+      totals = getDailyTotals(matchedPlan, matchedDayKey);
+    }
+
+    const fallbackCals = targetNutrients?.recommended_calories || 0;
+    const fallbackProtein = targetNutrients?.macronutrients?.protein_g ?? targetNutrients?.protein_g ?? 0;
+    const fallbackCarbs = targetNutrients?.macronutrients?.carbs_g ?? targetNutrients?.carbs_g ?? 0;
+    const fallbackFats = targetNutrients?.macronutrients?.fats_g ?? targetNutrients?.fats_g ?? 0;
+    const fallbackSugar = targetNutrients?.macronutrients?.sugar_g ?? targetNutrients?.sugar_g ?? 0;
+    const fallbackFiber = targetNutrients?.macronutrients?.fiber_g ?? targetNutrients?.fiber_g ?? 0;
+    const fallbackWater = targetNutrients?.water?.recommended_ml || 2500;
+
+    const calories = totals?.Calories || fallbackCals;
+    const protein = totals?.Protein || fallbackProtein;
+    const carbs = totals?.Carbs || fallbackCarbs;
+    const fats = totals?.Fats || fallbackFats;
+    const fiber = totals?.Fiber || fallbackFiber;
+    const sugar = totals?.Sugar || fallbackSugar;
+    const water_ml = fallbackWater;
+
+    let planLabel = "";
+    if (matchedPlan && matchedDayKey) {
+      if (matchType === "exact") {
+        planLabel = `${matchedPlan.status === "approved" ? "Plan" : "Diet"}: ${matchedDayKey}`;
+      } else if (matchType === "cycle") {
+        planLabel = `Cycle: ${matchedDayKey}`;
+      } else {
+        planLabel = `${matchedDayKey} Target`;
+      }
+    } else {
+      planLabel = "Target Goal";
+    }
+
+    const plannedMeals = [];
+    if (matchedPlan?.meals && matchedDayKey && matchedPlan.meals[matchedDayKey]) {
+      const dayMealsObj = matchedPlan.meals[matchedDayKey];
+      for (const mealKey of Object.keys(dayMealsObj)) {
+        if (mealKey.toLowerCase().includes("flag") || mealKey.toLowerCase().includes("suggestion")) continue;
+        const m = dayMealsObj[mealKey];
+        if (m && typeof m === "object") {
+          plannedMeals.push({
+            slot: mealKey.replace(/-/g, " "),
+            food_name: m.food_name || m.item || m.title || "Planned Meal Item",
+            quantity: m.quantity || m.portion || (m.Gram_Equivalent ? `${m.Gram_Equivalent}g` : ""),
+            calories: Math.round(m.Calories || m.calories || 0),
+            protein: Math.round(m.Protein || m.protein || 0),
+            carbs: Math.round(m.Carbs || m.carbs || 0),
+            fats: Math.round(m.Fats || m.fats || m.fat || 0),
+          });
+        }
+      }
+
+      // Order planned meals strictly chronologically: Early Morning -> Breakfast -> Mid-Morning -> Lunch -> Evening Snack -> Dinner -> Bedtime
+      plannedMeals.sort((a, b) => {
+        const rankA = getMealSlotRank(a.slot);
+        const rankB = getMealSlotRank(b.slot);
+        if (rankA !== rankB) return rankA - rankB;
+        return a.slot.localeCompare(b.slot);
+      });
+    }
+
+    return {
+      calories: Math.round(calories),
+      protein: Math.round(protein),
+      carbs: Math.round(carbs),
+      fats: Math.round(fats),
+      fiber: Math.round(fiber),
+      sugar: Math.round(sugar),
+      water_ml: Math.round(water_ml),
+      planLabel,
+      matchedPlan,
+      matchedDayKey,
+      plannedMeals,
+    };
+  }, [allDietPlans, diets, getDailyTotals, targetNutrients]);
+
   const TABS = [
     { key: "profile", label: "Profile", icon: <FaUser /> },
     { key: "reports", label: "Lab Reports", icon: <FaFileMedicalAlt /> },
     { key: "meals", label: "Meal Log", icon: <Utensils /> },
+    { key: "weight", label: "Weight Logs", icon: <Scale size={16} /> },
     { key: "diet", label: "Diet Plans", icon: <CalendarCheck /> },
     { key: "appointments", label: "Appointments & History", icon: <Clock size={16} /> },
   ];
@@ -1728,15 +2095,31 @@ const PatientDetailsPage = () => {
 
 
   const mealsToDisplay = selectedMealDate ? filteredMeals : meals;
-  const mealGroups = mealsToDisplay.reduce((acc, meal) => {
-    const date = new Date(meal.date).toDateString();
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(meal);
-    return acc;
-  }, {});
-  const sortedMealDates = Object.keys(mealGroups).sort(
-    (a, b) => new Date(b) - new Date(a)
-  );
+  const mealGroups = useMemo(() => {
+    return mealsToDisplay.reduce((acc, meal) => {
+      const date = new Date(meal.date).toDateString();
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(meal);
+      return acc;
+    }, {});
+  }, [mealsToDisplay]);
+
+  const waterToDisplay = selectedMealDate ? filteredWaterLogs : patientWaterLogs;
+  const waterGroups = useMemo(() => {
+    return waterToDisplay.reduce((acc, log) => {
+      const date = new Date(log.date).toDateString();
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(log);
+      return acc;
+    }, {});
+  }, [waterToDisplay]);
+
+  // Combine dates that have either meals or water logs
+  const sortedMealDates = useMemo(() => {
+    const dateSet = new Set([...Object.keys(mealGroups), ...Object.keys(waterGroups)]);
+    return Array.from(dateSet).sort((a, b) => new Date(b) - new Date(a));
+  }, [mealGroups, waterGroups]);
+
   const indexOfLastMealDay = mealCurrentPage * mealsPerPage;
   const indexOfFirstMealDay = indexOfLastMealDay - mealsPerPage;
   const currentMealDays = sortedMealDates.slice(
@@ -2353,11 +2736,18 @@ const PatientDetailsPage = () => {
                         <FaSpinner className="animate-spin text-[var(--color-primary)]" />
                       )}
                     </div>
-                    {sortedMealDates.length > 0 ? (
+                    {isLoadingMeals && sortedMealDates.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 bg-[var(--color-bg-app)] rounded-xl border border-dashed border-[var(--color-border-default)]">
+                        <FaSpinner className="animate-spin text-2xl text-[var(--color-primary)] mb-2" />
+                        <p className="text-sm font-medium text-[var(--color-text-muted)]">Loading meal log and hydration history...</p>
+                      </div>
+                    ) : sortedMealDates.length > 0 ? (
                       <>
                         <div className="space-y-4">
                           {currentMealDays.map((date) => {
-                            const mealsForDay = mealGroups[date];
+                            const mealsForDay = mealGroups[date] || [];
+                            const waterForDay = waterGroups[date] || [];
+                            const totalWaterDayMl = waterForDay.reduce((sum, item) => sum + (parseFloat(item.amount_ml) || 0), 0);
                             const isActive = activeLogDate === date;
                             const localDate = new Date(date);
                             const year = localDate.getFullYear();
@@ -2367,6 +2757,20 @@ const PatientDetailsPage = () => {
                             const summary = dailySummaries[formattedDateForKey];
                             const isLoadingSummary =
                               loadingSummaries[formattedDateForKey];
+                            const waterStatMl = summary?.water_ml != null ? summary.water_ml : totalWaterDayMl;
+                            const recommendedWaterMl = targetNutrients?.water?.recommended_ml || 2500;
+                            const dayTarget = getTargetForDate(date);
+                            const dayWaterTargetMl = dayTarget?.water_ml || recommendedWaterMl;
+                            const safeSummary = summary || {
+                              calories: 0,
+                              protein: 0,
+                              carbs: 0,
+                              fats: 0,
+                              sugar: 0,
+                              fiber: 0,
+                              water_ml: waterStatMl,
+                            };
+
                             return (
                               <div
                                 key={date}
@@ -2374,11 +2778,11 @@ const PatientDetailsPage = () => {
                               >
                                 <button
                                   onClick={() => handleLogDateClick(date)}
-                                  className="w-full flex justify-between items-center p-4"
+                                  className="w-full flex justify-between items-center p-4 text-left"
                                 >
                                   <div className="flex items-center gap-4">
                                     <CalendarCheck
-                                      className={`text-xl ${isActive
+                                      className={`text-xl shrink-0 ${isActive
                                           ? "text-[var(--color-primary)]"
                                           : "text-[var(--color-text-muted)]"
                                         }`}
@@ -2387,10 +2791,35 @@ const PatientDetailsPage = () => {
                                       {date}
                                     </h3>
                                   </div>
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap justify-end">
                                     <span className="hidden sm:inline-block bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] text-xs font-bold px-2.5 py-1 rounded-full">
-                                      {mealsForDay.length} items
+                                      {mealsForDay.length} {mealsForDay.length === 1 ? "meal" : "meals"}
                                     </span>
+                                    {dayWaterTargetMl > 0 ? (
+                                      <span className="inline-flex items-center gap-1.5 bg-cyan-500/10 border-2 border-cyan-500/25 text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <Droplets size={12} className="text-cyan-500 shrink-0" />
+                                        <span className="text-[var(--color-text-strong)]">
+                                          {dayWaterTargetMl >= 1000 ? (waterStatMl / 1000).toFixed(1) : waterStatMl}
+                                        </span>
+                                        <span className="text-[var(--color-text-muted)] font-normal">/</span>
+                                        <span className="text-cyan-600 dark:text-cyan-400">
+                                          {dayWaterTargetMl >= 1000 ? `${(dayWaterTargetMl / 1000).toFixed(1)} L` : `${dayWaterTargetMl} ml`}
+                                        </span>
+                                      </span>
+                                    ) : waterStatMl > 0 ? (
+                                      <span className="inline-flex items-center gap-1.5 bg-cyan-500/10 border-2 border-cyan-500/25 text-cyan-600 dark:text-cyan-400 text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <Droplets size={12} />
+                                        {waterStatMl >= 1000 ? `${(waterStatMl / 1000).toFixed(1)} L` : `${waterStatMl} ml`}
+                                      </span>
+                                    ) : null}
+                                    {dayTarget && dayTarget.calories > 0 && (
+                                      <span className="inline-flex items-center gap-1.5 bg-orange-500/10 border-2 border-orange-500/25 text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <Flame size={12} className="text-orange-500 shrink-0" />
+                                        <span className="text-[var(--color-text-strong)]">{Math.round(safeSummary.calories || 0)}</span>
+                                        <span className="text-[var(--color-text-muted)] font-normal">/</span>
+                                        <span className="text-orange-600 dark:text-orange-400">{dayTarget.calories} kcal</span>
+                                      </span>
+                                    )}
                                     <FaChevronDown
                                       className={`transform transition-transform duration-300 text-[var(--color-text-muted)] ${isActive
                                           ? "rotate-180 text-[var(--color-primary)]"
@@ -2400,7 +2829,7 @@ const PatientDetailsPage = () => {
                                   </div>
                                 </button>
                                 <div
-                                  className={`${isActive ? "max-h-[2000px]" : "max-h-0"
+                                  className={`${isActive ? "max-h-[3000px]" : "max-h-0"
                                     } overflow-hidden transition-[max-height,padding] duration-700 ease-in-out`}
                                 >
                                   <div className="pb-4 px-4">
@@ -2409,68 +2838,418 @@ const PatientDetailsPage = () => {
                                         <div className="flex justify-center p-4">
                                           <FaSpinner className="animate-spin text-2xl text-[var(--color-primary)]" />
                                         </div>
-                                      ) : summary ? (
-                                        <div className="mb-4 p-4 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg">
-                                          <h4 className="text-sm font-semibold text-[var(--color-text-strong)] mb-3">
-                                            Daily Summary
-                                          </h4>
-                                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                                            <div className="text-center p-2 rounded-lg bg-[var(--color-stat-1-bg)]">
-                                              <p className="text-xs text-[var(--color-text-muted)]">
-                                                Calories
+                                      ) : (summary || dayTarget) ? (
+                                        <div className="mb-4 p-4 bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-xl">
+                                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 pb-2.5 border-b border-[var(--color-border-default)]/60">
+                                            <div>
+                                              <h4 className="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                                                <span>Daily Nutritional & Hydration Summary</span>
+                                                <span className="text-xs text-[var(--color-text-muted)] font-normal">({date})</span>
+                                              </h4>
+                                              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                                Actual intake vs daily target goals from diet plan
                                               </p>
-                                              <p className="font-bold text-lg text-[var(--color-primary)]">
-                                                {Math.round(summary.calories)}{" "}
-                                                <span className="text-sm font-normal text-[var(--color-text-muted)]">
-                                                  kcal
+                                            </div>
+                                            {dayTarget && (
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 flex items-center gap-1.5">
+                                                  <Target size={12} />
+                                                  {dayTarget.planLabel}
                                                 </span>
-                                              </p>
+                                                {dayTarget.calories > 0 && (
+                                                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] flex items-center gap-1.5">
+                                                    <Flame size={12} className="text-orange-500 shrink-0" />
+                                                    <span>Consumed: <strong className="text-[var(--color-primary)]">{Math.round(safeSummary.calories || 0)}</strong> / Target: {dayTarget.calories} kcal</span>
+                                                    <span className="text-[var(--color-text-muted)] font-normal">({Math.round(((safeSummary.calories || 0) / dayTarget.calories) * 100)}%)</span>
+                                                  </span>
+                                                )}
+                                                {dayWaterTargetMl > 0 && (
+                                                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] flex items-center gap-1.5">
+                                                    <Droplets size={12} className="text-cyan-500 shrink-0" />
+                                                    <span>Water: <strong className="text-cyan-600 dark:text-cyan-400">{dayWaterTargetMl >= 1000 ? (waterStatMl / 1000).toFixed(1) : waterStatMl}</strong> / {dayWaterTargetMl >= 1000 ? `${(dayWaterTargetMl / 1000).toFixed(1)} L` : `${dayWaterTargetMl} ml`}</span>
+                                                    <span className="text-[var(--color-text-muted)] font-normal">({Math.round((waterStatMl / dayWaterTargetMl) * 100)}%)</span>
+                                                  </span>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+                                            {/* 1. Calories */}
+                                            <div className="text-center p-2.5 rounded-lg bg-[var(--color-stat-1-bg)] border border-[var(--color-border-default)]/40 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium">Calories</p>
+                                                <p className="font-bold text-lg text-[var(--color-primary)]">
+                                                  {Math.round(safeSummary.calories || 0)}{" "}
+                                                  <span className="text-xs font-normal text-[var(--color-text-muted)]">kcal</span>
+                                                </p>
+                                              </div>
+                                              {dayTarget && dayTarget.calories > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-default)]/60 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-[var(--color-text-strong)]">{dayTarget.calories}</span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-[var(--color-primary)] h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round(((safeSummary.calories || 0) / dayTarget.calories) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round(((safeSummary.calories || 0) / dayTarget.calories) * 100)}%</span>
+                                                    <span className={safeSummary.calories > dayTarget.calories ? "text-amber-500 font-semibold" : "text-emerald-500 font-semibold"}>
+                                                      {safeSummary.calories > dayTarget.calories ? `+${Math.round(safeSummary.calories - dayTarget.calories)}` : `${Math.round(safeSummary.calories - dayTarget.calories)}`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="text-center p-2 rounded-lg bg-[var(--color-stat-2-bg)]">
-                                              <p className="text-xs text-[var(--color-text-muted)]">
-                                                Protein
-                                              </p>
-                                              <p className="font-bold text-lg text-[var(--color-text-strong)]">
-                                                {Math.round(summary.protein)}g
-                                              </p>
+
+                                            {/* 2. Protein */}
+                                            <div className="text-center p-2.5 rounded-lg bg-[var(--color-stat-2-bg)] border border-[var(--color-border-default)]/40 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium">Protein</p>
+                                                <p className="font-bold text-lg text-[var(--color-text-strong)]">
+                                                  {Math.round(safeSummary.protein || 0)}g
+                                                </p>
+                                              </div>
+                                              {dayTarget && dayTarget.protein > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-default)]/60 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-[var(--color-text-strong)]">{dayTarget.protein}g</span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round(((safeSummary.protein || 0) / dayTarget.protein) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round(((safeSummary.protein || 0) / dayTarget.protein) * 100)}%</span>
+                                                    <span className={safeSummary.protein >= dayTarget.protein ? "text-emerald-500 font-semibold" : "text-amber-500 font-semibold"}>
+                                                      {safeSummary.protein >= dayTarget.protein ? `+${Math.round(safeSummary.protein - dayTarget.protein)}g` : `${Math.round(safeSummary.protein - dayTarget.protein)}g`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="text-center p-2 rounded-lg bg-[var(--color-stat-3-bg)]">
-                                              <p className="text-xs text-[var(--color-text-muted)]">
-                                                Carbs
-                                              </p>
-                                              <p className="font-bold text-lg text-[var(--color-text-strong)]">
-                                                {Math.round(summary.carbs)}g
-                                              </p>
+
+                                            {/* 3. Carbs */}
+                                            <div className="text-center p-2.5 rounded-lg bg-[var(--color-stat-3-bg)] border border-[var(--color-border-default)]/40 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium">Carbs</p>
+                                                <p className="font-bold text-lg text-[var(--color-text-strong)]">
+                                                  {Math.round(safeSummary.carbs || 0)}g
+                                                </p>
+                                              </div>
+                                              {dayTarget && dayTarget.carbs > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-default)]/60 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-[var(--color-text-strong)]">{dayTarget.carbs}g</span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-amber-500 h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round(((safeSummary.carbs || 0) / dayTarget.carbs) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round(((safeSummary.carbs || 0) / dayTarget.carbs) * 100)}%</span>
+                                                    <span className={safeSummary.carbs > dayTarget.carbs ? "text-amber-500 font-semibold" : "text-emerald-500 font-semibold"}>
+                                                      {safeSummary.carbs > dayTarget.carbs ? `+${Math.round(safeSummary.carbs - dayTarget.carbs)}g` : `${Math.round(safeSummary.carbs - dayTarget.carbs)}g`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="text-center p-2 rounded-lg bg-[var(--color-stat-4-bg)]">
-                                              <p className="text-xs text-[var(--color-text-muted)]">
-                                                Fats
-                                              </p>
-                                              <p className="font-bold text-lg text-[var(--color-text-strong)]">
-                                                {Math.round(summary.fats)}g
-                                              </p>
+
+                                            {/* 4. Fats */}
+                                            <div className="text-center p-2.5 rounded-lg bg-[var(--color-stat-4-bg)] border border-[var(--color-border-default)]/40 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium">Fats</p>
+                                                <p className="font-bold text-lg text-[var(--color-text-strong)]">
+                                                  {Math.round(safeSummary.fats || 0)}g
+                                                </p>
+                                              </div>
+                                              {dayTarget && dayTarget.fats > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-default)]/60 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-[var(--color-text-strong)]">{dayTarget.fats}g</span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-rose-500 h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round(((safeSummary.fats || 0) / dayTarget.fats) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round(((safeSummary.fats || 0) / dayTarget.fats) * 100)}%</span>
+                                                    <span className={safeSummary.fats > dayTarget.fats ? "text-amber-500 font-semibold" : "text-emerald-500 font-semibold"}>
+                                                      {safeSummary.fats > dayTarget.fats ? `+${Math.round(safeSummary.fats - dayTarget.fats)}g` : `${Math.round(safeSummary.fats - dayTarget.fats)}g`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="text-center p-2 rounded-lg bg-[var(--color-accent-1-bg-subtle)]">
-                                              <p className="text-xs text-[var(--color-text-muted)]">
-                                                Sugar
-                                              </p>
-                                              <p className="font-bold text-lg text-[var(--color-text-strong)]">
-                                                {Math.round(summary.sugar)}g
-                                              </p>
+
+                                            {/* 5. Sugar */}
+                                            <div className="text-center p-2.5 rounded-lg bg-[var(--color-accent-1-bg-subtle)] border border-[var(--color-border-default)]/40 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium">Sugar</p>
+                                                <p className="font-bold text-lg text-[var(--color-text-strong)]">
+                                                  {Math.round(safeSummary.sugar || 0)}g
+                                                </p>
+                                              </div>
+                                              {dayTarget && dayTarget.sugar > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-default)]/60 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-[var(--color-text-strong)]">{dayTarget.sugar}g</span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-pink-500 h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round(((safeSummary.sugar || 0) / dayTarget.sugar) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round(((safeSummary.sugar || 0) / dayTarget.sugar) * 100)}%</span>
+                                                    <span className={safeSummary.sugar > dayTarget.sugar ? "text-rose-500 font-semibold" : "text-emerald-500 font-semibold"}>
+                                                      {safeSummary.sugar > dayTarget.sugar ? `+${Math.round(safeSummary.sugar - dayTarget.sugar)}g` : `${Math.round(safeSummary.sugar - dayTarget.sugar)}g`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="text-center p-2 rounded-lg bg-[var(--color-accent-2-bg-subtle)]">
-                                              <p className="text-xs text-[var(--color-text-muted)]">
-                                                Fiber
-                                              </p>
-                                              <p className="font-bold text-lg text-[var(--color-text-strong)]">
-                                                {Math.round(summary.fiber)}g
-                                              </p>
+
+                                            {/* 6. Fiber */}
+                                            <div className="text-center p-2.5 rounded-lg bg-[var(--color-accent-2-bg-subtle)] border border-[var(--color-border-default)]/40 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium">Fiber</p>
+                                                <p className="font-bold text-lg text-[var(--color-text-strong)]">
+                                                  {Math.round(safeSummary.fiber || 0)}g
+                                                </p>
+                                              </div>
+                                              {dayTarget && dayTarget.fiber > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-[var(--color-border-default)]/60 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-[var(--color-text-strong)]">{dayTarget.fiber}g</span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round(((safeSummary.fiber || 0) / dayTarget.fiber) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round(((safeSummary.fiber || 0) / dayTarget.fiber) * 100)}%</span>
+                                                    <span className={safeSummary.fiber >= dayTarget.fiber ? "text-emerald-500 font-semibold" : "text-amber-500 font-semibold"}>
+                                                      {safeSummary.fiber >= dayTarget.fiber ? `+${Math.round(safeSummary.fiber - dayTarget.fiber)}g` : `${Math.round(safeSummary.fiber - dayTarget.fiber)}g`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            {/* 7. Water */}
+                                            <div className="text-center p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 col-span-2 sm:col-span-1 flex flex-col justify-between">
+                                              <div>
+                                                <p className="text-xs text-cyan-600 dark:text-cyan-400 font-medium flex items-center justify-center gap-1">
+                                                  <Droplets size={12} /> Water
+                                                </p>
+                                                <p className="font-bold text-lg text-cyan-600 dark:text-cyan-400">
+                                                  {waterStatMl >= 1000 ? `${(waterStatMl / 1000).toFixed(1)} L` : `${waterStatMl} ml`}
+                                                </p>
+                                              </div>
+                                              {dayWaterTargetMl > 0 && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-cyan-500/20 text-[11px]">
+                                                  <div className="flex justify-between items-center text-[var(--color-text-muted)]">
+                                                    <span>Target:</span>
+                                                    <span className="font-bold text-cyan-600 dark:text-cyan-400">
+                                                      {dayWaterTargetMl >= 1000 ? `${(dayWaterTargetMl / 1000).toFixed(1)} L` : `${dayWaterTargetMl} ml`}
+                                                    </span>
+                                                  </div>
+                                                  <div className="w-full bg-[var(--color-border-default)]/50 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                    <div
+                                                      className="bg-cyan-500 h-full rounded-full transition-all duration-300"
+                                                      style={{ width: `${Math.min(100, Math.round((waterStatMl / dayWaterTargetMl) * 100))}%` }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex justify-between items-center text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                                    <span>{Math.round((waterStatMl / dayWaterTargetMl) * 100)}%</span>
+                                                    <span className={waterStatMl >= dayWaterTargetMl ? "text-emerald-500 font-semibold" : "text-cyan-600 dark:text-cyan-400 font-semibold"}>
+                                                      {waterStatMl >= dayWaterTargetMl ? "Goal Met" : `-${Math.round(dayWaterTargetMl - waterStatMl)} ml`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
                                         </div>
                                       ) : null}
-                                      <div className="overflow-x-auto">
-                                        <table className="min-w-full text-sm align-middle">
+
+                                      {/* ── DAILY WATER INTAKE SECTION ── */}
+                                      <div className="mb-5 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 via-sky-500/5 to-transparent border-2 border-cyan-500/20">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+                                          <div className="flex items-center gap-2.5">
+                                            <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-500 shrink-0">
+                                              <Droplets size={20} />
+                                            </div>
+                                            <div>
+                                              <h4 className="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                                                Water & Hydration Log
+                                                {waterForDay.length > 0 && (
+                                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-600 dark:text-cyan-400">
+                                                    {waterForDay.length} {waterForDay.length === 1 ? "entry" : "entries"}
+                                                  </span>
+                                                )}
+                                              </h4>
+                                              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                                Total water logged: <strong className="text-cyan-600 dark:text-cyan-400">{waterStatMl} ml</strong> ({waterStatMl >= 1000 ? `${(waterStatMl / 1000).toFixed(2)} liters` : `${waterStatMl} ml`})
+                                                {waterStatMl > 0 && ` • ~${Math.round(waterStatMl / 250)} glasses (250ml each)`}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          {dayWaterTargetMl > 0 && (
+                                            <div className="text-right shrink-0">
+                                              <span className="text-xs text-[var(--color-text-muted)]">
+                                                Goal: <strong className="text-[var(--color-text-strong)]">{dayWaterTargetMl} ml</strong>
+                                              </span>
+                                              <p className="text-[11px] text-cyan-600 dark:text-cyan-400 font-semibold">
+                                                {Math.round((waterStatMl / dayWaterTargetMl) * 100)}% achieved
+                                              </p>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Hydration progress bar */}
+                                        {dayWaterTargetMl > 0 && (
+                                          <div className="w-full bg-[var(--color-bg-app)] rounded-full h-2.5 overflow-hidden border border-[var(--color-border-default)] mt-2">
+                                            <div
+                                              className="bg-gradient-to-r from-cyan-500 to-sky-400 h-2.5 rounded-full transition-all duration-500"
+                                              style={{ width: `${Math.min(100, Math.round((waterStatMl / dayWaterTargetMl) * 100))}%` }}
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Detailed water entries chips */}
+                                        {waterForDay.length > 0 ? (
+                                          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-2.5 border-t border-cyan-500/15">
+                                            {waterForDay.map((wLog, wIdx) => (
+                                              <div key={wLog.id || wIdx} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-bg-surface)] border border-cyan-500/20 text-xs shadow-sm">
+                                                <Droplets size={14} className="text-cyan-500 shrink-0" />
+                                                <span className="font-bold text-[var(--color-text-strong)]">{wLog.amount_ml} ml</span>
+                                                <span className="text-[11px] text-[var(--color-text-muted)] ml-auto">
+                                                  ~{Math.round(wLog.amount_ml / 250)} gl
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : waterStatMl > 0 ? null : (
+                                          <p className="text-xs text-[var(--color-text-muted)] italic mt-2">
+                                            No water intake entries logged on this date.
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      {/* ── PRESCRIBED DIET PLAN TARGET MEALS (ORDERED EARLY MORNING → BEDTIME) ── */}
+                                      {dayTarget?.plannedMeals && dayTarget.plannedMeals.length > 0 && (
+                                        <div className="mb-4 rounded-xl border border-orange-500/25 bg-gradient-to-br from-orange-500/[0.04] via-[var(--color-bg-app)] to-amber-500/[0.03] overflow-hidden shadow-xs">
+                                          {/* Header bar */}
+                                          <div className="p-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-orange-500/20">
+                                            <div className="flex items-center gap-2.5">
+                                              <div className="p-1.5 rounded-lg bg-orange-500/15 text-orange-500 shrink-0">
+                                                <Utensils size={15} />
+                                              </div>
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <h4 className="text-xs font-bold text-[var(--color-text-strong)]">
+                                                    Diet Plan Prescribed Meals
+                                                  </h4>
+                                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/20">
+                                                    {dayTarget.planLabel}
+                                                  </span>
+                                                </div>
+                                                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                                                  {dayTarget.plannedMeals.length} prescribed slots (Early Morning → Bedtime) • Target: <strong className="text-[var(--color-text-strong)]">{dayTarget.calories} kcal</strong> ({dayTarget.protein}g P • {dayTarget.carbs}g C • {dayTarget.fats}g F){dayWaterTargetMl > 0 ? ` • Water: ${dayWaterTargetMl >= 1000 ? `${(dayWaterTargetMl / 1000).toFixed(1)} L` : `${dayWaterTargetMl} ml`}` : ""}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setTargetMealsModal({
+                                                  date,
+                                                  target: dayTarget,
+                                                  consumedCalories: Math.round(safeSummary.calories || 0),
+                                                  consumedWaterMl: waterStatMl,
+                                                  waterTargetMl: dayWaterTargetMl,
+                                                })
+                                              }
+                                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-bg-surface)] hover:bg-[var(--color-primary)] hover:text-white border border-[var(--color-border-default)] text-xs font-semibold text-[var(--color-text-strong)] transition-all shadow-sm shrink-0"
+                                            >
+                                              <Utensils size={12} />
+                                              <span>View In Detail ({dayTarget.plannedMeals.length})</span>
+                                              <ArrowUpRight size={13} />
+                                            </button>
+                                          </div>
+
+                                          {/* Prescribed meals slots grid: Early Morning, Breakfast, Lunch, Dinner, Bedtime */}
+                                          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
+                                            {dayTarget.plannedMeals.map((pm, pmIdx) => {
+                                              const slotKey = pm.slot?.toLowerCase().replace(/ /g, "-");
+                                              const slotStyle = mealTypeStyles[slotKey] || "bg-[var(--color-primary)]/10 text-[var(--color-primary)]";
+                                              const slotIcon = mealTypeIcons[slotKey] || <Utensils size={12} />;
+                                              return (
+                                                <div
+                                                  key={pmIdx}
+                                                  className="p-3 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-primary)]/40 transition-all flex flex-col justify-between"
+                                                >
+                                                  <div>
+                                                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                                                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${slotStyle}`}>
+                                                        {slotIcon}
+                                                        <span>{pm.slot}</span>
+                                                      </span>
+                                                      <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                                                        {pm.calories} kcal
+                                                      </span>
+                                                    </div>
+                                                    <p className="text-xs font-semibold text-[var(--color-text-strong)] line-clamp-2" title={pm.food_name}>
+                                                      {pm.food_name}
+                                                    </p>
+                                                    {pm.quantity && (
+                                                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                                                        Qty: <span className="text-[var(--color-text-default)] font-normal">{pm.quantity}</span>
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-muted)] pt-2 mt-2 border-t border-[var(--color-border-default)]/60">
+                                                    <span>P: <strong className="text-[var(--color-text-strong)]">{pm.protein}g</strong></span>
+                                                    <span>C: <strong className="text-[var(--color-text-strong)]">{pm.carbs}g</strong></span>
+                                                    <span>F: <strong className="text-[var(--color-text-strong)]">{pm.fats}g</strong></span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* ── MEALS SECTION ── */}
+                                      {mealsForDay.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                          <div className="mb-2 flex items-center justify-between">
+                                            <h4 className="text-sm font-semibold text-[var(--color-text-strong)]">
+                                              Meal Entries ({mealsForDay.length})
+                                            </h4>
+                                          </div>
+                                          <table className="min-w-full text-sm align-middle">
                                           <thead className="bg-[var(--color-bg-app)]">
                                             <tr>
                                               <th
@@ -2507,11 +3286,12 @@ const PatientDetailsPage = () => {
                                           </thead>
                                           <tbody>
                                             {[...mealsForDay]
-                                              .sort(
-                                                (a, b) =>
-                                                  new Date(a.consumed_at) -
-                                                  new Date(b.consumed_at)
-                                              )
+                                              .sort((a, b) => {
+                                                const rankA = getMealSlotRank(a.meal_type || "");
+                                                const rankB = getMealSlotRank(b.meal_type || "");
+                                                if (rankA !== rankB) return rankA - rankB;
+                                                return new Date(a.consumed_at) - new Date(b.consumed_at);
+                                              })
                                               .map((item) => (
                                                 <tr
                                                   key={item.id}
@@ -2571,6 +3351,13 @@ const PatientDetailsPage = () => {
                                           </tbody>
                                         </table>
                                       </div>
+                                    ) : (
+                                      <div className="py-6 text-center bg-[var(--color-bg-app)] rounded-xl border border-dashed border-[var(--color-border-default)]">
+                                        <p className="text-xs text-[var(--color-text-muted)]">
+                                          No meals logged on this date.
+                                        </p>
+                                      </div>
+                                    )}
                                     </div>
                                   </div>
                                 </div>
@@ -2615,6 +3402,213 @@ const PatientDetailsPage = () => {
                     )}
                   </div>
                 )}
+
+                {/* ── WEIGHT LOGS TAB ── */}
+                {activeTab === "weight" && (
+                  <div className="space-y-6">
+                    {/* Header & Date Filter Bar */}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] shadow-sm">
+                      <div>
+                        <h3 className="text-xl font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                          <Scale className="text-[var(--color-primary)]" size={22} />
+                          Patient Weight Logs & Progression
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-1">
+                          Review weight history, track BMI changes, and inspect logs by date.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 bg-[var(--color-bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--color-border-default)]">
+                          <Calendar size={15} className="text-[var(--color-text-muted)]" />
+                          <input
+                            type="date"
+                            value={weightDateFilter}
+                            onChange={(e) => setWeightDateFilter(e.target.value)}
+                            className="bg-transparent text-xs sm:text-sm text-[var(--color-text-strong)] focus:outline-none"
+                            title="Filter weight logs by specific date"
+                          />
+                        </div>
+                        {weightDateFilter && (
+                          <button
+                            type="button"
+                            onClick={() => setWeightDateFilter("")}
+                            className="text-xs px-2.5 py-1.5 rounded-lg bg-[var(--color-bg-interactive-subtle)] hover:bg-[var(--color-bg-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] transition-colors flex items-center gap-1"
+                          >
+                            <X size={13} /> Clear Date
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fetchWeightLogsForPatient()}
+                          className="p-2 rounded-xl bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-interactive)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+                          title="Refresh weight logs"
+                        >
+                          <RefreshCw size={15} className={loadingWeightLogs ? "animate-spin" : ""} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Metric Overview Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">Current Weight</p>
+                        <p className="text-2xl font-bold text-[var(--color-primary)] mt-1">
+                          {currentWeight != null ? `${currentWeight.toFixed(1)} kg` : "Not Set"}
+                        </p>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">
+                          {patientWeightLogs.length > 0
+                            ? `Logged on ${new Date(patientWeightLogs[0].date).toLocaleDateString("en-GB", { day: 'numeric', month: 'short' })}`
+                            : "Profile synchronized"}
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">Starting Weight</p>
+                        <p className="text-2xl font-bold text-[var(--color-text-strong)] mt-1">
+                          {startingWeight != null ? `${startingWeight.toFixed(1)} kg` : "—"}
+                        </p>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">Initial recorded entry</span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">Net Weight Change</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <p className={`text-2xl font-bold ${netChange > 0 ? "text-rose-500" : netChange < 0 ? "text-emerald-500" : "text-[var(--color-text-strong)]"}`}>
+                            {netChange != null ? `${netChange > 0 ? "+" : ""}${netChange.toFixed(1)} kg` : "0.0 kg"}
+                          </p>
+                          {netChange !== 0 && (
+                            netChange > 0 ? <TrendingUp size={18} className="text-rose-500" /> : <TrendingDown size={18} className="text-emerald-500" />
+                          )}
+                        </div>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">Over entire timeline</span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">Estimated BMI</p>
+                        <p className="text-2xl font-bold text-amber-500 mt-1">
+                          {calculatedBmi || "—"}
+                        </p>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">
+                          {profile?.height_cm ? `Height: ${profile.height_cm} cm` : "Height not set"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progression Chart */}
+                    {chartWeightData.length > 1 && (
+                      <div className="p-5 rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)]">
+                        <h4 className="text-sm font-bold text-[var(--color-text-strong)] mb-4">Patient Weight Timeline</h4>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartWeightData} margin={{ top: 5, right: 15, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="patientWeightGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.35} />
+                                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.02} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" vertical={false} />
+                              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} domain={['dataMin - 1', 'dataMax + 1']} />
+                              <Tooltip
+                                content={({ active, payload, label }) => {
+                                  if (active && payload && payload.length) {
+                                    return (
+                                      <div className="bg-[var(--color-bg-surface)] p-3 border-2 border-[var(--color-primary)] rounded-lg shadow-lg">
+                                        <p className="text-xs font-semibold text-[var(--color-text-muted)]">{label}</p>
+                                        <p className="text-sm font-bold text-[var(--color-primary)] mt-0.5">{payload[0].value.toFixed(1)} kg</p>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
+                              />
+                              <Area type="monotone" dataKey="weight" stroke="var(--color-primary)" strokeWidth={2.5} fill="url(#patientWeightGrad)" activeDot={{ r: 5, fill: 'var(--color-primary)' }} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Filtered Logs List */}
+                    <div className="rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] overflow-hidden">
+                      <div className="p-4 border-b border-[var(--color-border-default)] flex items-center justify-between">
+                        <h4 className="text-base font-bold text-[var(--color-text-strong)]">
+                          {weightDateFilter ? `Weight Logs for ${new Date(weightDateFilter).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}` : "Recorded Weight Logs"}
+                        </h4>
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {filteredWeightLogs.length} {filteredWeightLogs.length === 1 ? 'entry' : 'entries'}
+                        </span>
+                      </div>
+
+                      {filteredWeightLogs.length > 0 ? (
+                        <div className="divide-y divide-[var(--color-border-default)]">
+                          {filteredWeightLogs.map((log, idx) => {
+                            const nextLog = filteredWeightLogs[idx + 1];
+                            const diff = nextLog ? parseFloat(log.weight_kg) - parseFloat(nextLog.weight_kg) : 0;
+                            return (
+                              <div key={log.id || idx} className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-[var(--color-bg-surface)] transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2.5 rounded-xl bg-[var(--color-primary-subtle)] text-[var(--color-primary)]">
+                                    <Scale size={18} />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg font-bold text-[var(--color-text-strong)]">
+                                        {parseFloat(log.weight_kg).toFixed(1)} kg
+                                      </span>
+                                      {idx === 0 && !weightDateFilter && (
+                                        <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-[var(--color-primary-subtle)] text-[var(--color-primary)]">
+                                          Latest
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                      {new Date(log.date).toLocaleDateString("en-GB", { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                                      {log.time_logged && ` • ${new Date(log.time_logged).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  {nextLog && (
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                      diff > 0 ? "bg-rose-500/10 text-rose-500" : diff < 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)]"
+                                    }`}>
+                                      {diff > 0 ? <TrendingUp size={12} /> : diff < 0 ? <TrendingDown size={12} /> : null}
+                                      {diff > 0 ? `+${diff.toFixed(1)} kg` : diff < 0 ? `${diff.toFixed(1)} kg` : "0.0 kg"}
+                                    </span>
+                                  )}
+                                  {profile?.height_cm && (
+                                    <span className="text-xs px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-muted)]">
+                                      BMI: {(log.weight_kg / ((profile.height_cm / 100) ** 2)).toFixed(1)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-12 text-center text-[var(--color-text-muted)]">
+                          <Scale size={32} className="mx-auto mb-2 opacity-40" />
+                          <p className="font-medium">No weight logs recorded{weightDateFilter ? ` for ${weightDateFilter}` : ""}.</p>
+                          {weightDateFilter && (
+                            <button
+                              type="button"
+                              onClick={() => setWeightDateFilter("")}
+                              className="mt-3 text-xs text-[var(--color-primary)] underline"
+                            >
+                              Show all dates
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Diet plan tab is unchanged logically but will benefit from the overall aesthetic updates */}
                 {activeTab === "diet" && (
                   <div className="space-y-6">
@@ -4155,6 +5149,139 @@ const PatientDetailsPage = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── DIET PLAN TARGET MEALS MODAL POPUP ── */}
+      {targetMealsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setTargetMealsModal(null)}
+        >
+          <div
+            className="relative w-full max-w-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-[var(--color-border-default)] flex items-center justify-between bg-[var(--color-bg-app)]">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-orange-500/15 text-orange-500 shrink-0">
+                  <Utensils size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                      Diet Plan Target Meals
+                    </h3>
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/25">
+                      {targetMealsModal.target.planLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    Prescribed meal schedule & target portions for {targetMealsModal.date}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTargetMealsModal(null)}
+                className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-surface)] transition-colors"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Target & Consumed Summary Bar */}
+            <div className="p-4 bg-gradient-to-r from-orange-500/10 via-cyan-500/5 to-transparent border-b border-[var(--color-border-default)] flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-1.5">
+                  <Flame size={16} className="text-orange-500 shrink-0" />
+                  <span className="text-[var(--color-text-muted)]">Calories:</span>
+                  <span className="font-bold text-sm text-[var(--color-text-strong)]">
+                    {targetMealsModal.consumedCalories} kcal
+                  </span>
+                  <span className="text-[var(--color-text-muted)]">/</span>
+                  <span className="font-bold text-sm text-orange-600 dark:text-orange-400">
+                    {targetMealsModal.target.calories} kcal
+                  </span>
+                  <span className="ml-1 px-2 py-0.5 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] font-semibold text-[11px] text-[var(--color-text-strong)]">
+                    {Math.round((targetMealsModal.consumedCalories / (targetMealsModal.target.calories || 1)) * 100)}%
+                  </span>
+                </div>
+
+                {targetMealsModal.waterTargetMl > 0 && (
+                  <div className="flex items-center gap-1.5 sm:pl-3 sm:border-l sm:border-[var(--color-border-default)]">
+                    <Droplets size={16} className="text-cyan-500 shrink-0" />
+                    <span className="text-[var(--color-text-muted)]">Water:</span>
+                    <span className="font-bold text-sm text-[var(--color-text-strong)]">
+                      {targetMealsModal.waterTargetMl >= 1000
+                        ? `${((targetMealsModal.consumedWaterMl || 0) / 1000).toFixed(1)}`
+                        : `${targetMealsModal.consumedWaterMl || 0}`}
+                    </span>
+                    <span className="text-[var(--color-text-muted)]">/</span>
+                    <span className="font-bold text-sm text-cyan-600 dark:text-cyan-400">
+                      {targetMealsModal.waterTargetMl >= 1000
+                        ? `${(targetMealsModal.waterTargetMl / 1000).toFixed(1)} L`
+                        : `${targetMealsModal.waterTargetMl} ml`}
+                    </span>
+                    <span className="ml-1 px-2 py-0.5 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] font-semibold text-[11px] text-[var(--color-text-strong)]">
+                      {Math.round(((targetMealsModal.consumedWaterMl || 0) / targetMealsModal.waterTargetMl) * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="text-[11px] text-[var(--color-text-muted)] font-medium">
+                Target Macros: <strong className="text-[var(--color-text-strong)]">{targetMealsModal.target.protein}g Protein</strong> • <strong className="text-[var(--color-text-strong)]">{targetMealsModal.target.carbs}g Carbs</strong> • <strong className="text-[var(--color-text-strong)]">{targetMealsModal.target.fats}g Fats</strong>
+              </div>
+            </div>
+
+            {/* Planned Meals Cards List */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {targetMealsModal.target.plannedMeals.map((pm, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm hover:border-[var(--color-primary)]/40 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 px-2.5 py-0.5 rounded-full ${
+                        mealTypeStyles[pm.slot?.toLowerCase().replace(/ /g, "-")] || "text-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                      }`}>
+                        {mealTypeIcons[pm.slot?.toLowerCase().replace(/ /g, "-")] || <Utensils size={12} />}
+                        {pm.slot}
+                      </span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                        {pm.calories} kcal
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-[var(--color-text-strong)] mb-1">
+                      {pm.food_name}
+                    </p>
+                    {pm.quantity && (
+                      <p className="text-xs text-[var(--color-text-muted)] mb-2">
+                        Qty: <strong className="text-[var(--color-text-default)] font-normal">{pm.quantity}</strong>
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 text-xs pt-2 border-t border-[var(--color-border-default)]/60 text-[var(--color-text-muted)]">
+                      <span>Protein: <strong className="text-[var(--color-text-strong)]">{pm.protein}g</strong></span>
+                      <span>Carbs: <strong className="text-[var(--color-text-strong)]">{pm.carbs}g</strong></span>
+                      <span>Fats: <strong className="text-[var(--color-text-strong)]">{pm.fats}g</strong></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 px-5 border-t border-[var(--color-border-default)] bg-[var(--color-bg-app)] flex justify-end">
+              <button
+                onClick={() => setTargetMealsModal(null)}
+                className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-bold hover:bg-[var(--color-primary-hover)] transition-colors shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <QuickTools
         onOpenAssistant={handleOpenAssistant}

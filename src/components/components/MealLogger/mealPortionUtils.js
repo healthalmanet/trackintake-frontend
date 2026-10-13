@@ -2,9 +2,9 @@
 
 export const UNIT_HINTS = {
   // Mass & Volume
-  "gram": "exact g", "grams": "exact g", "g": "exact g", "gm": "exact g", "gms": "exact g",
-  "milliliter": "exact ml", "milliliters": "exact ml", "ml": "exact ml", "mls": "exact ml",
-  "millilitre": "exact ml", "millilitres": "exact ml",
+  "gram": "", "grams": "", "g": "", "gm": "", "gms": "",
+  "milliliter": "", "milliliters": "", "ml": "", "mls": "",
+  "millilitre": "", "millilitres": "",
   "kilogram": "1000g", "kilograms": "1000g", "kg": "1000g", "kgs": "1000g",
   "liter": "1000ml", "liters": "1000ml", "l": "1000ml", "litre": "1000ml", "litres": "1000ml",
   // Bowls
@@ -54,8 +54,8 @@ export const UNIT_GROUPS = [
   {
     label: "Exact Weight / Volume",
     units: [
-      { name: "Gram", hint: "exact g" },
-      { name: "Milliliter", hint: "exact ml" },
+      { name: "Gram", hint: "" },
+      { name: "Milliliter", hint: "" },
       { name: "Kilogram", hint: "1000g" },
       { name: "Liter", hint: "1000ml" },
     ],
@@ -211,7 +211,7 @@ export const getUnitHint = (unit) => {
  */
 export const formatMealPortion = (meal) => {
   if (!meal) return "";
-  const qty = Number(meal.quantity != null ? meal.quantity : 1);
+  const qty = parseFloat(meal.quantity) > 0 ? parseFloat(meal.quantity) : 1;
   const rawUnit = (meal.unit || "Bowl").trim();
   const unitLower = rawUnit.toLowerCase();
 
@@ -271,12 +271,16 @@ export const computeEstimate = (item) => {
   const metricUnit = isLiquid ? "ml" : "g";
 
   let effectiveG = null;
+  let isExact = false;
   if (exact_grams && parseFloat(exact_grams) > 0) {
     effectiveG = parseFloat(exact_grams);
+    isExact = true;
   } else if (exact_ml && parseFloat(exact_ml) > 0) {
     effectiveG = parseFloat(exact_ml);
+    isExact = true;
   } else if (MASS_UNITS[unitKey] != null) {
     effectiveG = qty * MASS_UNITS[unitKey];
+    isExact = true;
   } else if (SERVING_GRAMS[unitKey] != null) {
     effectiveG = qty * SERVING_GRAMS[unitKey];
   } else if (gramEquivalent && parseFloat(gramEquivalent) > 0) {
@@ -288,19 +292,12 @@ export const computeEstimate = (item) => {
   }
 
   const roundedG = Math.round(effectiveG);
-  let kcal = null;
-  let factor = 1;
-
-  if (caloriesPerServing && gramEquivalent && parseFloat(gramEquivalent) > 0) {
-    factor = effectiveG / parseFloat(gramEquivalent);
-    kcal = Math.round(parseFloat(caloriesPerServing) * factor);
-  }
+  const prefix = isExact ? "" : "~";
 
   return {
-    kcal,
     effectiveG: roundedG,
-    factor,
     metricUnit,
-    display: `${roundedG}${metricUnit}`,
+    isExact,
+    display: `${prefix}${roundedG}${metricUnit}`,
   };
 };

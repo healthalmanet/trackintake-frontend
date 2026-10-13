@@ -24,7 +24,8 @@ import {
   ChevronDown,
   ExternalLink,
   Camera,
-  Sparkles
+  Sparkles,
+  Eye
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import FoodAutocompleteInput from "./FoodAutocompleteInput";
@@ -50,42 +51,44 @@ const UnitDropdown = ({ value, onChange }) => {
   const currentHint = getUnitHint(value);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
         className={`flex items-center justify-between gap-1.5 bg-[var(--color-bg-app)] border-2 rounded-lg px-2.5 py-2 text-sm focus:outline-none transition-colors ${
           open ? "border-[var(--color-primary)]" : "border-[var(--color-border-default)]"
         }`}
-        style={{ minWidth: "125px" }}
+        style={{ minWidth: "150px" }}
       >
-        <span className={value ? "text-[var(--color-text-strong)] font-semibold truncate" : "text-[var(--color-text-muted)]"}>
-          {value ? (
-            <span className="flex items-center gap-1 truncate">
-              <span>{value}</span>
-              {currentHint && (
-                <span className="text-[11px] text-[var(--color-text-muted)] font-normal">
-                  ({currentHint})
-                </span>
-              )}
+        {value ? (
+          <span className="flex items-center justify-between gap-1.5 min-w-0 flex-1">
+            <span className="text-[var(--color-text-strong)] font-semibold truncate text-sm">
+              {value}
             </span>
-          ) : (
-            "Select Unit"
-          )}
-        </span>
-        <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {currentHint && (
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-[var(--color-primary-subtle)] text-[var(--color-primary)] shrink-0 whitespace-nowrap">
+                {currentHint}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-[var(--color-text-muted)] text-sm truncate">
+            Select Unit
+          </span>
+        )}
+        <svg className={`w-3.5 h-3.5 ml-1 shrink-0 transition-transform text-[var(--color-text-muted)] ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
         <div
-          className="absolute z-50 left-0 mt-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl overflow-hidden"
-          style={{ minWidth: "190px", maxHeight: "280px", overflowY: "auto" }}
+          className="absolute z-50 right-0 mt-1.5 w-max min-w-full max-w-[calc(100vw-2rem)] sm:min-w-[240px] bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl overflow-hidden"
+          style={{ maxHeight: "300px", overflowY: "auto" }}
         >
           {UNIT_GROUPS.map(({ label, units }) => (
             <div key={label}>
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] bg-[var(--color-bg-app)] sticky top-0 border-b border-[var(--color-border-default)]/40">
+              <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] bg-[var(--color-bg-app)] sticky top-0 border-b border-[var(--color-border-default)]/40 z-10">
                 {label}
               </div>
               {units.map((u) => {
@@ -96,16 +99,18 @@ const UnitDropdown = ({ value, onChange }) => {
                     key={u.name}
                     type="button"
                     onClick={() => { onChange(u.name); setOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2 text-xs transition-colors ${
+                    className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 text-xs transition-colors ${
                       isSelected
                         ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-semibold"
                         : "text-[var(--color-text-default)] hover:bg-[var(--color-bg-app)]"
                     }`}
                   >
-                    <span>{u.name}</span>
+                    <span className="font-medium text-left truncate">{u.name}</span>
                     {hint && (
-                      <span className={`text-[11px] font-medium ml-2 ${
-                        isSelected ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap ${
+                        isSelected
+                          ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)]"
+                          : "bg-[var(--color-bg-app)] text-[var(--color-primary)] border border-[var(--color-primary)]/20"
                       }`}>
                         {hint}
                       </span>
@@ -249,13 +254,15 @@ const QuickMealLogger = ({ onMealLogged }) => {
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
 
   const [openMeals, setOpenMeals] = useState({});
+  const [expandedMealIds, setExpandedMealIds] = useState({});
 
   const toggleMeal = (type) => {
     setOpenMeals(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
-
-
+  const toggleMealDetail = (id) => {
+    setExpandedMealIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   useEffect(() => {
     setCategoryCurrentPage(1);
@@ -273,18 +280,153 @@ const QuickMealLogger = ({ onMealLogged }) => {
     return { pageItems, currentPage: categoryCurrentPage, totalPages, totalItems };
   }, [activeMealType, loggedMeals, groupedMeals, categoryCurrentPage]);
 
-  const tooltipVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15 } },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: {
-        duration: 0.2,
-        ease: "easeOut",
-        staggerChildren: 0.04,
-      },
-    },
+  const renderMealItem = (meal, style) => {
+    const isDetailOpen = Boolean(expandedMealIds[meal.id]);
+    return (
+      <motion.li
+        key={meal.id}
+        layout
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+        className={`flex flex-col p-3 rounded-xl border-2 shadow-sm transition-all duration-300 ease-in-out hover:shadow-md ${style.border || "border-[var(--color-border-default)]"} bg-[var(--color-bg-surface)]`}
+      >
+        <div className="flex items-center gap-3 w-full">
+          <div className={`p-2.5 rounded-full text-lg shrink-0 ${style.bg || "bg-[var(--color-primary-subtle)]"} ${style.iconColor || "text-[var(--color-primary)]"}`}>
+            <FaUtensils />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <p className="font-semibold text-[var(--color-text-strong)] text-sm sm:text-base truncate">
+                {meal.food_name_display}
+              </p>
+              {formatMealPortion(meal) && (
+                <span className="text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                  {formatMealPortion(meal)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span className="capitalize font-medium text-[var(--color-text-default)]">{meal.meal_type || "Meal"}</span>
+              {meal.consumed_at && (
+                <>
+                  <span>•</span>
+                  <span>{new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </>
+              )}
+              {meal.calories != null && (
+                <>
+                  <span>•</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{Math.round(meal.calories)} kcal</span>
+                </>
+              )}
+            </p>
+            {meal.remarks && (
+              <p className="text-xs italic text-[var(--color-primary)] mt-1 truncate">
+                "{meal.remarks}"
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <button
+              type="button"
+              onClick={() => toggleMealDetail(meal.id)}
+              className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
+                isDetailOpen
+                  ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)] shadow-sm"
+                  : "text-[var(--color-primary)] bg-[var(--color-primary-subtle)] border-[var(--color-primary)]/20 hover:border-[var(--color-primary)]"
+              }`}
+              title={isDetailOpen ? "Hide Details" : "View in Detail"}
+            >
+              <Eye size={13} />
+              <span>{isDetailOpen ? "Hide" : "Details"}</span>
+              <ChevronDown size={13} className={`transition-transform duration-200 ${isDetailOpen ? "rotate-180" : ""}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleEditMeal(meal)}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] hover:bg-[var(--color-info-bg)]/20 border border-[var(--color-info-text)]/20 transition-all shadow-sm"
+              title="Edit Meal"
+            >
+              <FilePenLine size={13} />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteMeal(meal.id)}
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors p-1.5 rounded-lg hover:bg-[var(--color-danger-bg-subtle)]"
+              title="Remove Meal"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* Dropdown details accordion */}
+        <AnimatePresence>
+          {isDetailOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="w-full mt-3 pt-3 border-t border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-app)]/80 p-3 rounded-xl space-y-2.5 overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border-default)]/60">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
+                    <Flame size={16} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block">Total Calories</span>
+                    <span className="text-base font-extrabold text-[var(--color-text-strong)]">
+                      {Math.round(meal.calories || 0)} <span className="text-xs font-normal text-[var(--color-text-muted)]">kcal</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block">Portion / Weight</span>
+                  <span className="font-semibold text-xs text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2 py-0.5 rounded-md inline-block">
+                    {formatMealPortion(meal)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 text-center text-xs">
+                <div className="bg-[var(--color-bg-surface)] p-1.5 rounded-lg border border-[var(--color-border-default)]">
+                  <span className="text-[10px] text-[var(--color-text-muted)] block font-medium">Protein</span>
+                  <span className="font-bold text-[var(--color-info-text)]">{meal.protein ?? 0}g</span>
+                </div>
+                <div className="bg-[var(--color-bg-surface)] p-1.5 rounded-lg border border-[var(--color-border-default)]">
+                  <span className="text-[10px] text-[var(--color-text-muted)] block font-medium">Carbs</span>
+                  <span className="font-bold text-[var(--color-success-text)]">{meal.carbs ?? 0}g</span>
+                </div>
+                <div className="bg-[var(--color-bg-surface)] p-1.5 rounded-lg border border-[var(--color-border-default)]">
+                  <span className="text-[10px] text-[var(--color-text-muted)] block font-medium">Fats</span>
+                  <span className="font-bold text-[var(--color-accent-3-text)]">{meal.fats ?? 0}g</span>
+                </div>
+                <div className="bg-[var(--color-bg-surface)] p-1.5 rounded-lg border border-[var(--color-border-default)]">
+                  <span className="text-[10px] text-[var(--color-text-muted)] block font-medium">Sugar</span>
+                  <span className="font-bold text-[var(--color-text-strong)]">{meal.sugar ?? 0}g</span>
+                </div>
+                <div className="bg-[var(--color-bg-surface)] p-1.5 rounded-lg border border-[var(--color-border-default)]">
+                  <span className="text-[10px] text-[var(--color-text-muted)] block font-medium">Fiber</span>
+                  <span className="font-bold text-[var(--color-text-strong)]">{meal.fiber ?? 0}g</span>
+                </div>
+              </div>
+
+              {meal.remarks && (
+                <div className="text-xs text-[var(--color-text-default)] bg-[var(--color-bg-surface)] p-2 rounded-lg border-l-2 border-[var(--color-primary)] italic">
+                  <span className="font-semibold text-[var(--color-text-strong)] not-italic">Remarks: </span>
+                  {meal.remarks}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.li>
+    );
   };
 
   return (
@@ -324,6 +466,23 @@ const QuickMealLogger = ({ onMealLogged }) => {
                 </button>
               )}
             </div>
+
+            {/* Editing Meal Alert Banner */}
+            {editingMeal && (
+              <div className="mb-4 p-3.5 rounded-xl bg-[var(--color-primary-subtle)] border border-[var(--color-primary)]/30 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-[var(--color-primary)] font-semibold min-w-0">
+                  <FilePenLine size={16} className="shrink-0" />
+                  <span className="truncate">Editing Meal: <strong className="text-[var(--color-text-strong)]">{editingMeal.food_name_display || editingMeal.food_name || "Selected Item"}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] font-semibold flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] transition-colors"
+                >
+                  <X size={12} /> Cancel
+                </button>
+              </div>
+            )}
 
             {/* Quick Re-log chips from recent meals */}
             {!editingMeal && recentMeals && recentMeals.length > 0 && (
@@ -396,14 +555,8 @@ const QuickMealLogger = ({ onMealLogged }) => {
                       const est = computeEstimate(item);
                       if (!est || !est.effectiveG) return null;
                       return (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border border-[var(--color-primary)]/20 shadow-sm">
-                          <span>~{est.effectiveG}{est.metricUnit}</span>
-                          {est.kcal != null && (
-                            <>
-                              <span>•</span>
-                              <span>~{est.kcal} kcal</span>
-                            </>
-                          )}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border border-[var(--color-primary)]/20 shadow-sm shrink-0 whitespace-nowrap">
+                          <span>{est.display || `${est.isExact ? "" : "~"}${est.effectiveG}${est.metricUnit}`}</span>
                         </span>
                       );
                     })()}
@@ -504,14 +657,32 @@ const QuickMealLogger = ({ onMealLogged }) => {
                 )}
               </div>
             )}
-            <div className="flex justify-center gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
               {editingMeal && (
-                <button type="button" onClick={cancelEdit} className="w-full sm:w-2/5 bg-transparent border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] px-6 py-3 rounded-full text-lg font-bold font-[var(--font-primary)] transition-all duration-300 flex items-center justify-center gap-2">
-                  <X size={20} /> Cancel
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="w-full sm:w-1/3 bg-[var(--color-bg-app)] hover:bg-[var(--color-bg-interactive-subtle)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] px-5 py-3 rounded-xl text-base font-semibold font-[var(--font-primary)] transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <X size={18} /> Cancel
                 </button>
               )}
-              <button type="submit" disabled={isSubmitting} className={`w-full ${editingMeal ? "sm:w-3/5" : ""} ${editingMeal ? "bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)]" : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)]"} px-6 py-3 rounded-full text-lg font-bold font-[var(--font-primary)] transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}>
-                {isSubmitting ? (<span className="flex items-center justify-center gap-2"><Loader className="animate-spin" />{editingMeal ? "Updating..." : "Logging..."}</span>) : (<span className="flex items-center justify-center gap-2">{editingMeal ? <FilePenLine /> : <Plus />}{editingMeal ? "Update Meal" : "Log Meal(s)"}</span>)}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full ${editingMeal ? "sm:flex-1 bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25" : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] shadow-[var(--color-primary)]/25"} px-6 py-3 rounded-xl text-base font-bold font-[var(--font-primary)] transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader className="animate-spin" size={18} />
+                    <span>{editingMeal ? "Updating Meal..." : "Logging Meal..."}</span>
+                  </>
+                ) : (
+                  <>
+                    {editingMeal ? <FilePenLine size={18} /> : <Plus size={18} />}
+                    <span>{editingMeal ? "Update Meal" : "Log Meal(s)"}</span>
+                  </>
+                )}
               </button>
             </div>
           </motion.form>
@@ -587,75 +758,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
                                         exit={{ opacity: 0, height: 0 }}
                                         className="p-2 space-y-2"
                                       >
-                                        {mealsInGroup.map((meal) => (
-                                          <motion.li
-                                            key={meal.id}
-                                            initial="hidden"
-                                            whileHover="visible"
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                                            layout
-                                            className={`group flex items-center gap-4 p-3 rounded-lg border-2 shadow-sm relative transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-px ${style.border || "border-[var(--color-border-default)]"
-                                              }`}
-                                            style={{ zIndex: 0 }}
-                                            onMouseEnter={(e) => (e.currentTarget.style.zIndex = 10)}
-                                            onMouseLeave={(e) => (e.currentTarget.style.zIndex = 0)}
-                                          >
-                                            <div className={`p-3 rounded-full text-xl transition-transform group-hover:scale-110 ${style.bg} ${style.iconColor}`}>
-                                              <FaUtensils />
-                                            </div>
-                                            <div className="flex-1 truncate">
-                                              <p className="font-semibold text-[var(--color-text-strong)] text-base truncate">{meal.food_name_display}</p>
-                                              <p className="text-sm text-[var(--color-text-default)] capitalize">
-                                                {meal.meal_type || "Meal"} • {formatMealPortion(meal)}
-                                                {meal.consumed_at && (
-                                                  <span className="text-[var(--color-text-muted)]">
-                                                    {' • '}{new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                  </span>
-                                                )}
-                                              </p>
-                                              {meal.remarks && (
-                                                <p className="text-sm italic text-[var(--color-primary)] mt-1 truncate">"{meal.remarks}"</p>
-                                              )}
-                                            </div>
-
-                                            <motion.div
-                                              variants={tooltipVariants}
-                                              className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 p-4 bg-[var(--color-warning-bg-subtle)] backdrop-blur-sm border border-[var(--color-border-default)] rounded-xl shadow-2xl z-20 pointer-events-none"
-                                            >
-                                              <motion.div variants={{ visible: { transition: { staggerChildren: 0.04 } } }}>
-                                                <div className="flex items-baseline justify-between pb-2 mb-2 border-b border-dashed border-[var(--color-border-default)]">
-                                                  <div className="flex items-center gap-2">
-                                                    <Flame size={18} className="text-[var(--color-warning-text)]" />
-                                                    <div>
-                                                      <h4 className="font-bold text-base text-[var(--color-text-strong)] leading-tight">Calories</h4>
-                                                      <span className="text-[11px] text-[var(--color-text-muted)] font-normal">{formatMealPortion(meal)}</span>
-                                                    </div>
-                                                  </div>
-                                                  <p className="font-extrabold text-2xl text-[var(--color-warning-text)]">
-                                                    {parseFloat(meal.calories).toFixed(0) || 0}
-                                                    <span className="text-sm font-medium text-[var(--color-text-muted)] ml-1">kcal</span>
-                                                  </p>
-                                                </div>
-                                                <NutrientDetail icon={Beef} label="Protein" value={meal.protein} unit="g" colorClass="text-[var(--color-info-text)]" />
-                                                <NutrientDetail icon={Wheat} label="Carbs" value={meal.carbs} unit="g" colorClass="text-[var(--color-success-text)]" />
-                                                <NutrientDetail icon={Droplet} label="Fats" value={meal.fats} unit="g" colorClass="text-[var(--color-accent-3-text)]" />
-                                                <hr className="my-1.5 border-dashed border-[var(--color-border-default)]/50" />
-                                                <NutrientDetail icon={Candy} label="Sugar" value={meal.sugar} unit="g" />
-                                                <NutrientDetail icon={Leaf} label="Fiber" value={meal.fiber} unit="g" />
-                                              </motion.div>
-                                            </motion.div>
-
-                                            <div className="text-right flex items-center gap-6">
-                                              <button onClick={() => handleEditMeal(meal)} className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors p-1 rounded-full hover:bg-[var(--color-primary-bg-subtle)]" title="Edit">
-                                                <FilePenLine size={16} />
-                                              </button>
-                                              <button onClick={() => handleDeleteMeal(meal.id)} className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors p-1 rounded-full hover:bg-[var(--color-danger-bg-subtle)]" title="Remove">
-                                                <Trash2 size={16} />
-                                              </button>
-                                            </div>
-                                          </motion.li>
-                                        ))}
+                                        {mealsInGroup.map((meal) => renderMealItem(meal, style))}
                                       </motion.ul>
                                     )}
                                   </AnimatePresence>
@@ -669,95 +772,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
                           <ul className="space-y-3">
                             {currentViewData.pageItems.map((meal) => {
                               const style = mealTypeStyles[meal.meal_type?.toLowerCase().trim()] || {};
-                              return (
-                                <motion.li
-                                  key={meal.id}
-                                  initial="hidden"
-                                  whileHover="visible"
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                                  layout
-                                  className={`group flex items-center gap-4 p-3 rounded-lg border-2 shadow-sm relative transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-px ${style.border || "border-[var(--color-border-default)]"
-                                    }`}
-                                >
-                                  <div
-                                    className={`p-3 rounded-full text-xl transition-transform group-hover:scale-110 ${style.bg} ${style.iconColor}`}
-                                  >
-                                    <FaUtensils />
-                                  </div>
-                                  <div className="flex-1 truncate">
-                                    <p className="font-semibold text-[var(--color-text-strong)] text-base truncate">
-                                      {meal.food_name_display}
-                                    </p>
-                                    <p className="text-sm text-[var(--color-text-default)] capitalize">
-                                      {meal.meal_type || "Meal"} • {formatMealPortion(meal)}
-                                      {/* --- MODIFICATION START --- */}
-                                      {/* Add the consumed time */}
-                                      {meal.consumed_at && (
-                                        <span className="text-[var(--color-text-muted)]">
-                                          {' • '}
-                                          {new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                      )}
-                                      {/* --- MODIFICATION END --- */}
-                                    </p>
-                                    {/* --- MODIFICATION START --- */}
-                                    {/* Conditionally render the remarks if they exist */}
-                                    {meal.remarks && (
-                                      <p className="text-sm italic text-[var(--color-primary)] mt-1 truncate">
-                                        "{meal.remarks}"
-                                      </p>
-                                    )}
-                                    {/* --- MODIFICATION END --- */}
-                                  </div>
-
-                                  <motion.div
-                                    variants={tooltipVariants}
-                                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 p-4 bg-[var(--color-warning-bg-subtle)] backdrop-blur-sm border border-[var(--color-border-default)] rounded-xl shadow-2xl z-20 pointer-events-none"
-                                  >
-                                    <motion.div
-                                      variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-                                    >
-                                      <div className="flex items-baseline justify-between pb-2 mb-2 border-b border-dashed border-[var(--color-border-default)]">
-                                        <div className="flex items-center gap-2">
-                                          <Flame size={18} className="text-[var(--color-warning-text)]" />
-                                          <h4 className="font-bold text-base text-[var(--color-text-strong)]">
-                                            Calories
-                                          </h4>
-                                        </div>
-                                        <p className="font-extrabold text-2xl text-[var(--color-warning-text)]">
-                                          {parseFloat(meal.calories).toFixed(0) || 0}
-                                          <span className="text-sm font-medium text-[var(--color-text-muted)] ml-1">
-                                            kcal
-                                          </span>
-                                        </p>
-                                      </div>
-                                      <NutrientDetail icon={Beef} label="Protein" value={meal.protein} unit="g" colorClass="text-[var(--color-info-text)]" />
-                                      <NutrientDetail icon={Wheat} label="Carbs" value={meal.carbs} unit="g" colorClass="text-[var(--color-success-text)]" />
-                                      <NutrientDetail icon={Droplet} label="Fats" value={meal.fats} unit="g" colorClass="text-[var(--color-accent-3-text)]" />
-                                      <hr className="my-1.5 border-dashed border-[var(--color-border-default)]/50" />
-                                      <NutrientDetail icon={Candy} label="Sugar" value={meal.sugar} unit="g" />
-                                      <NutrientDetail icon={Leaf} label="Fiber" value={meal.fiber} unit="g" />
-                                    </motion.div>
-                                  </motion.div>
-                                  <div className="text-right flex items-center gap-6">
-                                    <button
-                                      onClick={() => handleEditMeal(meal)}
-                                      className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors p-1 rounded-full hover:bg-[var(--color-primary-bg-subtle)]"
-                                      title="Edit"
-                                    >
-                                      <FilePenLine size={16} />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteMeal(meal.id)}
-                                      className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors p-1 rounded-full hover:bg-[var(--color-danger-bg-subtle)]"
-                                      title="Remove"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
-                                </motion.li>
-                              );
+                              return renderMealItem(meal, style);
                             })}
                           </ul>)
                       ) : (

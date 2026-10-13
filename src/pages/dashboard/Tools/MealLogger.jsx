@@ -58,41 +58,43 @@ const UnitDropdown = ({ value, onChange }) => {
   const currentHint = getUnitHint(value);
 
   return (
-    <div ref={ref} className="relative w-full">
+    <div ref={ref} className="relative w-full min-w-0">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center justify-between bg-[var(--color-bg-app)] border-2 rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none transition-colors text-sm font-medium ${
+        className={`w-full flex items-center justify-between gap-1.5 bg-[var(--color-bg-app)] border-2 rounded-lg px-2.5 py-2.5 text-[var(--color-text-default)] focus:outline-none transition-colors text-sm font-medium ${
           open ? "border-[var(--color-primary)]" : "border-[var(--color-border-default)]"
         }`}
       >
-        <span className={value ? "text-[var(--color-text-strong)] font-semibold truncate" : "text-[var(--color-text-muted)]"}>
-          {value ? (
-            <span className="flex items-center gap-1.5 truncate">
-              <span>{value}</span>
-              {currentHint && (
-                <span className="text-xs text-[var(--color-text-muted)] font-normal">
-                  ({currentHint})
-                </span>
-              )}
+        {value ? (
+          <span className="flex items-center justify-between gap-1.5 min-w-0 flex-1">
+            <span className="text-[var(--color-text-strong)] font-semibold truncate text-sm">
+              {value}
             </span>
-          ) : (
-            "Select Unit"
-          )}
-        </span>
-        <svg className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {currentHint && (
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-[var(--color-primary-subtle)] text-[var(--color-primary)] shrink-0 whitespace-nowrap">
+                {currentHint}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-[var(--color-text-muted)] text-sm truncate">
+            Select Unit
+          </span>
+        )}
+        <svg className={`w-4 h-4 ml-1 shrink-0 transition-transform text-[var(--color-text-muted)] ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
         <div
-          className="absolute z-50 left-0 w-full mt-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl overflow-hidden"
-          style={{ minWidth: "190px", maxHeight: "280px", overflowY: "auto" }}
+          className="absolute z-50 right-0 mt-1.5 w-max min-w-full max-w-[calc(100vw-2rem)] sm:min-w-[240px] bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-2xl overflow-hidden"
+          style={{ maxHeight: "300px", overflowY: "auto" }}
         >
           {UNIT_GROUPS.map(({ label, units }) => (
             <div key={label}>
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] bg-[var(--color-bg-app)] sticky top-0 border-b border-[var(--color-border-default)]/40">
+              <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] bg-[var(--color-bg-app)] sticky top-0 border-b border-[var(--color-border-default)]/40 z-10">
                 {label}
               </div>
               {units.map((u) => {
@@ -103,16 +105,18 @@ const UnitDropdown = ({ value, onChange }) => {
                     key={u.name}
                     type="button"
                     onClick={() => { onChange(u.name); setOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2 text-xs transition-colors ${
+                    className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 text-xs transition-colors ${
                       isSelected
                         ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-semibold"
                         : "text-[var(--color-text-default)] hover:bg-[var(--color-bg-app)]"
                     }`}
                   >
-                    <span>{u.name}</span>
+                    <span className="font-medium text-left truncate">{u.name}</span>
                     {hint && (
-                      <span className={`text-[11px] font-medium ml-2 ${
-                        isSelected ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap ${
+                        isSelected
+                          ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)]"
+                          : "bg-[var(--color-bg-app)] text-[var(--color-primary)] border border-[var(--color-primary)]/20"
                       }`}>
                         {hint}
                       </span>
@@ -487,15 +491,19 @@ const MealLogger = () => {
                                          transition-all duration-300 ease-in-out"
                             >
                               {/* Food Name & Time */}
-                              <div className="flex justify-between items-start">
-                                <span className="font-semibold text-[var(--color-text-strong)] text-base md:text-lg">
-                                  {item.food_name_display}
-                                  <span className="ml-2 font-normal text-[var(--color-text-muted)] text-sm">
-                                    • {formatMealPortion(item)}
+                              <div className="flex justify-between items-start gap-3">
+                                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
+                                  <span className="font-semibold text-[var(--color-text-strong)] text-base md:text-lg">
+                                    {item.food_name_display}
                                   </span>
-                                </span>
+                                  {formatMealPortion(item) && (
+                                    <span className="font-medium text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2.5 py-0.5 rounded-full text-xs shrink-0 whitespace-nowrap border border-[var(--color-primary)]/20">
+                                      {formatMealPortion(item)}
+                                    </span>
+                                  )}
+                                </div>
                                 {item.consumed_at && (
-                                  <span className="text-sm text-[var(--color-text-subtle)] whitespace-nowrap ml-4">
+                                  <span className="text-sm text-[var(--color-text-subtle)] whitespace-nowrap ml-4 shrink-0">
                                     {new Date(item.consumed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                   </span>
                                 )}
@@ -542,20 +550,23 @@ const MealLogger = () => {
                                 )}
                               </div>
                               {/* Action Buttons */}
-                              <div className="flex justify-end gap-2 mt-2">
+                              <div className="flex justify-end items-center gap-2 mt-2">
                                 <button
+                                  type="button"
                                   onClick={(e) => { e.stopPropagation(); handleEditMeal(item); }}
-                                  className="p-2 rounded-full text-[var(--color-info-text)] hover:bg-[var(--color-info-bg-subtle)] transition-colors"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] hover:bg-[var(--color-info-bg)]/20 border border-[var(--color-info-text)]/20 transition-all shadow-sm"
                                   title="Edit Meal"
                                 >
-                                  <FilePenLine size={18} />
+                                  <FilePenLine size={14} />
+                                  <span>Edit</span>
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={(e) => { e.stopPropagation(); handleDeleteMeal(item.id); }}
-                                  className="p-2 rounded-full text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] transition-colors"
+                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] border border-transparent hover:border-[var(--color-danger-border)] transition-colors"
                                   title="Delete Meal"
                                 >
-                                  <Trash2 size={18} />
+                                  <Trash2 size={14} />
                                 </button>
                               </div>
                             </motion.li>
@@ -581,36 +592,51 @@ const MealLogger = () => {
                     onClick={() => toggleIndividualMealItem(mealGroupOrItem.id)}
                   >
                     {/* Meal Item Header (Food Name and Time) */}
-                    <div className="flex justify-between items-center px-2 py-1">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full text-lg flex items-center justify-center
+                    <div className="flex justify-between items-center px-2 py-1 gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`p-2 rounded-full text-lg flex items-center justify-center shrink-0
                                             ${style.gradient} ${style.iconColor} shadow-sm`}>
                           {getMealIcon(mealGroupOrItem.meal_type)}
                         </div>
-                        <span className="font-primary font-bold text-[var(--color-text-strong)] text-lg tracking-wide">
-                          {mealGroupOrItem.food_name_display}
-                          <span className="ml-2 font-normal text-[var(--color-text-muted)] text-sm">
-                            • {formatMealPortion(mealGroupOrItem)}
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
+                          <span className="font-primary font-bold text-[var(--color-text-strong)] text-base sm:text-lg tracking-wide">
+                            {mealGroupOrItem.food_name_display}
                           </span>
-                        </span>
+                          {formatMealPortion(mealGroupOrItem) && (
+                            <span className="font-medium text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2.5 py-0.5 rounded-full text-xs shrink-0 whitespace-nowrap border border-[var(--color-primary)]/20">
+                              {formatMealPortion(mealGroupOrItem)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {mealGroupOrItem.consumed_at && (
-                        <span className="text-sm text-[var(--color-text-subtle)] whitespace-nowrap ml-4">
-                          {new Date(mealGroupOrItem.consumed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      )}
-                      <motion.svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2.5}
-                        stroke="currentColor"
-                        className="w-5 h-5 text-[var(--color-text-muted)] ml-auto"
-                        animate={{ rotate: isItemOpen ? 180 : 0 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                      </motion.svg>
+                      <div className="flex items-center gap-2 ml-auto shrink-0">
+                        {mealGroupOrItem.consumed_at && (
+                          <span className="text-sm text-[var(--color-text-subtle)] whitespace-nowrap hidden sm:inline mr-2">
+                            {new Date(mealGroupOrItem.consumed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleEditMeal(mealGroupOrItem); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] hover:bg-[var(--color-info-bg)]/20 border border-[var(--color-info-text)]/20 transition-all shadow-sm"
+                          title="Edit Meal"
+                        >
+                          <FilePenLine size={13} />
+                          <span>Edit</span>
+                        </button>
+                        <motion.svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2.5}
+                          stroke="currentColor"
+                          className="w-5 h-5 text-[var(--color-text-muted)] ml-1"
+                          animate={{ rotate: isItemOpen ? 180 : 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </motion.svg>
+                      </div>
                     </div>
 
                     {/* Collapsible Details */}
@@ -625,9 +651,12 @@ const MealLogger = () => {
                         >
                           <div className="flex flex-col gap-3 p-4 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-default)] shadow-sm">
                             {/* Quantity and Unit */}
-                            <p className="font-semibold text-[var(--color-text-strong)] text-base">
-                              {formatMealPortion(mealGroupOrItem)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[var(--color-text-muted)] font-medium">Portion / Weight:</span>
+                              <span className="font-semibold text-[var(--color-text-strong)] text-sm px-2.5 py-0.5 rounded-md bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
+                                {formatMealPortion(mealGroupOrItem)}
+                              </span>
+                            </div>
 
                             {/* Remarks (if any) */}
                             {mealGroupOrItem.remarks && (
@@ -670,20 +699,23 @@ const MealLogger = () => {
                               )}
                             </div>
                             {/* Action Buttons */}
-                            <div className="flex justify-end gap-2 mt-2">
+                            <div className="flex justify-end items-center gap-2 mt-2">
                               <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); handleEditMeal(mealGroupOrItem); }}
-                                className="p-2 rounded-full text-[var(--color-info-text)] hover:bg-[var(--color-info-bg-subtle)] transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] hover:bg-[var(--color-info-bg)]/20 border border-[var(--color-info-text)]/20 transition-all shadow-sm"
                                 title="Edit Meal"
                               >
-                                <FilePenLine size={18} />
+                                <FilePenLine size={14} />
+                                <span>Edit</span>
                               </button>
                               <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); handleDeleteMeal(mealGroupOrItem.id); }}
-                                className="p-2 rounded-full text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] transition-colors"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] border border-transparent hover:border-[var(--color-danger-border)] transition-colors"
                                 title="Delete Meal"
                               >
-                                <Trash2 size={18} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>
@@ -777,6 +809,22 @@ const MealLogger = () => {
                   </button>
                 )}
               </div>
+              {/* Editing Meal Alert Banner */}
+              {editingMeal && (
+                <div className="mb-4 mt-2 p-3.5 rounded-xl bg-[var(--color-primary-subtle)] border border-[var(--color-primary)]/30 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 text-[var(--color-primary)] font-semibold min-w-0">
+                    <FilePenLine size={16} className="shrink-0" />
+                    <span className="truncate">Editing Meal: <strong className="text-[var(--color-text-strong)]">{editingMeal.food_name_display || editingMeal.food_name || "Selected Item"}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] font-semibold flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] transition-colors"
+                  >
+                    <X size={12} /> Cancel
+                  </button>
+                </div>
+              )}
               {/* Quick Re-log Recent Chips */}
               {!editingMeal && recentMeals && recentMeals.length > 0 && (
                 <div className="mb-5 p-3 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)]">
@@ -836,7 +884,7 @@ const MealLogger = () => {
                             Food Name
                           </label>
                         </div>
-                        <div className="col-span-6 sm:col-span-3 relative">
+                        <div className="col-span-5 sm:col-span-2 relative">
                           <input
                             type="number"
                             value={input.quantity}
@@ -850,7 +898,7 @@ const MealLogger = () => {
                             Quantity
                           </label>
                         </div>
-                        <div className="col-span-6 sm:col-span-3 relative">
+                        <div className="col-span-7 sm:col-span-4 relative">
 
                           <UnitDropdown
                             value={input.unit}
@@ -873,14 +921,8 @@ const MealLogger = () => {
                             const est = computeEstimate(input);
                             if (!est || !est.effectiveG) return null;
                             return (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border border-[var(--color-primary)]/20 shadow-sm">
-                                <span>~{est.effectiveG}{est.metricUnit}</span>
-                                {est.kcal != null && (
-                                  <>
-                                    <span>•</span>
-                                    <span>~{est.kcal} kcal</span>
-                                  </>
-                                )}
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border border-[var(--color-primary)]/20 shadow-sm shrink-0 whitespace-nowrap">
+                                <span>{est.display || `${est.isExact ? "" : "~"}${est.effectiveG}${est.metricUnit}`}</span>
                               </span>
                             );
                           })()}
@@ -1034,23 +1076,29 @@ const MealLogger = () => {
                 </div>
                 <div className="flex gap-4 items-center">
                   {editingMeal ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
                       <button
                         type="button"
                         onClick={cancelEdit}
-                        className="w-full sm:w-auto bg-transparent border-2 border-[var(--color-border-default)] hover:bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-strong)] py-2 px-4 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                        className="bg-[var(--color-bg-app)] hover:bg-[var(--color-bg-interactive-subtle)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] py-2.5 px-5 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
                       >
                         <X size={16} /> Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full sm:w-40 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] py-2.5 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 disabled:transform-none disabled:shadow-md"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25 py-2.5 px-6 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 disabled:transform-none disabled:shadow-md"
                       >
                         {isSubmitting ? (
-                          <Loader className="animate-spin" />
+                          <>
+                            <Loader className="animate-spin" size={16} />
+                            <span>Updating...</span>
+                          </>
                         ) : (
-                          "Update Meal"
+                          <>
+                            <FilePenLine size={16} />
+                            <span>Update Meal</span>
+                          </>
                         )}
                       </button>
                     </div>
