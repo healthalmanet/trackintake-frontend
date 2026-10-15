@@ -23,8 +23,7 @@ import {
   Paperclip,
   Compass,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
+  Zap,
 } from "lucide-react";
 import InteractiveAppGuide from "./InteractiveAppGuide";
 import ReactMarkdown from "react-markdown";
@@ -113,101 +112,7 @@ export const FloatingQuickToolbox = ({
     }
   }, [initialTab]);
 
-  // ----------------------------------------------------------------------
-  // TABS SLIDER & SCROLL LOGIC
-  // ----------------------------------------------------------------------
-  const tabsScrollRef = useRef(null);
-  const tabRefs = {
-    chat: useRef(null),
-    assistant: useRef(null),
-    guide: useRef(null),
-    nutrition: useRef(null),
-  };
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const checkTabsScroll = useCallback(() => {
-    if (tabsScrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = tabsScrollRef.current;
-      setCanScrollLeft(scrollLeft > 4);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 4);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(checkTabsScroll, 120);
-    return () => clearTimeout(timer);
-  }, [isOpen, isExpanded, activeTab, checkTabsScroll]);
-
-  useEffect(() => {
-    const el = tabsScrollRef.current;
-    if (!el) return;
-    el.addEventListener("scroll", checkTabsScroll, { passive: true });
-    window.addEventListener("resize", checkTabsScroll);
-    return () => {
-      el.removeEventListener("scroll", checkTabsScroll);
-      window.removeEventListener("resize", checkTabsScroll);
-    };
-  }, [checkTabsScroll, isOpen]);
-
-  // Auto-scroll active tab into view whenever activeTab changes
-  useEffect(() => {
-    if (isOpen && tabRefs[activeTab]?.current) {
-      tabRefs[activeTab].current.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
-    }
-    const timer = setTimeout(checkTabsScroll, 200);
-    return () => clearTimeout(timer);
-  }, [activeTab, isOpen, checkTabsScroll]);
-
-  const slideTabs = (direction) => {
-    if (tabsScrollRef.current) {
-      const offset = direction === "left" ? -130 : 130;
-      tabsScrollRef.current.scrollBy({ left: offset, behavior: "smooth" });
-      setTimeout(checkTabsScroll, 250);
-    }
-  };
-
-  // Mouse wheel horizontal scroll handler
-  const handleTabsWheel = (e) => {
-    if (tabsScrollRef.current) {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        tabsScrollRef.current.scrollLeft += e.deltaY;
-        checkTabsScroll();
-      }
-    }
-  };
-
-  // Mouse drag-to-scroll support for desktop
-  const isDraggingTabs = useRef(false);
-  const dragStartX = useRef(0);
-  const dragScrollLeft = useRef(0);
-
-  const handleTabsMouseDown = (e) => {
-    if (e.button !== 0) return;
-    isDraggingTabs.current = true;
-    dragStartX.current = e.pageX - (tabsScrollRef.current?.offsetLeft || 0);
-    dragScrollLeft.current = tabsScrollRef.current?.scrollLeft || 0;
-  };
-
-  const handleTabsMouseMove = (e) => {
-    if (!isDraggingTabs.current || !tabsScrollRef.current) return;
-    const x = e.pageX - (tabsScrollRef.current?.offsetLeft || 0);
-    const walk = (x - dragStartX.current) * 1.3;
-    tabsScrollRef.current.scrollLeft = dragScrollLeft.current - walk;
-    checkTabsScroll();
-  };
-
-  const handleTabsMouseUp = () => {
-    isDraggingTabs.current = false;
-  };
-
-  const handleTabsMouseLeave = () => {
-    isDraggingTabs.current = false;
-  };
 
   // ----------------------------------------------------------------------
   // 1. CHAT / MESSAGES STATE & LOGIC
@@ -810,136 +715,47 @@ User question: "${userQuery}"`;
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[440px] h-[82vh] sm:h-[560px] max-h-[92vh] ${
-              isExpanded ? "sm:!w-[660px] sm:!h-[640px]" : ""
+            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[460px] h-[82vh] sm:h-[580px] max-h-[92vh] ${
+              isExpanded ? "sm:!w-[680px] sm:!h-[650px]" : ""
             }`}
           >
-            {/* Top Window Bar */}
-            <div className="p-2 sm:p-2.5 sm:px-3 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-1 select-none flex-shrink-0 w-full relative">
-              {/* Slidable Tool Tabs Container */}
-              <div className="relative flex-1 min-w-0 flex items-center overflow-hidden">
-                {/* Left Slide Button */}
-                {canScrollLeft && (
-                  <button
-                    type="button"
-                    onClick={() => slideTabs("left")}
-                    title="Slide left to see previous tools"
-                    aria-label="Slide tools left"
-                    className="absolute left-0 z-20 p-1 rounded-lg bg-[var(--color-bg-surface)]/95 shadow-md border border-[var(--color-border-default)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] transition-all cursor-pointer flex items-center justify-center shrink-0"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                )}
-
-                {/* Left fade gradient when scrollable */}
-                {canScrollLeft && (
-                  <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-[var(--color-bg-surface-alt)] to-transparent pointer-events-none z-10" />
-                )}
-
-                {/* Tabs Scrollable Track */}
-                <div
-                  ref={tabsScrollRef}
-                  onWheel={handleTabsWheel}
-                  onMouseDown={handleTabsMouseDown}
-                  onMouseMove={handleTabsMouseMove}
-                  onMouseUp={handleTabsMouseUp}
-                  onMouseLeave={handleTabsMouseLeave}
-                  className={`flex-1 min-w-0 overflow-x-auto no-scrollbar scroll-smooth flex items-center py-0.5 select-none cursor-grab active:cursor-grabbing ${
-                    canScrollLeft ? "pl-6" : ""
-                  } ${canScrollRight ? "pr-6" : ""}`}
-                >
-                  <div className="inline-flex items-center gap-1 bg-[var(--color-bg-app)] p-0.5 sm:p-1 rounded-2xl border border-[var(--color-border-default)] shrink-0">
-                    <button
-                      ref={tabRefs.chat}
-                      type="button"
-                      onClick={() => setActiveTab("chat")}
-                      title="Messages & Chat"
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                        activeTab === "chat"
-                          ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                    >
-                      <MessageSquare size={13} className="shrink-0" />
-                      <span>Chat</span>
-                    </button>
-
-                    <button
-                      ref={tabRefs.assistant}
-                      type="button"
-                      onClick={() => setActiveTab("assistant")}
-                      title="Clinical & AI Assistant"
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                        activeTab === "assistant"
-                          ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                    >
-                      <Bot size={13} className="shrink-0" />
-                      <span>Assistant</span>
-                    </button>
-
-                    <button
-                      ref={tabRefs.guide}
-                      type="button"
-                      onClick={() => setActiveTab("guide")}
-                      title="Interactive Feature Guide"
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                        activeTab === "guide"
-                          ? "bg-[var(--color-bg-surface)] text-indigo-600 shadow-xs border border-indigo-200"
-                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                    >
-                      <Compass size={13} className="shrink-0" />
-                      <span>Guide</span>
-                    </button>
-
-                    <button
-                      ref={tabRefs.nutrition}
-                      type="button"
-                      onClick={() => setActiveTab("nutrition")}
-                      title="Nutrition & Food Search"
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                        activeTab === "nutrition"
-                          ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
-                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                    >
-                      <Salad size={13} className="shrink-0 text-emerald-500" />
-                      <span>Search</span>
-                    </button>
-                  </div>
+            {/* Row 1: Top Window Control & Title Bar */}
+            <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-2 select-none flex-shrink-0 w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] shrink-0 flex items-center justify-center">
+                  <Zap size={14} className="fill-[var(--color-primary)] text-[var(--color-primary)]" />
                 </div>
-
-                {/* Right fade gradient when scrollable */}
-                {canScrollRight && (
-                  <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--color-bg-surface-alt)] to-transparent pointer-events-none z-10" />
-                )}
-
-                {/* Right Slide Button (Pulsing hint to reveal Search & tools) */}
-                {canScrollRight && (
-                  <button
-                    type="button"
-                    onClick={() => slideTabs("right")}
-                    title="Slide to see Nutrition Search"
-                    aria-label="Slide tools right"
-                    className="absolute right-0 z-20 p-1 rounded-lg bg-[var(--color-bg-surface)]/95 shadow-md border border-[var(--color-border-default)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] transition-all cursor-pointer flex items-center justify-center shrink-0 animate-pulse"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="text-xs font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                    Quick Tools
+                  </span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">•</span>
+                  <span className="text-[11px] font-semibold text-[var(--color-primary)] truncate">
+                    {activeTab === "chat"
+                      ? isNutritionist
+                        ? selectedPatient?.patient_name
+                          ? `Chat with ${selectedPatient.patient_name}`
+                          : "Direct Chat"
+                        : "Chat with Nutritionist"
+                      : activeTab === "assistant"
+                      ? "Clinical AI Assistant"
+                      : activeTab === "guide"
+                      ? "Interactive Feature Guide"
+                      : "Nutrition & Food Search"}
+                  </span>
+                </div>
               </div>
 
               {/* Window Controls */}
-              <div className="flex items-center gap-1 shrink-0 ml-1 sm:ml-2 z-10">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsMinimized(true)}
                   title="Minimize"
                   aria-label="Minimize"
-                  className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 >
-                  <Minus size={16} />
+                  <Minus size={15} />
                 </button>
 
                 <button
@@ -947,9 +763,9 @@ User question: "${userQuery}"`;
                   onClick={() => setIsExpanded((prev) => !prev)}
                   title={isExpanded ? "Restore width" : "Expand width"}
                   aria-label="Toggle width"
-                  className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer shrink-0"
+                  className="hidden sm:inline-flex p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer shrink-0"
                 >
-                  {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                  {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                 </button>
 
                 <button
@@ -957,10 +773,67 @@ User question: "${userQuery}"`;
                   onClick={onClose}
                   title="Close"
                   aria-label="Close"
-                  className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 >
-                  <X size={17} />
+                  <X size={15} />
                 </button>
+              </div>
+            </div>
+
+            {/* Row 2: Full-Width Slidable Segmented Tool Navigation Bar */}
+            <div className="px-3 py-1.5 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] select-none flex-shrink-0 w-full">
+              <div className="grid grid-cols-4 gap-1 bg-[var(--color-bg-app)] p-1 rounded-2xl border border-[var(--color-border-default)] relative">
+                {[
+                  {
+                    id: "chat",
+                    label: "Chat",
+                    icon: MessageSquare,
+                    activeClass: "text-[var(--color-primary)] font-bold",
+                  },
+                  {
+                    id: "assistant",
+                    label: "Assistant",
+                    icon: Bot,
+                    activeClass: "text-[var(--color-primary)] font-bold",
+                  },
+                  {
+                    id: "guide",
+                    label: "Guide",
+                    icon: Compass,
+                    activeClass: "text-indigo-600 dark:text-indigo-400 font-bold",
+                  },
+                  {
+                    id: "nutrition",
+                    label: "Search",
+                    icon: Salad,
+                    activeClass: "text-emerald-600 dark:text-emerald-400 font-bold",
+                  },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative flex items-center justify-center gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer z-10 ${
+                        isActive
+                          ? tab.activeClass
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeQuickToolboxPill"
+                          className="absolute inset-0 bg-[var(--color-bg-surface)] rounded-xl shadow-xs border border-[var(--color-border-hover)] -z-10"
+                          transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <Icon size={14} className="shrink-0" />
+                      <span className="truncate">{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
