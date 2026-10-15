@@ -1172,28 +1172,34 @@ const AddAvailability = () => {
                 { key: "upcoming", label: "Upcoming", count: summary.upcoming_count },
                 { key: "past", label: "Past", count: summary.past_count },
                 { key: "all", label: "All Slots", count: summary.total_count },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setTimeHorizon(tab.key)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    timeHorizon === tab.key
-                      ? "bg-[var(--color-primary)] text-white shadow-xs"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      timeHorizon === tab.key
-                        ? "bg-white/25 text-white"
-                        : "bg-[var(--color-border-default)] text-[var(--color-text-muted)]"
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+              ].map((tab) => {
+                const isActive = timeHorizon === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setTimeHorizon(tab.key)}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[var(--color-primary)] text-white shadow-xs"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
+                  >
+                    {isActive && fetching && (
+                      <Loader2 size={12} className="animate-spin text-white shrink-0" />
+                    )}
+                    <span>{tab.label}</span>
+                    {tab.count !== undefined && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isActive
+                          ? "bg-white/25 text-white"
+                          : "bg-[var(--color-border-default)] text-[var(--color-text-muted)]"
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Mode Filter Tabs (All / Virtual / In-Clinic / Both) */}
@@ -1203,51 +1209,72 @@ const AddAvailability = () => {
                 { key: "VIRTUAL", label: "Virtual", icon: <Video size={11} /> },
                 { key: "IN_PERSON", label: "In-Clinic", icon: <Building2 size={11} /> },
                 { key: "BOTH", label: "Both", icon: <Layers size={11} /> },
-              ].map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() => setModeFilter(m.key)}
-                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    modeFilter === m.key
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
-                >
-                  {m.icon}
-                  <span>{m.label}</span>
-                </button>
-              ))}
+              ].map((m) => {
+                const isActive = modeFilter === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => setModeFilter(m.key)}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
+                  >
+                    {isActive && fetching ? (
+                      <Loader2 size={11} className="animate-spin text-[var(--color-primary)] shrink-0" />
+                    ) : (
+                      m.icon
+                    )}
+                    <span>{m.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Status Tabs (All / Open / Booked) */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
               {[
-                { key: "ALL", label: `All (${totalCount})` },
-                { key: "AVAILABLE", label: `Open (${availableCount})` },
-                { key: "BOOKED", label: `Booked (${bookedCount})` },
-              ].map((st) => (
-                <button
-                  key={st.key}
-                  onClick={() => setStatusFilter(st.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    statusFilter === st.key
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                  }`}
-                >
-                  {st.label}
-                </button>
-              ))}
+                { key: "ALL", label: "All", count: totalCount },
+                { key: "AVAILABLE", label: "Open", count: availableCount },
+                { key: "BOOKED", label: "Booked", count: bookedCount },
+              ].map((st) => {
+                const isActive = statusFilter === st.key;
+                return (
+                  <button
+                    key={st.key}
+                    onClick={() => setStatusFilter(st.key)}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    }`}
+                  >
+                    {isActive && fetching && (
+                      <Loader2 size={11} className="animate-spin text-[var(--color-primary)] shrink-0" />
+                    )}
+                    <span>{st.label}</span>
+                    <span className="text-[10px] opacity-75 font-normal">({st.count})</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Search & Specific Date Picker */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[var(--color-border-default)]">
             <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
-              />
+              {fetching && search ? (
+                <Loader2
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-primary)] animate-spin"
+                />
+              ) : (
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
+                />
+              )}
               <input
                 type="text"
                 placeholder="Search patient name or email..."
@@ -1272,6 +1299,21 @@ const AddAvailability = () => {
                 onChange={(e) => setFilterDate(e.target.value)}
                 className="w-full px-3 py-1.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] focus:border-[var(--color-primary)] focus:outline-none text-xs text-[var(--color-text-strong)] font-semibold"
               />
+              {filterDate && (
+                <button
+                  onClick={() => setFilterDate("")}
+                  title="Clear Date"
+                  className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              )}
+              {fetching && filterDate && (
+                <Loader2
+                  size={12}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-primary)] animate-spin"
+                />
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1289,25 +1331,96 @@ const AddAvailability = () => {
               </button>
             </div>
           </div>
+
+          {/* Active Filter Progress Bar */}
+          {fetching && (
+            <div className="w-full h-1 bg-[var(--color-border-default)]/40 overflow-hidden rounded-full mt-2">
+              <div className="h-full bg-gradient-to-r from-[var(--color-primary)]/30 via-[var(--color-primary)] to-[var(--color-primary)]/30 w-full animate-pulse" />
+            </div>
+          )}
         </div>
 
-        {/* ── Slot Groups by Date ── */}
-        {groupedSlots.length === 0 ? (
+        {/* ── Slot Groups by Date / Loader / Empty State ── */}
+        {fetching ? (
+          <div className="space-y-6">
+            {/* Shimmering Loader Header */}
+            <div className="p-8 sm:p-10 rounded-3xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-center shadow-xs">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--color-primary-bg-subtle)] flex items-center justify-center mx-auto mb-3 text-[var(--color-primary)]">
+                <Loader2 size={28} className="animate-spin text-[var(--color-primary)]" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                Loading Availability Slots...
+              </h3>
+              <p className="text-xs text-[var(--color-text-muted)] max-w-sm mx-auto mt-1">
+                Fetching {timeHorizon === "all" ? "all" : timeHorizon} consultation slots with current filters
+              </p>
+            </div>
+
+            {/* Skeleton Slot Cards Shimmer */}
+            {[1, 2].map((groupKey) => (
+              <div key={groupKey} className="space-y-3 animate-pulse">
+                <div className="flex items-center justify-between pb-1.5 border-b border-[var(--color-border-default)]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-md bg-[var(--color-border-default)]" />
+                    <div className="w-36 h-4 rounded-md bg-[var(--color-border-default)]" />
+                    <div className="w-16 h-4 rounded-full bg-[var(--color-border-default)]" />
+                  </div>
+                  <div className="w-14 h-3 rounded-md bg-[var(--color-border-default)]" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[1, 2, 3].map((cardKey) => (
+                    <div
+                      key={cardKey}
+                      className="p-4 rounded-2xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="w-24 h-5 rounded-lg bg-[var(--color-border-default)]" />
+                        <div className="w-16 h-5 rounded-lg bg-[var(--color-border-default)]" />
+                      </div>
+                      <div className="w-32 h-4 rounded-md bg-[var(--color-border-default)]" />
+                      <div className="w-full h-9 rounded-xl bg-[var(--color-border-default)]" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : groupedSlots.length === 0 ? (
           <div className="text-center py-16 px-4 rounded-3xl border-2 border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3 text-blue-600">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-3 text-amber-600">
               <CalendarDays size={28} />
             </div>
-            <h3 className="text-base font-bold text-[var(--color-text-strong)]">
+            <h3 className="text-base font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
               No {timeHorizon === "all" ? "availability" : timeHorizon} slots found
             </h3>
             <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto mt-1 mb-4">
-              {timeHorizon === "upcoming" && summary.past_count > 0
+              {search
+                ? `No consultation slots match your search "${search}".`
+                : filterDate
+                ? `No consultation slots scheduled for ${fmtDate(filterDate)}.`
+                : modeFilter !== "ALL" || statusFilter !== "ALL"
+                ? `No consultation slots match your filter criteria (${modeFilter !== "ALL" ? `Mode: ${modeFilter}` : ""} ${statusFilter !== "ALL" ? `Status: ${statusFilter}` : ""}).`
+                : timeHorizon === "upcoming" && summary.past_count > 0
                 ? `You don't have any upcoming availability slots matching your filter, but you have ${summary.past_count} slot${summary.past_count > 1 ? "s" : ""} in Past Slots.`
                 : timeHorizon === "upcoming"
                 ? "You don't have any upcoming availability slots. Generate new slots to let patients book appointments with you."
                 : "No consultation slots match your current filter settings."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
+              {(search || filterDate || modeFilter !== "ALL" || statusFilter !== "ALL" || timeHorizon !== "upcoming") && (
+                <button
+                  onClick={() => {
+                    setTimeHorizon("upcoming");
+                    setModeFilter("ALL");
+                    setStatusFilter("ALL");
+                    setFilterDate("");
+                    setSearch("");
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] hover:bg-[var(--color-bg-interactive-subtle)] cursor-pointer"
+                >
+                  <RefreshCw size={13} /> Reset Filters
+                </button>
+              )}
               {timeHorizon === "upcoming" && summary.past_count > 0 && (
                 <>
                   <button
