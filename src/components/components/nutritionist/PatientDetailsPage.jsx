@@ -72,6 +72,7 @@ import NutriNavbar from "./NutriNavbar";
 import QuickTools from "./QuickTools";
 import FloatingQuickToolbox from "./FloatingQuickToolbox";
 import BackButton from "./BackButton";
+import PatientLabVisuals from "./PatientLabVisuals";
 
 
 // --- Canonical meal slot order map & ranking helper ---
@@ -2522,6 +2523,10 @@ const PatientDetailsPage = () => {
                       </div>
                     ) : (
                       <div className="space-y-8">
+                        {!isEditingReport && allLabReportsHistory.length > 0 && (
+                          <PatientLabVisuals reports={allLabReportsHistory} />
+                        )}
+
                         {(isEditingReport ? [editableReport] : labReports).map((report) => (
                           <div key={report.id || "report-view"} className="bg-[var(--color-bg-app)] p-5 sm:p-6 rounded-2xl border-2 border-[var(--color-border-default)] shadow-sm space-y-6">
                             {/* Card Header */}

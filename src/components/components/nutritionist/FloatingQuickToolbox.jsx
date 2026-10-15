@@ -23,6 +23,7 @@ import {
   Paperclip,
   Compass,
   AlertCircle,
+  Zap,
 } from "lucide-react";
 import InteractiveAppGuide from "./InteractiveAppGuide";
 import ReactMarkdown from "react-markdown";
@@ -110,6 +111,8 @@ export const FloatingQuickToolbox = ({
       setIsMinimized(false);
     }
   }, [initialTab]);
+
+
 
   // ----------------------------------------------------------------------
   // 1. CHAT / MESSAGES STATE & LOGIC
@@ -712,79 +715,47 @@ User question: "${userQuery}"`;
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[420px] h-[82vh] sm:h-[560px] max-h-[92vh] ${
-              isExpanded ? "sm:!w-[640px] sm:!h-[640px]" : ""
+            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[460px] h-[82vh] sm:h-[580px] max-h-[92vh] ${
+              isExpanded ? "sm:!w-[680px] sm:!h-[650px]" : ""
             }`}
           >
-            {/* Top Window Bar */}
-            <div className="p-2 sm:p-3 sm:px-4 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-1.5 sm:gap-2 select-none flex-shrink-0 w-full">
-              {/* Tool Tabs */}
-              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5">
-                <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-[var(--color-bg-app)] p-0.5 sm:p-1 rounded-2xl border border-[var(--color-border-default)]">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("chat")}
-                    title="Messages"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "chat"
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                  >
-                    <MessageSquare size={13} />
-                    <span>Chat</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("assistant")}
-                    title="AI Assistant"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "assistant"
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                  >
-                    <Bot size={13} />
-                    <span>Assistant</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("guide")}
-                    title="App Guide"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "guide"
-                      ? "bg-[var(--color-bg-surface)] text-indigo-600 shadow-xs border border-indigo-200"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                  >
-                    <Compass size={13} />
-                    <span>Guide</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("nutrition")}
-                    title="Nutrition Search"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "nutrition"
-                      ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                  >
-                    <Salad size={13} />
-                    <span>Search</span>
-                  </button>
+            {/* Row 1: Top Window Control & Title Bar */}
+            <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-2 select-none flex-shrink-0 w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 rounded-xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] shrink-0 flex items-center justify-center">
+                  <Zap size={14} className="fill-[var(--color-primary)] text-[var(--color-primary)]" />
+                </div>
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="text-xs font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                    Quick Tools
+                  </span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">•</span>
+                  <span className="text-[11px] font-semibold text-[var(--color-primary)] truncate">
+                    {activeTab === "chat"
+                      ? isNutritionist
+                        ? selectedPatient?.patient_name
+                          ? `Chat with ${selectedPatient.patient_name}`
+                          : "Direct Chat"
+                        : "Chat with Nutritionist"
+                      : activeTab === "assistant"
+                      ? "Clinical AI Assistant"
+                      : activeTab === "guide"
+                      ? "Interactive Feature Guide"
+                      : "Nutrition & Food Search"}
+                  </span>
                 </div>
               </div>
 
               {/* Window Controls */}
-              <div className="flex items-center gap-1 shrink-0 ml-1 sm:ml-2 z-10">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsMinimized(true)}
                   title="Minimize"
                   aria-label="Minimize"
-                  className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 >
-                  <Minus size={16} />
+                  <Minus size={15} />
                 </button>
 
                 <button
@@ -792,9 +763,9 @@ User question: "${userQuery}"`;
                   onClick={() => setIsExpanded((prev) => !prev)}
                   title={isExpanded ? "Restore width" : "Expand width"}
                   aria-label="Toggle width"
-                  className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer shrink-0"
+                  className="hidden sm:inline-flex p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer shrink-0"
                 >
-                  {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                  {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                 </button>
 
                 <button
@@ -802,10 +773,67 @@ User question: "${userQuery}"`;
                   onClick={onClose}
                   title="Close"
                   aria-label="Close"
-                  className="p-1.5 sm:p-2 rounded-xl text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                  className="p-1.5 rounded-xl text-[var(--color-text-muted)] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer flex items-center justify-center shrink-0"
                 >
-                  <X size={17} />
+                  <X size={15} />
                 </button>
+              </div>
+            </div>
+
+            {/* Row 2: Full-Width Slidable Segmented Tool Navigation Bar */}
+            <div className="px-3 py-1.5 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] select-none flex-shrink-0 w-full">
+              <div className="grid grid-cols-4 gap-1 bg-[var(--color-bg-app)] p-1 rounded-2xl border border-[var(--color-border-default)] relative">
+                {[
+                  {
+                    id: "chat",
+                    label: "Chat",
+                    icon: MessageSquare,
+                    activeClass: "text-[var(--color-primary)] font-bold",
+                  },
+                  {
+                    id: "assistant",
+                    label: "Assistant",
+                    icon: Bot,
+                    activeClass: "text-[var(--color-primary)] font-bold",
+                  },
+                  {
+                    id: "guide",
+                    label: "Guide",
+                    icon: Compass,
+                    activeClass: "text-indigo-600 dark:text-indigo-400 font-bold",
+                  },
+                  {
+                    id: "nutrition",
+                    label: "Search",
+                    icon: Salad,
+                    activeClass: "text-emerald-600 dark:text-emerald-400 font-bold",
+                  },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative flex items-center justify-center gap-1.5 py-1.5 px-1 sm:px-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer z-10 ${
+                        isActive
+                          ? tab.activeClass
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeQuickToolboxPill"
+                          className="absolute inset-0 bg-[var(--color-bg-surface)] rounded-xl shadow-xs border border-[var(--color-border-hover)] -z-10"
+                          transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <Icon size={14} className="shrink-0" />
+                      <span className="truncate">{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
