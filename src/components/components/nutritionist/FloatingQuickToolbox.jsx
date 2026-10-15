@@ -23,6 +23,8 @@ import {
   Paperclip,
   Compass,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import InteractiveAppGuide from "./InteractiveAppGuide";
 import ReactMarkdown from "react-markdown";
@@ -110,6 +112,102 @@ export const FloatingQuickToolbox = ({
       setIsMinimized(false);
     }
   }, [initialTab]);
+
+  // ----------------------------------------------------------------------
+  // TABS SLIDER & SCROLL LOGIC
+  // ----------------------------------------------------------------------
+  const tabsScrollRef = useRef(null);
+  const tabRefs = {
+    chat: useRef(null),
+    assistant: useRef(null),
+    guide: useRef(null),
+    nutrition: useRef(null),
+  };
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkTabsScroll = useCallback(() => {
+    if (tabsScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsScrollRef.current;
+      setCanScrollLeft(scrollLeft > 4);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 4);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(checkTabsScroll, 120);
+    return () => clearTimeout(timer);
+  }, [isOpen, isExpanded, activeTab, checkTabsScroll]);
+
+  useEffect(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", checkTabsScroll, { passive: true });
+    window.addEventListener("resize", checkTabsScroll);
+    return () => {
+      el.removeEventListener("scroll", checkTabsScroll);
+      window.removeEventListener("resize", checkTabsScroll);
+    };
+  }, [checkTabsScroll, isOpen]);
+
+  // Auto-scroll active tab into view whenever activeTab changes
+  useEffect(() => {
+    if (isOpen && tabRefs[activeTab]?.current) {
+      tabRefs[activeTab].current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+    const timer = setTimeout(checkTabsScroll, 200);
+    return () => clearTimeout(timer);
+  }, [activeTab, isOpen, checkTabsScroll]);
+
+  const slideTabs = (direction) => {
+    if (tabsScrollRef.current) {
+      const offset = direction === "left" ? -130 : 130;
+      tabsScrollRef.current.scrollBy({ left: offset, behavior: "smooth" });
+      setTimeout(checkTabsScroll, 250);
+    }
+  };
+
+  // Mouse wheel horizontal scroll handler
+  const handleTabsWheel = (e) => {
+    if (tabsScrollRef.current) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        tabsScrollRef.current.scrollLeft += e.deltaY;
+        checkTabsScroll();
+      }
+    }
+  };
+
+  // Mouse drag-to-scroll support for desktop
+  const isDraggingTabs = useRef(false);
+  const dragStartX = useRef(0);
+  const dragScrollLeft = useRef(0);
+
+  const handleTabsMouseDown = (e) => {
+    if (e.button !== 0) return;
+    isDraggingTabs.current = true;
+    dragStartX.current = e.pageX - (tabsScrollRef.current?.offsetLeft || 0);
+    dragScrollLeft.current = tabsScrollRef.current?.scrollLeft || 0;
+  };
+
+  const handleTabsMouseMove = (e) => {
+    if (!isDraggingTabs.current || !tabsScrollRef.current) return;
+    const x = e.pageX - (tabsScrollRef.current?.offsetLeft || 0);
+    const walk = (x - dragStartX.current) * 1.3;
+    tabsScrollRef.current.scrollLeft = dragScrollLeft.current - walk;
+    checkTabsScroll();
+  };
+
+  const handleTabsMouseUp = () => {
+    isDraggingTabs.current = false;
+  };
+
+  const handleTabsMouseLeave = () => {
+    isDraggingTabs.current = false;
+  };
 
   // ----------------------------------------------------------------------
   // 1. CHAT / MESSAGES STATE & LOGIC
@@ -712,67 +810,124 @@ User question: "${userQuery}"`;
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[420px] h-[82vh] sm:h-[560px] max-h-[92vh] ${
-              isExpanded ? "sm:!w-[640px] sm:!h-[640px]" : ""
+            className={`pointer-events-auto bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 w-full sm:w-[440px] h-[82vh] sm:h-[560px] max-h-[92vh] ${
+              isExpanded ? "sm:!w-[660px] sm:!h-[640px]" : ""
             }`}
           >
             {/* Top Window Bar */}
-            <div className="p-2 sm:p-3 sm:px-4 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-1.5 sm:gap-2 select-none flex-shrink-0 w-full">
-              {/* Tool Tabs */}
-              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5">
-                <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-[var(--color-bg-app)] p-0.5 sm:p-1 rounded-2xl border border-[var(--color-border-default)]">
+            <div className="p-2 sm:p-2.5 sm:px-3 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-1 select-none flex-shrink-0 w-full relative">
+              {/* Slidable Tool Tabs Container */}
+              <div className="relative flex-1 min-w-0 flex items-center overflow-hidden">
+                {/* Left Slide Button */}
+                {canScrollLeft && (
                   <button
                     type="button"
-                    onClick={() => setActiveTab("chat")}
-                    title="Messages"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "chat"
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
+                    onClick={() => slideTabs("left")}
+                    title="Slide left to see previous tools"
+                    aria-label="Slide tools left"
+                    className="absolute left-0 z-20 p-1 rounded-lg bg-[var(--color-bg-surface)]/95 shadow-md border border-[var(--color-border-default)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] transition-all cursor-pointer flex items-center justify-center shrink-0"
                   >
-                    <MessageSquare size={13} />
-                    <span>Chat</span>
+                    <ChevronLeft size={14} />
                   </button>
+                )}
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("assistant")}
-                    title="AI Assistant"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "assistant"
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
-                      }`}
-                  >
-                    <Bot size={13} />
-                    <span>Assistant</span>
-                  </button>
+                {/* Left fade gradient when scrollable */}
+                {canScrollLeft && (
+                  <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-[var(--color-bg-surface-alt)] to-transparent pointer-events-none z-10" />
+                )}
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("guide")}
-                    title="App Guide"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "guide"
-                      ? "bg-[var(--color-bg-surface)] text-indigo-600 shadow-xs border border-indigo-200"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                {/* Tabs Scrollable Track */}
+                <div
+                  ref={tabsScrollRef}
+                  onWheel={handleTabsWheel}
+                  onMouseDown={handleTabsMouseDown}
+                  onMouseMove={handleTabsMouseMove}
+                  onMouseUp={handleTabsMouseUp}
+                  onMouseLeave={handleTabsMouseLeave}
+                  className={`flex-1 min-w-0 overflow-x-auto no-scrollbar scroll-smooth flex items-center py-0.5 select-none cursor-grab active:cursor-grabbing ${
+                    canScrollLeft ? "pl-6" : ""
+                  } ${canScrollRight ? "pr-6" : ""}`}
+                >
+                  <div className="inline-flex items-center gap-1 bg-[var(--color-bg-app)] p-0.5 sm:p-1 rounded-2xl border border-[var(--color-border-default)] shrink-0">
+                    <button
+                      ref={tabRefs.chat}
+                      type="button"
+                      onClick={() => setActiveTab("chat")}
+                      title="Messages & Chat"
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                        activeTab === "chat"
+                          ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
                       }`}
-                  >
-                    <Compass size={13} />
-                    <span>Guide</span>
-                  </button>
+                    >
+                      <MessageSquare size={13} className="shrink-0" />
+                      <span>Chat</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("nutrition")}
-                    title="Nutrition Search"
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === "nutrition"
-                      ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    <button
+                      ref={tabRefs.assistant}
+                      type="button"
+                      onClick={() => setActiveTab("assistant")}
+                      title="Clinical & AI Assistant"
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                        activeTab === "assistant"
+                          ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs border border-[var(--color-border-hover)]"
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
                       }`}
-                  >
-                    <Salad size={13} />
-                    <span>Search</span>
-                  </button>
+                    >
+                      <Bot size={13} className="shrink-0" />
+                      <span>Assistant</span>
+                    </button>
+
+                    <button
+                      ref={tabRefs.guide}
+                      type="button"
+                      onClick={() => setActiveTab("guide")}
+                      title="Interactive Feature Guide"
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                        activeTab === "guide"
+                          ? "bg-[var(--color-bg-surface)] text-indigo-600 shadow-xs border border-indigo-200"
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                    >
+                      <Compass size={13} className="shrink-0" />
+                      <span>Guide</span>
+                    </button>
+
+                    <button
+                      ref={tabRefs.nutrition}
+                      type="button"
+                      onClick={() => setActiveTab("nutrition")}
+                      title="Nutrition & Food Search"
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                        activeTab === "nutrition"
+                          ? "bg-[var(--color-bg-surface)] text-emerald-600 shadow-xs border border-emerald-200"
+                          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      }`}
+                    >
+                      <Salad size={13} className="shrink-0 text-emerald-500" />
+                      <span>Search</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Right fade gradient when scrollable */}
+                {canScrollRight && (
+                  <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--color-bg-surface-alt)] to-transparent pointer-events-none z-10" />
+                )}
+
+                {/* Right Slide Button (Pulsing hint to reveal Search & tools) */}
+                {canScrollRight && (
+                  <button
+                    type="button"
+                    onClick={() => slideTabs("right")}
+                    title="Slide to see Nutrition Search"
+                    aria-label="Slide tools right"
+                    className="absolute right-0 z-20 p-1 rounded-lg bg-[var(--color-bg-surface)]/95 shadow-md border border-[var(--color-border-default)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] transition-all cursor-pointer flex items-center justify-center shrink-0 animate-pulse"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                )}
               </div>
 
               {/* Window Controls */}
