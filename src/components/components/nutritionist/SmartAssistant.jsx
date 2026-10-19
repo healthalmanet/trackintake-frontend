@@ -79,12 +79,12 @@ Provide helpful, scientifically grounded, practical, and clear nutrition guidanc
 Format your responses neatly using markdown headings, bold text, and bullet points where helpful.
 User Query: "${userQuery}"`;
 
-    const modelNames = [
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-flash-latest",
-    ];
+    const defaultModel = import.meta.env.VITE_GEMINI_MODEL || "gemini-flash-lite-latest";
+    const fallbackModel = import.meta.env.VITE_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
+    const modelNames = [defaultModel];
+    if (fallbackModel && fallbackModel !== defaultModel) {
+      modelNames.push(fallbackModel);
+    }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
 

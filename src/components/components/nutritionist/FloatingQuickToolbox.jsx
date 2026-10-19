@@ -48,6 +48,10 @@ import axiosInstance from "../../../api/axiosInstance";
 const API_KEY =
   import.meta.env.VITE_GEMINI_API_KEY ||
   "AIzaSyDj2OzDZX-nwDUR9EO7Y9g4-11EdCVHlB4";
+const GEMINI_MODEL =
+  import.meta.env.VITE_GEMINI_MODEL || "gemini-flash-lite-latest";
+const GEMINI_FALLBACK_MODEL =
+  import.meta.env.VITE_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
 
 const PATIENT_PROMPTS = [
   "How do I log meals using standard bowls or plates?",
@@ -594,14 +598,26 @@ export const FloatingQuickToolbox = ({
     // 2. Client-side fallback if backend is unreachable
     try {
       const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const prompt = `You are an expert AI clinical nutrition assistant for the TrackIntake platform in India.
 User role: ${effectiveRole === "nutritionist" ? "Clinical Nutritionist / Dietitian" : "Patient / User"}.
 Provide clear, practical, and scientifically sound guidance formatted with markdown headings and bullet points.
 User question: "${userQuery}"`;
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      if (text) return text;
+
+      const modelsToTry = [GEMINI_MODEL];
+      if (GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL) {
+        modelsToTry.push(GEMINI_FALLBACK_MODEL);
+      }
+
+      for (const m of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({ model: m });
+          const result = await model.generateContent(prompt);
+          const text = result.response.text();
+          if (text) return text;
+        } catch (mErr) {
+          console.warn(`Model ${m} failed in FloatingQuickToolbox:`, mErr);
+        }
+      }
     } catch (err) {
       console.warn("Client-side Gemini failed:", err);
     }

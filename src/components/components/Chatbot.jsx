@@ -7,8 +7,9 @@ import { X, Sparkles, Loader } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ⚠️ In a real application, this key should be in a .env.local file
-// and accessed via process.env.REACT_APP_GEMINI_API_KEY
-const API_KEY = "AIzaSyB8ZLcao8qK2CIND2EpTxpETYJhvZuxk6c";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyB8ZLcao8qK2CIND2EpTxpETYJhvZuxk6c";
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-flash-lite-latest";
+const GEMINI_FALLBACK_MODEL = import.meta.env.VITE_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 const Chatbot = () => {
@@ -28,10 +29,29 @@ const Chatbot = () => {
     try {
       const nutritionContextPrompt = `You are a friendly and helpful nutrition assistant for the 
       TrackEats app. Please answer the following user question about nutrition, health, or fitness in a clear and encouraging way. Keep your response concise and easy to read. Question: "${question}"`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(nutritionContextPrompt);
-      const text = result.response.text();
-      setResponse(text);
+      
+      const modelsToTry = [GEMINI_MODEL];
+      if (GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL) {
+        modelsToTry.push(GEMINI_FALLBACK_MODEL);
+      }
+
+      let text = "";
+      for (const m of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({ model: m });
+          const result = await model.generateContent(nutritionContextPrompt);
+          text = result.response.text();
+          if (text) break;
+        } catch (mErr) {
+          console.warn(`Model ${m} failed in Chatbot:`, mErr);
+        }
+      }
+
+      if (text) {
+        setResponse(text);
+      } else {
+        setResponse("Sorry, I encountered an error trying to get an answer. Please try again later.");
+      }
     } catch (err) {
       console.error("Gemini API Error:", err);
       setResponse(

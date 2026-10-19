@@ -857,20 +857,66 @@ const PatientDetailsPage = () => {
       );
       setAllDietPlans(allDietsData);
 
-      // Find the latest non-archived, non-rejected, non-failed plan for display
-      const latestPlanForDisplay = allDietsData.find(
-        (diet) => !diet.is_deleted && diet.status !== "rejected" && diet.status !== "failed"
-      ) || allDietsData[0] || null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      // Filter for displayable plans in the dropdown with clear date ranges and accurate status tags
-      const options = allDietsData.map((plan) => {
-        const isArchived = plan.is_deleted || plan.status === 'archived' || plan.status === 'disabled';
-        const isLatest = latestPlanForDisplay && plan.id === latestPlanForDisplay.id;
-        const startDate = new Date((plan.for_week_starting || plan.created_at?.slice(0, 10)) + "T00:00:00");
+      // Helper to compute start & end dates and duration for any plan
+      const getPlanDateRange = (plan) => {
+        const startStr = plan.for_week_starting || plan.created_at?.slice(0, 10);
+        const startDate = new Date(startStr + "T00:00:00");
         const planDaysCount = plan.meals ? Object.keys(plan.meals).filter(k => k.toLowerCase().startsWith('day ')).length : 0;
         const durationDays = planDaysCount > 0 ? planDaysCount : 3;
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + (durationDays - 1));
+        endDate.setHours(23, 59, 59, 999);
+        return { startDate, endDate, durationDays };
+      };
+
+      const candidatePlans = allDietsData.filter(
+        (diet) => !diet.is_deleted && diet.status !== "rejected" && diet.status !== "failed"
+      );
+
+      // 1. Find approved plan that actively covers TODAY (startDate <= today <= endDate)
+      let activePlanByDate = candidatePlans.find((plan) => {
+        if (plan.status !== 'approved' && plan.status !== 'active') return false;
+        const { startDate, endDate } = getPlanDateRange(plan);
+        return today >= startDate && today <= endDate;
+      });
+
+      // 2. If no plan covers today, find closest approved plan with start date <= today (current/recent cycle)
+      if (!activePlanByDate) {
+        const currentOrPast = candidatePlans
+          .filter((p) => p.status === 'approved' || p.status === 'active')
+          .map((p) => ({ plan: p, ...getPlanDateRange(p) }))
+          .filter((item) => item.startDate <= today)
+          .sort((a, b) => b.startDate - a.startDate);
+
+        if (currentOrPast.length > 0) {
+          activePlanByDate = currentOrPast[0].plan;
+        }
+      }
+
+      // 3. If all approved plans are future, pick nearest upcoming approved plan (starts soonest)
+      if (!activePlanByDate) {
+        const futurePlans = candidatePlans
+          .filter((p) => p.status === 'approved' || p.status === 'active')
+          .map((p) => ({ plan: p, ...getPlanDateRange(p) }))
+          .filter((item) => item.startDate > today)
+          .sort((a, b) => a.startDate - b.startDate);
+
+        if (futurePlans.length > 0) {
+          activePlanByDate = futurePlans[0].plan;
+        }
+      }
+
+      // Fallback
+      const latestPlanForDisplay = activePlanByDate || candidatePlans[0] || allDietsData[0] || null;
+
+      // Filter for displayable plans in the dropdown with clear date ranges and accurate status tags
+      const options = allDietsData.map((plan) => {
+        const isArchived = plan.is_deleted || plan.status === 'archived' || plan.status === 'disabled';
+        const { startDate, endDate, durationDays } = getPlanDateRange(plan);
+        const isCurrentActive = latestPlanForDisplay && plan.id === latestPlanForDisplay.id;
 
         const dateRangeStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
@@ -879,12 +925,16 @@ const PatientDetailsPage = () => {
         else if (plan.status === 'pending' || plan.status === 'generating') statusTag = "Pending Review";
         else if (plan.status === 'rejected') statusTag = "Rejected";
         else if (plan.status === 'failed') statusTag = "Failed";
-        else if (isLatest && plan.status === 'approved') statusTag = "Current Active";
+        else if (isCurrentActive && plan.status === 'approved') statusTag = "Current Active";
+        else if (plan.status === 'approved' && startDate > today) statusTag = "Upcoming (Scheduled)";
         else if (plan.status === 'approved') statusTag = "Past Approved";
         else statusTag = plan.status ? plan.status.charAt(0).toUpperCase() + plan.status.slice(1) : "Unknown";
 
-        const label = `${dateRangeStr} (${durationDays}-Day) · ${statusTag}`;
-        return { id: plan.id, label, status: plan.status, is_deleted: isArchived };
+        const label = isCurrentActive
+          ? `⭐ ${dateRangeStr} (${durationDays}-Day) · Current Active`
+          : `${dateRangeStr} (${durationDays}-Day) · ${statusTag}`;
+
+        return { id: plan.id, label, status: plan.status, is_deleted: isArchived, isCurrentActive };
       });
       setPlanOptions(options);
       return { latestPlan: latestPlanForDisplay, allDietsData };
@@ -3635,7 +3685,7 @@ const PatientDetailsPage = () => {
                                 id="plan-selector"
                                 value={selectedPlanId || ""}
                                 onChange={handlePlanChange}
-                                className="appearance-none w-full sm:w-60 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2 pl-3 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                                className="appearance-none w-full sm:w-80 min-w-[270px] bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2 pl-3 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                               >
                                 {planOptions.map((plan) => (
                                   <option key={plan.id} value={plan.id}>
@@ -4109,7 +4159,7 @@ const PatientDetailsPage = () => {
                                     : diet.status}
                                 </span>
 
-                                {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && (diet.status === "approved" || diet.status === "active") && (!latestActiveDietPlan || diet.id === latestActiveDietPlan.id) && (
+                                {!diet.is_deleted && diet.status !== "disabled" && diet.status !== "archived" && (diet.status === "approved" || diet.status === "active") && (
                                   <button
                                     onClick={() => handleDisablePlan(diet.id)}
                                     disabled={isDisablingPlan === diet.id}
