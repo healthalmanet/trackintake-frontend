@@ -430,7 +430,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
   };
 
   return (
-    <section className="w-full bg-[var(--color-bg-app)] px-6 sm:px-12 py-16 font-[var(--font-secondary)]">
+    <section id="quick-meal-logger-section" className="w-full bg-[var(--color-bg-app)] px-6 sm:px-12 py-16 font-[var(--font-secondary)]">
       <div className="max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-12">
           <h2 className="text-center text-2xl sm:text-3xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">Quick Meal Logger</h2>
@@ -457,12 +457,13 @@ const QuickMealLogger = ({ onMealLogged }) => {
               {!editingMeal && (
                 <button
                   type="button"
-                  disabled
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 text-xs font-bold shadow-none transition-all cursor-not-allowed opacity-60"
-                  title="Snap / Photo AI is temporarily disabled"
+                  onClick={() => setScannerOpen(true)}
+                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[#e05d32] text-white text-xs font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+                  title="Snap or upload meal photo for instant AI analysis"
                 >
-                  <Camera className="w-3.5 h-3.5" />
+                  <Camera className="w-4 h-4 transition-transform group-hover:rotate-12" />
                   <span>Snap / Photo AI</span>
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse" />
                 </button>
               )}
             </div>

@@ -800,12 +800,13 @@ const MealLogger = () => {
                 {!editingMeal && (
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-400 text-xs font-bold shadow-none transition-all cursor-not-allowed opacity-60 shrink-0"
-                    title="Snap / Photo AI is temporarily disabled"
+                    onClick={() => setScannerOpen(true)}
+                    className="group flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[#e05d32] text-white text-xs font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
+                    title="Snap or upload meal photo for instant AI analysis"
                   >
-                    <Camera className="w-3.5 h-3.5" />
+                    <Camera className="w-4 h-4 transition-transform group-hover:rotate-12" />
                     <span>Snap / Photo AI</span>
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse" />
                   </button>
                 )}
               </div>

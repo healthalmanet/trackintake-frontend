@@ -17,7 +17,8 @@ import {
   Ban,
   Leaf,
   Apple,
-  AlertTriangle
+  AlertTriangle,
+  Camera
 } from "lucide-react";
 import {
   BsSunFill,
@@ -394,45 +395,127 @@ const Meals = () => {
           getDiabeticProfile(),
         ]);
 
-        let combinedPlans = [];
-        let initialPlanId = null;
-        let currentPlanStartDate = null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
+        // Collect all distinct plans
+        const rawPlansMap = new Map();
         if (
           currentPlanResponse.status_code === "ACTIVE_PLAN_FOUND" &&
           currentPlanResponse.plan_data
         ) {
-          const currentPlan = {
-            ...currentPlanResponse.plan_data,
-            id: "current",
-            label: "Current Active Plan",
-          };
-          combinedPlans.push(currentPlan);
-          initialPlanId = "current";
-          currentPlanStartDate = currentPlan.for_week_starting;
+          rawPlansMap.set(
+            String(currentPlanResponse.plan_data.id),
+            currentPlanResponse.plan_data
+          );
         }
-
         if (
           historyResponse.status_code === "HISTORY_FOUND" &&
           Array.isArray(historyResponse.plans)
         ) {
-          const uniqueHistory = historyResponse.plans.filter(
-            (p) => p.for_week_starting !== currentPlanStartDate
-          );
-          const formattedHistory = uniqueHistory.map((p) => ({
-            ...p,
-            id: p.id || p.for_week_starting,
-            label: `Plan: ${formatDate(p.for_week_starting)}`,
-          }));
-          combinedPlans = [...combinedPlans, ...formattedHistory];
+          historyResponse.plans.forEach((p) => {
+            if (p && p.id && !rawPlansMap.has(String(p.id))) {
+              rawPlansMap.set(String(p.id), p);
+            }
+          });
         }
 
-        setAllPlans(combinedPlans);
+        const rawPlans = Array.from(rawPlansMap.values()).sort(
+          (a, b) =>
+            new Date(b.for_week_starting || b.created_at) -
+            new Date(a.for_week_starting || a.created_at)
+        );
 
-        if (!initialPlanId && combinedPlans.length > 0) {
-          initialPlanId = combinedPlans[0].id;
+        // Helper to compute date range
+        const getPlanDateRange = (plan) => {
+          const startStr = plan.for_week_starting || plan.created_at?.slice(0, 10);
+          const startDate = new Date(startStr + "T00:00:00");
+          const planDaysCount = plan.meals
+            ? Object.keys(plan.meals).filter((k) =>
+                k.toLowerCase().startsWith("day ")
+              ).length
+            : 0;
+          const durationDays = planDaysCount > 0 ? planDaysCount : 3;
+          const endDate = new Date(startDate);
+          endDate.setDate(startDate.getDate() + (durationDays - 1));
+          endDate.setHours(23, 59, 59, 999);
+          return { startDate, endDate, durationDays };
+        };
+
+        // 1. Find plan where startDate <= today <= endDate
+        let activePlanByDate = rawPlans.find((p) => {
+          const { startDate, endDate } = getPlanDateRange(p);
+          return today >= startDate && today <= endDate;
+        });
+
+        // 2. If no plan covers today, find closest plan with start date <= today
+        if (!activePlanByDate) {
+          const currentOrPast = rawPlans
+            .map((p) => ({ plan: p, ...getPlanDateRange(p) }))
+            .filter((item) => item.startDate <= today)
+            .sort((a, b) => b.startDate - a.startDate);
+
+          if (currentOrPast.length > 0) {
+            activePlanByDate = currentOrPast[0].plan;
+          }
         }
 
+        // 3. If all plans are in the future, pick nearest upcoming
+        if (!activePlanByDate && rawPlans.length > 0) {
+          const future = rawPlans
+            .map((p) => ({ plan: p, ...getPlanDateRange(p) }))
+            .filter((item) => item.startDate > today)
+            .sort((a, b) => a.startDate - b.startDate);
+
+          if (future.length > 0) {
+            activePlanByDate = future[0].plan;
+          }
+        }
+
+        if (!activePlanByDate && rawPlans.length > 0) {
+          activePlanByDate = rawPlans[0];
+        }
+
+        // Format all plans with clear date-based active status in their labels
+        const formattedPlans = rawPlans.map((plan) => {
+          const { startDate, endDate, durationDays } = getPlanDateRange(plan);
+          const isCurrentActive =
+            activePlanByDate && String(plan.id) === String(activePlanByDate.id);
+
+          const dateRangeStr = `${startDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })} – ${endDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}`;
+
+          let statusTag = "Approved";
+          if (isCurrentActive) {
+            statusTag = "Current Active";
+          } else if (startDate > today) {
+            statusTag = "Upcoming (Scheduled)";
+          } else {
+            statusTag = "Past Approved";
+          }
+
+          const label = isCurrentActive
+            ? `⭐ ${dateRangeStr} (${durationDays}-Day) · Current Active`
+            : `${dateRangeStr} (${durationDays}-Day) · ${statusTag}`;
+
+          return {
+            ...plan,
+            label,
+            isCurrentActive,
+          };
+        });
+
+        setAllPlans(formattedPlans);
+
+        const initialPlanId = activePlanByDate
+          ? activePlanByDate.id
+          : formattedPlans[0]?.id || null;
         setSelectedPlanId(initialPlanId);
 
         const prof = profileResponse?.data || profileResponse;
@@ -618,25 +701,34 @@ if (allPlans.length === 0 || !dietData) {
                 </span>
               </p>
             </div>
-            {allPlans.length > 1 && (
-              <div className="relative">
-                <select
-                  id="plan-selector"
-                  value={selectedPlanId}
-                  onChange={handlePlanChange}
-                  className="appearance-none w-full sm:w-64 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] font-semibold py-3 pl-4 pr-10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[var(--color-border-focus)] focus:border-[var(--color-border-focus)] transition-all duration-300"
-                >
-                  {allPlans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[var(--color-text-default)]">
-                  <ChevronDown size={20} />
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/dashboard/tools/meal-log"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[#e05d32] text-white text-sm font-bold shadow-md hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Snap / Log Meal</span>
+              </Link>
+              {allPlans.length > 1 && (
+                <div className="relative">
+                  <select
+                    id="plan-selector"
+                    value={selectedPlanId}
+                    onChange={handlePlanChange}
+                    className="appearance-none w-full sm:w-80 min-w-[260px] bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] font-semibold py-3 pl-4 pr-10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[var(--color-border-focus)] focus:border-[var(--color-border-focus)] transition-all duration-300"
+                  >
+                    {allPlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[var(--color-text-default)]">
+                    <ChevronDown size={20} />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </header>
 
