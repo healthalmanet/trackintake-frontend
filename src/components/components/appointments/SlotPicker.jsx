@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Video, Clock, Building2, Layers, Sun, Sunrise, Sunset, Loader2 } from "lucide-react";
 
-const SlotPicker = ({ slots, onBook, loading, pendingSlotId, appointmentType = "VIRTUAL" }) => {
+const SlotPicker = ({ slots, onBook, loading, pendingSlotId, appointmentType = "VIRTUAL", fetchingSlots = false }) => {
   const [timeFilter, setTimeFilter] = useState("ALL"); // ALL | MORNING | AFTERNOON | EVENING
 
   // Only consider slots compatible with selected consultation mode (Virtual or In-Clinic)
@@ -24,6 +24,20 @@ const SlotPicker = ({ slots, onBook, loading, pendingSlotId, appointmentType = "
       return true;
     });
   }, [compatibleSlots, timeFilter]);
+
+  if (fetchingSlots) {
+    return (
+      <div className="text-center py-8 px-4 rounded-2xl border-2 border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex flex-col items-center justify-center space-y-2">
+        <Loader2 className="w-7 h-7 text-[var(--color-primary)] animate-spin" />
+        <p className="text-[var(--color-text-strong)] text-sm font-bold">
+          Checking available appointment slots...
+        </p>
+        <p className="text-[var(--color-text-muted)] text-xs">
+          Fetching real-time availability for this date.
+        </p>
+      </div>
+    );
+  }
 
   if (!Array.isArray(slots) || compatibleSlots.length === 0) {
     return (

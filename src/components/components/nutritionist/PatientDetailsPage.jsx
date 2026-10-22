@@ -300,6 +300,59 @@ const PatientDetailsPage = () => {
   // Water logs state for nutritionist
   const [patientWaterLogs, setPatientWaterLogs] = useState([]);
   const [filteredWaterLogs, setFilteredWaterLogs] = useState([]);
+  const [waterDateFilter, setWaterDateFilter] = useState("");
+  const [loadingWaterLogs, setLoadingWaterLogs] = useState(false);
+
+  const fetchWaterLogsForPatient = async (dateParam) => {
+    setLoadingWaterLogs(true);
+    try {
+      const params = {};
+      const targetDate = dateParam !== undefined ? dateParam : waterDateFilter;
+      if (targetDate) params.date = targetDate;
+      const res = await getPatientWaterLogs(id, params);
+      const list = Array.isArray(res?.data?.results)
+        ? res.data.results
+        : (Array.isArray(res?.data) ? res.data : []);
+      const sorted = [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+      setPatientWaterLogs(sorted);
+    } catch (err) {
+      console.error("Failed to fetch patient water logs:", err);
+      toast.error("Could not load water logs.");
+    } finally {
+      setLoadingWaterLogs(false);
+    }
+  };
+
+  const dailyRecommendedWaterMl = targetNutrients?.water?.recommended_ml || 2500;
+
+  const filteredWaterLogsList = useMemo(() => {
+    if (!waterDateFilter) return patientWaterLogs;
+    return patientWaterLogs.filter((log) => log.date === waterDateFilter);
+  }, [patientWaterLogs, waterDateFilter]);
+
+  const dailyWaterSummaries = useMemo(() => {
+    const groups = {};
+    const sourceLogs = waterDateFilter ? filteredWaterLogsList : patientWaterLogs;
+    sourceLogs.forEach((log) => {
+      const d = log.date;
+      if (!groups[d]) groups[d] = { date: d, total_ml: 0, logs: [] };
+      groups[d].total_ml += (parseFloat(log.amount_ml) || 0);
+      groups[d].logs.push(log);
+    });
+    return Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [patientWaterLogs, waterDateFilter, filteredWaterLogsList]);
+
+  const latestDayWater = useMemo(() => {
+    if (dailyWaterSummaries.length === 0) return null;
+    return dailyWaterSummaries[0];
+  }, [dailyWaterSummaries]);
+
+  const averageWaterMl = useMemo(() => {
+    if (dailyWaterSummaries.length === 0) return 0;
+    const recent = dailyWaterSummaries.slice(0, 7);
+    const sum = recent.reduce((acc, curr) => acc + curr.total_ml, 0);
+    return Math.round(sum / recent.length);
+  }, [dailyWaterSummaries]);
 
   // Weight logs state for nutritionist
   const [patientWeightLogs, setPatientWeightLogs] = useState([]);
@@ -2099,6 +2152,7 @@ const PatientDetailsPage = () => {
     { key: "profile", label: "Profile", icon: <FaUser /> },
     { key: "reports", label: "Lab Reports", icon: <FaFileMedicalAlt /> },
     { key: "meals", label: "Meal Log", icon: <Utensils /> },
+    { key: "water", label: "Water Intake", icon: <Droplets size={16} /> },
     { key: "weight", label: "Weight Logs", icon: <Scale size={16} /> },
     { key: "diet", label: "Diet Plans", icon: <CalendarCheck /> },
     { key: "appointments", label: "Appointments & History", icon: <Clock size={16} /> },
@@ -3455,6 +3509,246 @@ const PatientDetailsPage = () => {
                         </p>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── WATER INTAKE TRACKING TAB (TC-042) ── */}
+                {activeTab === "water" && (
+                  <div className="space-y-6">
+                    {/* Header & Date Filter Bar */}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] shadow-sm">
+                      <div>
+                        <h3 className="text-xl font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                          <Droplets className="text-cyan-500" size={22} />
+                          Patient Water Intake & Hydration Tracking
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-1">
+                          Monitor daily fluid consumption, track hydration targets, and inspect historical water intake logs.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 bg-[var(--color-bg-surface)] px-3 py-1.5 rounded-xl border border-[var(--color-border-default)]">
+                          <Calendar size={15} className="text-[var(--color-text-muted)]" />
+                          <input
+                            type="date"
+                            value={waterDateFilter}
+                            onChange={(e) => setWaterDateFilter(e.target.value)}
+                            className="bg-transparent text-xs sm:text-sm text-[var(--color-text-strong)] focus:outline-none"
+                            title="Filter water logs by specific date"
+                          />
+                        </div>
+                        {waterDateFilter && (
+                          <button
+                            type="button"
+                            onClick={() => setWaterDateFilter("")}
+                            className="text-xs px-2.5 py-1.5 rounded-lg bg-[var(--color-bg-interactive-subtle)] hover:bg-[var(--color-bg-interactive)] text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <X size={13} /> Clear Date
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fetchWaterLogsForPatient()}
+                          className="p-2 rounded-xl bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-interactive)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
+                          title="Refresh water logs"
+                        >
+                          <RefreshCw size={15} className={loadingWaterLogs ? "animate-spin" : ""} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Hydration Metric Overview Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">Daily Goal</p>
+                        <p className="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1">
+                          {dailyRecommendedWaterMl} ml
+                        </p>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">
+                          ≈ {Math.round(dailyRecommendedWaterMl / 250)} glasses (250ml)
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">
+                          {waterDateFilter ? "Selected Date Intake" : "Latest Day Intake"}
+                        </p>
+                        <p className="text-2xl font-bold text-[var(--color-text-strong)] mt-1">
+                          {latestDayWater ? `${Math.round(latestDayWater.total_ml)} ml` : "0 ml"}
+                        </p>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">
+                          {latestDayWater
+                            ? `${Math.round((latestDayWater.total_ml / dailyRecommendedWaterMl) * 100)}% of daily target`
+                            : "No logged intake"}
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">7-Day Average</p>
+                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                          {averageWaterMl} ml
+                        </p>
+                        <span className="text-[11px] text-[var(--color-text-subtle)]">
+                          ≈ {Math.round(averageWaterMl / 250)} glasses/day
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] shadow-sm">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">Hydration Status</p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                            !latestDayWater || latestDayWater.total_ml === 0
+                              ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                              : latestDayWater.total_ml >= dailyRecommendedWaterMl
+                              ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                              : latestDayWater.total_ml >= dailyRecommendedWaterMl * 0.7
+                              ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                              : "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"
+                          }`}>
+                            {!latestDayWater || latestDayWater.total_ml === 0
+                              ? "No Data"
+                              : latestDayWater.total_ml >= dailyRecommendedWaterMl
+                              ? "Optimal (100%+)"
+                              : latestDayWater.total_ml >= dailyRecommendedWaterMl * 0.7
+                              ? "Moderate (70%+)"
+                              : "Under Hydrated"}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-[var(--color-text-subtle)] block mt-1">
+                          {dailyWaterSummaries.length} active day(s) recorded
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Daily Water Log History Cards */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-base font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+                          <Clock size={16} className="text-[var(--color-primary)]" />
+                          Hydration History by Date
+                        </h4>
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {dailyWaterSummaries.length} date entries
+                        </span>
+                      </div>
+
+                      {loadingWaterLogs ? (
+                        <div className="flex flex-col items-center justify-center py-12 rounded-xl bg-[var(--color-bg-app)] border border-dashed border-[var(--color-border-default)]">
+                          <Loader2 className="animate-spin text-2xl text-[var(--color-primary)] mb-2" />
+                          <p className="text-sm font-medium text-[var(--color-text-muted)]">Loading water intake records...</p>
+                        </div>
+                      ) : dailyWaterSummaries.length > 0 ? (
+                        <div className="space-y-3">
+                          {dailyWaterSummaries.map((dayGroup) => {
+                            const percent = Math.min(Math.round((dayGroup.total_ml / dailyRecommendedWaterMl) * 100), 200);
+                            const glassCount = (dayGroup.total_ml / 250).toFixed(1);
+                            const isMet = dayGroup.total_ml >= dailyRecommendedWaterMl;
+                            const formattedDate = new Date(dayGroup.date).toLocaleDateString("en-US", {
+                              weekday: "short",
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            });
+
+                            return (
+                              <div
+                                key={dayGroup.date}
+                                className="p-4 sm:p-5 rounded-2xl bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] shadow-xs transition-all hover:border-[var(--color-border-hover)]"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--color-border-default)]/60">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                                      <Droplets size={20} />
+                                    </div>
+                                    <div>
+                                      <h5 className="font-bold text-sm sm:text-base text-[var(--color-text-strong)]">
+                                        {formattedDate}
+                                      </h5>
+                                      <p className="text-xs text-[var(--color-text-muted)]">
+                                        {dayGroup.logs.length} logged intake session{dayGroup.logs.length > 1 ? "s" : ""}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 sm:text-right">
+                                    <div>
+                                      <span className="text-xs text-[var(--color-text-muted)] block">Total Intake</span>
+                                      <span className="text-base sm:text-lg font-black text-cyan-600 dark:text-cyan-400">
+                                        {Math.round(dayGroup.total_ml)} ml
+                                      </span>
+                                      <span className="text-xs text-[var(--color-text-muted)] ml-1">
+                                        ({glassCount} glasses)
+                                      </span>
+                                    </div>
+                                    <span
+                                      className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${
+                                        isMet
+                                          ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                                          : percent >= 70
+                                          ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                                          : "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300"
+                                      }`}
+                                    >
+                                      {percent}% Goal
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="w-full bg-[var(--color-bg-surface)] rounded-full h-2 mt-3 overflow-hidden border border-[var(--color-border-default)]">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      isMet ? "bg-emerald-500" : percent >= 70 ? "bg-amber-500" : "bg-cyan-500"
+                                    }`}
+                                    style={{ width: `${Math.min(percent, 100)}%` }}
+                                  />
+                                </div>
+
+                                {/* Individual Logged Sessions */}
+                                {dayGroup.logs && dayGroup.logs.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-dashed border-[var(--color-border-default)]/60">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-2">
+                                      Logged Entries:
+                                    </span>
+                                    <div className="flex flex-wrap gap-2">
+                                      {dayGroup.logs.map((entry, idx) => (
+                                        <div
+                                          key={entry.id || idx}
+                                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-strong)]"
+                                        >
+                                          <Droplets size={12} className="text-cyan-500" />
+                                          <span className="font-semibold text-cyan-600 dark:text-cyan-400">{entry.amount_ml} ml</span>
+                                          {entry.created_at && (
+                                            <span className="text-[10px] text-[var(--color-text-muted)]">
+                                              @ {new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center rounded-2xl bg-[var(--color-bg-app)] border-2 border-dashed border-[var(--color-border-default)] text-[var(--color-text-muted)]">
+                          <Droplets size={32} className="mx-auto mb-2 opacity-40 text-cyan-500" />
+                          <p className="font-medium">No water intake logs recorded{waterDateFilter ? ` for ${waterDateFilter}` : ""}.</p>
+                          {waterDateFilter && (
+                            <button
+                              type="button"
+                              onClick={() => setWaterDateFilter("")}
+                              className="mt-3 text-xs text-[var(--color-primary)] underline cursor-pointer"
+                            >
+                              Show all dates
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

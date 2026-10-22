@@ -1,9 +1,7 @@
-// src/components/dashboard/WaterIntakeWidget.jsx
-
 import React, { useState, useEffect, useMemo } from "react";
 // UPDATED: Import the new hook
 import useWaterTracker from "./UseWaterTracker";
-import { GlassWater } from "lucide-react";
+import { GlassWater, AlertTriangle, RotateCw, Loader2, X, Info } from "lucide-react";
 import { motion, AnimatePresence, animate } from "framer-motion";
 import { targetApi } from "../../../api/reportsApi";
 
@@ -29,8 +27,16 @@ const AnimatedNumber = ({ value }) => {
 };
 
 const WaterIntakeWidget = ({ onWaterLogged }) => {
-  // UPDATED: Destructuring from the new hook. We get `totalIntakeMl` and `logWater`.
-  const { selectedDate, setSelectedDate, totalIntakeMl, logWater } = useWaterTracker();
+  // Destructure state and actions from hook including isLogging and logError fallback
+  const {
+    selectedDate,
+    setSelectedDate,
+    totalIntakeMl,
+    logWater,
+    isLogging,
+    logError,
+    clearLogError,
+  } = useWaterTracker();
   
   // NEW: Derive `totalGlasses` from `totalIntakeMl` for the UI to use.
   const totalGlasses = useMemo(() => Math.floor(totalIntakeMl / 250), [totalIntakeMl]);
@@ -78,11 +84,24 @@ const WaterIntakeWidget = ({ onWaterLogged }) => {
     return () => clearTimeout(timeoutId);
   }, [selectedDate, setSelectedDate]); 
 
-  // UPDATED: This function now calls `logWater` with a fixed amount (250ml)
+  // Calls `logWater` with a fixed amount (250ml)
   const handleAddGlass = async () => {
-    const success = await logWater(250); // Use the new logWater function
+    if (isLogging) return;
+    const success = await logWater(250);
     if (success && typeof onWaterLogged === "function") {
       onWaterLogged();
+    }
+  };
+
+  const handleRetry = async () => {
+    if (isLogging) return;
+    if (logError?.retry) {
+      const success = await logError.retry();
+      if (success && typeof onWaterLogged === "function") {
+        onWaterLogged();
+      }
+    } else {
+      handleAddGlass();
     }
   };
 
@@ -102,7 +121,10 @@ const WaterIntakeWidget = ({ onWaterLogged }) => {
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              clearLogError?.();
+              setSelectedDate(e.target.value);
+            }}
             max={getLocalDateString(new Date())}
             className="bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] px-4 py-2 rounded-lg shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] focus:outline-none focus:border-[var(--color-primary)] transition-all"
           />
@@ -149,14 +171,87 @@ const WaterIntakeWidget = ({ onWaterLogged }) => {
           </p>
         )}
 
+        {/* Fallback & Recovery Banner for Failed or Delayed Logging */}
+        <AnimatePresence>
+          {logError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              className="my-5 p-4 rounded-xl border-2 border-red-500/30 bg-red-500/10 text-[var(--color-text-strong)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-left shadow-sm"
+              role="alert"
+              aria-live="assertive"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-500/20 text-red-600 rounded-lg shrink-0 mt-0.5">
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400">
+                    Failed to log water intake
+                  </h4>
+                  <p className="text-xs text-[var(--color-text-default)] mt-0.5">
+                    {logError.message || "A network or server error occurred while logging your glass."}
+                  </p>
+                  <p className="text-[11px] text-[var(--color-text-muted)] mt-1 flex items-center gap-1">
+                    <Info size={12} className="shrink-0 text-[var(--color-primary)]" />
+                    <span>Your existing records are safe. Verify your connection and click Retry to complete logging.</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={isLogging}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCw size={13} className={isLogging ? "animate-spin" : ""} />
+                  <span>Retry ({logError.amount || 250}ml)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={clearLogError}
+                  className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] rounded-lg hover:bg-[var(--color-bg-app)] transition-colors cursor-pointer"
+                  title="Dismiss alert"
+                  aria-label="Dismiss alert"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Pending / delayed logging notice */}
+        {isLogging && !logError && (
+          <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-primary)] font-semibold my-3 animate-pulse">
+            <Loader2 size={14} className="animate-spin" />
+            <span>Connecting to server and recording your intake...</span>
+          </div>
+        )}
+
         <div className="flex justify-center mt-6">
           <motion.button
             onClick={handleAddGlass}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-8 py-3 rounded-full font-semibold hover:bg-[var(--color-primary-hover)] transition-all duration-300 transform shadow-lg hover:shadow-xl flex items-center gap-2"
+            disabled={isLogging}
+            whileHover={!isLogging ? { scale: 1.05, y: -2 } : {}}
+            whileTap={!isLogging ? { scale: 0.95 } : {}}
+            className={`bg-[var(--color-primary)] text-[var(--color-text-on-primary)] px-8 py-3 rounded-full font-semibold transition-all duration-300 transform shadow-lg hover:shadow-xl flex items-center gap-2 ${
+              isLogging ? "opacity-75 cursor-not-allowed" : "hover:bg-[var(--color-primary-hover)] cursor-pointer"
+            }`}
           >
-            <GlassWater size={20} /> Add a Glass
+            {isLogging ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Logging Glass...</span>
+              </>
+            ) : (
+              <>
+                <GlassWater size={20} />
+                <span>Add a Glass</span>
+              </>
+            )}
           </motion.button>
         </div>
       </motion.div>

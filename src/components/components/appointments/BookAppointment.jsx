@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { getAvailableSlots, bookAppointment, getMyInHouseNutritionist, getExpertNutritionists } from "../../../api/appointmentApi";
 import SlotPicker from "./SlotPicker";
 import { useAuth } from "../../context/AuthContext";
@@ -8,6 +8,10 @@ import { payConsultationFee, verifyPayment } from "../../../api/subscriptionServ
 import { toast } from "react-toastify";
 // Import advertisement image
 import bpMonitorAd from "../../../assets/download.jpg";
+
+// In-memory module caches to eliminate repeat network waterfalls
+let inHouseNutritionistCache = null;
+let expertNutritionistsCache = null;
 
 const formatLocalDate = (d) => {
   const year = d.getFullYear();
@@ -55,11 +59,11 @@ const BookAppointment = ({ onBooked }) => {
   const [appointmentCategory, setAppointmentCategory] = useState("IN_HOUSE"); // IN_HOUSE | EXPERT
   const [appointmentType, setAppointmentType] = useState("VIRTUAL"); // VIRTUAL | IN_PERSON
 
-  const [experts, setExperts] = useState([]);
+  const [experts, setExperts] = useState(() => expertNutritionistsCache || []);
   const [expertId, setExpertId] = useState("");
 
-  const [nutritionistId, setNutritionistId] = useState(null);
-  const [nutritionistInfo, setNutritionistInfo] = useState(null);
+  const [nutritionistId, setNutritionistId] = useState(() => inHouseNutritionistCache?.nutritionist_id || null);
+  const [nutritionistInfo, setNutritionistInfo] = useState(() => inHouseNutritionistCache || null);
 
   const [date, setDate] = useState(getTodayStr());
   const [slots, setSlots] = useState([]);
@@ -71,94 +75,22 @@ const BookAppointment = ({ onBooked }) => {
   const [consultType, setConsultType] = useState(null);
   const [pendingSlotId, setPendingSlotId] = useState(null);
 
-  // -------------------------------
-  // IN-HOUSE: fetch assigned nutritionist
-  // -------------------------------
-  useEffect(() => {
-    if (!user) return;
-
-    if (appointmentCategory === "IN_HOUSE") {
-      setExperts([]);
-      setExpertId("");
-      setSlots([]);
-      setNutritionistId(null);
-      setNutritionistInfo(null);
-
-      getMyInHouseNutritionist()
-        .then((res) => {
-          setNutritionistId(res.data.nutritionist_id);
-          setNutritionistInfo(res.data);
-        })
-        .catch(() => {
-          setNutritionistId(null);
-          setNutritionistInfo(null);
-        });
-    }
-  }, [appointmentCategory, user]);
-
-  // -------------------------------
-  // EXPERT: fetch expert list
-  // -------------------------------
-  useEffect(() => {
-    if (appointmentCategory === "EXPERT") {
-      setNutritionistId(null);
-      setNutritionistInfo(null);
-      setExpertId("");
-      setSlots([]);
-
-      getExpertNutritionists()
-        .then((res) => {
-          const list = Array.isArray(res.data) ? res.data : [];
-          setExperts(list);
-        })
-        .catch(() => {
-          setExperts([]);
-        });
-    }
-  }, [appointmentCategory]);
-
-  // Update nutritionist info when expert is selected
-  const handleSelectExpert = (id) => {
-    setExpertId(id);
-    setNutritionistId(id);
-    setSlots([]);
-    const found = experts.find((e) => String(e.id) === String(id));
-    setNutritionistInfo(found || null);
-  };
-
-  const handleCategoryChange = (cat) => {
-    setAppointmentCategory(cat);
-    setSlots([]);
-  };
-
-  const handleTypeChange = (type) => {
-    setAppointmentType(type);
-    setSlots([]); // Immediately clear slots to avoid displaying incompatible previous slots
-  };
-
-  const handleDateChange = (newDate) => {
-    setDate(newDate);
-    setSlots([]); // Immediately clear slots to avoid displaying old date slots
-  };
-
-  // -------------------------------
-  // Fetch slots
-  // -------------------------------
-  const fetchSlots = async () => {
-    if (!nutritionistId || !date) return;
+  // Helper to directly load slots for a specific nutritionist without waiting for render cycle
+  const loadSlotsFor = useCallback(async (nutriId, targetDate, targetType) => {
+    if (!nutriId || !targetDate) return;
 
     setFetchingSlots(true);
     try {
-      const res = await getAvailableSlots(nutritionistId, date, appointmentType);
+      const res = await getAvailableSlots(nutriId, targetDate, targetType);
       let data = Array.isArray(res.data)
         ? res.data
         : res.data?.results || [];
 
       const todayStr = getTodayStr();
-      if (date === todayStr) {
+      if (targetDate === todayStr) {
         const nowStr = new Date().toTimeString().slice(0, 5);
         data = data.filter((s) => s.start_time > nowStr);
-      } else if (date < todayStr) {
+      } else if (targetDate < todayStr) {
         data = [];
       }
 
@@ -169,14 +101,121 @@ const BookAppointment = ({ onBooked }) => {
     } finally {
       setFetchingSlots(false);
     }
+  }, []);
+
+  // -------------------------------
+  // IN-HOUSE: fetch assigned nutritionist & slots immediately
+  // -------------------------------
+  useEffect(() => {
+    if (!user) return;
+
+    if (appointmentCategory === "IN_HOUSE") {
+      setExperts([]);
+      setExpertId("");
+
+      // If cached, display instantly and kick off slot fetch right away
+      if (inHouseNutritionistCache) {
+        const cachedId = inHouseNutritionistCache.nutritionist_id;
+        setNutritionistId(cachedId);
+        setNutritionistInfo(inHouseNutritionistCache);
+        loadSlotsFor(cachedId, date, appointmentType);
+        return;
+      }
+
+      setSlots([]);
+      setNutritionistId(null);
+      setNutritionistInfo(null);
+
+      getMyInHouseNutritionist()
+        .then((res) => {
+          inHouseNutritionistCache = res.data;
+          const nId = res.data.nutritionist_id;
+          setNutritionistId(nId);
+          setNutritionistInfo(res.data);
+          // Directly load slots without waiting for react state tick
+          if (nId && date) {
+            loadSlotsFor(nId, date, appointmentType);
+          }
+        })
+        .catch(() => {
+          setNutritionistId(null);
+          setNutritionistInfo(null);
+        });
+    }
+  }, [appointmentCategory, user, date, appointmentType, loadSlotsFor]);
+
+  // -------------------------------
+  // EXPERT: fetch expert list with instant cache
+  // -------------------------------
+  useEffect(() => {
+    if (appointmentCategory === "EXPERT") {
+      setNutritionistId(null);
+      setNutritionistInfo(null);
+      setExpertId("");
+      setSlots([]);
+
+      if (expertNutritionistsCache) {
+        setExperts(expertNutritionistsCache);
+        return;
+      }
+
+      getExpertNutritionists()
+        .then((res) => {
+          const list = Array.isArray(res.data) ? res.data : [];
+          expertNutritionistsCache = list;
+          setExperts(list);
+        })
+        .catch(() => {
+          setExperts([]);
+        });
+    }
+  }, [appointmentCategory]);
+
+  // Background prefetch experts for instant category switching
+  useEffect(() => {
+    if (!expertNutritionistsCache) {
+      getExpertNutritionists()
+        .then((res) => {
+          const list = Array.isArray(res.data) ? res.data : [];
+          expertNutritionistsCache = list;
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // Update nutritionist info when expert is selected
+  const handleSelectExpert = (id) => {
+    setExpertId(id);
+    setNutritionistId(id);
+    setSlots([]);
+    const found = experts.find((e) => String(e.id) === String(id));
+    setNutritionistInfo(found || null);
+    if (id && date) {
+      loadSlotsFor(id, date, appointmentType);
+    }
   };
 
-  // Auto fetch when nutritionist, date, or appointment type changes
-  useEffect(() => {
+  const handleCategoryChange = (cat) => {
+    setAppointmentCategory(cat);
+    setSlots([]);
+  };
+
+  const handleTypeChange = (type) => {
+    setAppointmentType(type);
     if (nutritionistId && date) {
-      fetchSlots();
+      loadSlotsFor(nutritionistId, date, type);
     }
-  }, [nutritionistId, date, appointmentType]);
+  };
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    if (nutritionistId && newDate) {
+      loadSlotsFor(nutritionistId, newDate, appointmentType);
+    }
+  };
+
+  // Re-fetch slots for current selection
+  const fetchSlots = () => loadSlotsFor(nutritionistId, date, appointmentType);
 
   const [consultPaymentDetails, setConsultPaymentDetails] = useState(null);
 
@@ -752,6 +791,7 @@ const BookingForm = ({
           loading={loading}
           pendingSlotId={pendingSlotId}
           appointmentType={appointmentType}
+          fetchingSlots={fetchingSlots}
         />
       </div>
     </motion.div>

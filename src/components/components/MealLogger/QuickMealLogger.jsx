@@ -289,50 +289,54 @@ const QuickMealLogger = ({ onMealLogged }) => {
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-        className={`flex flex-col p-3 rounded-xl border-2 shadow-sm transition-all duration-300 ease-in-out hover:shadow-md ${style.border || "border-[var(--color-border-default)]"} bg-[var(--color-bg-surface)]`}
+        className={`flex flex-col p-3 sm:p-3.5 rounded-xl border-2 shadow-sm transition-all duration-300 ease-in-out hover:shadow-md ${style.border || "border-[var(--color-border-default)]"} bg-[var(--color-bg-surface)]`}
       >
-        <div className="flex items-center gap-3 w-full">
-          <div className={`p-2.5 rounded-full text-lg shrink-0 ${style.bg || "bg-[var(--color-primary-subtle)]"} ${style.iconColor || "text-[var(--color-primary)]"}`}>
-            <FaUtensils />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <p className="font-semibold text-[var(--color-text-strong)] text-sm sm:text-base truncate">
-                {meal.food_name_display}
-              </p>
-              {formatMealPortion(meal) && (
-                <span className="text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
-                  {formatMealPortion(meal)}
-                </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 w-full">
+          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+            <div className={`p-2.5 rounded-full text-base sm:text-lg shrink-0 mt-0.5 sm:mt-0 ${style.bg || "bg-[var(--color-primary-subtle)]"} ${style.iconColor || "text-[var(--color-primary)]"}`}>
+              <FaUtensils />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="font-semibold text-[var(--color-text-strong)] text-sm sm:text-base break-words leading-tight">
+                  {meal.food_name_display}
+                </p>
+                {formatMealPortion(meal) && (
+                  <span className="text-[11px] font-semibold text-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                    {formatMealPortion(meal)}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-[var(--color-text-muted)] mt-1 flex items-center gap-1.5 flex-wrap">
+                <span className="capitalize font-medium text-[var(--color-text-default)]">{meal.meal_type || "Meal"}</span>
+                {meal.consumed_at && (
+                  <>
+                    <span>•</span>
+                    <span className="whitespace-nowrap">{new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </>
+                )}
+                {meal.calories != null && (
+                  <>
+                    <span>•</span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap bg-amber-500/10 px-1.5 py-0.5 rounded">
+                      {Math.round(meal.calories)} kcal
+                    </span>
+                  </>
+                )}
+              </div>
+              {meal.remarks && (
+                <p className="text-xs italic text-[var(--color-primary)] mt-1 break-words line-clamp-2">
+                  "{meal.remarks}"
+                </p>
               )}
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <span className="capitalize font-medium text-[var(--color-text-default)]">{meal.meal_type || "Meal"}</span>
-              {meal.consumed_at && (
-                <>
-                  <span>•</span>
-                  <span>{new Date(meal.consumed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </>
-              )}
-              {meal.calories != null && (
-                <>
-                  <span>•</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400">{Math.round(meal.calories)} kcal</span>
-                </>
-              )}
-            </p>
-            {meal.remarks && (
-              <p className="text-xs italic text-[var(--color-primary)] mt-1 truncate">
-                "{meal.remarks}"
-              </p>
-            )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border-default)]/60 justify-end">
             <button
               type="button"
               onClick={() => toggleMealDetail(meal.id)}
-              className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
                 isDetailOpen
                   ? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] border-[var(--color-primary)] shadow-sm"
                   : "text-[var(--color-primary)] bg-[var(--color-primary-subtle)] border-[var(--color-primary)]/20 hover:border-[var(--color-primary)]"
@@ -346,7 +350,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
             <button
               type="button"
               onClick={() => handleEditMeal(meal)}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] hover:bg-[var(--color-info-bg)]/20 border border-[var(--color-info-text)]/20 transition-all shadow-sm"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-[var(--color-info-text)] bg-[var(--color-info-bg-subtle)] hover:bg-[var(--color-info-bg)]/20 border border-[var(--color-info-text)]/20 transition-all shadow-sm"
               title="Edit Meal"
             >
               <FilePenLine size={13} />
@@ -355,7 +359,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
             <button
               type="button"
               onClick={() => handleDeleteMeal(meal.id)}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors p-1.5 rounded-lg hover:bg-[var(--color-danger-bg-subtle)]"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors p-2 sm:p-1.5 rounded-lg hover:bg-[var(--color-danger-bg-subtle)] shrink-0"
               title="Remove Meal"
             >
               <Trash2 size={15} />
@@ -430,7 +434,7 @@ const QuickMealLogger = ({ onMealLogged }) => {
   };
 
   return (
-    <section id="quick-meal-logger-section" className="w-full bg-[var(--color-bg-app)] px-6 sm:px-12 py-16 font-[var(--font-secondary)]">
+    <section id="quick-meal-logger-section" className="w-full bg-[var(--color-bg-app)] px-3 sm:px-6 md:px-12 py-8 sm:py-16 font-[var(--font-secondary)]">
       <div className="max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-12">
           <h2 className="text-center text-2xl sm:text-3xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">Quick Meal Logger</h2>
