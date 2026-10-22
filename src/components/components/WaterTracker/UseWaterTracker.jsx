@@ -28,6 +28,10 @@ const useWaterTracker = () => {
   // UPDATED: The primary value we work with is the total intake in ml.
   const totalIntakeMl = waterIntake[selectedDate] || 0;
 
+  // Logging & error fallback state
+  const [isLogging, setIsLogging] = useState(false);
+  const [logError, setLogError] = useState(null);
+
   // This effect correctly updates the date at midnight. It remains unchanged.
   useEffect(() => {
     const updateDateAtMidnight = () => {
@@ -59,12 +63,15 @@ const useWaterTracker = () => {
     }
   }, []);
 
-  // UPDATED: Replaced `addGlass` with `logWater` which accepts a variable `amount`.
+  // UPDATED: Replaced `addGlass` with `logWater` which accepts a variable `amount` and provides fallback handling.
   const logWater = async (amount) => {
     if (!amount || amount <= 0) {
       toast.error("Invalid amount provided.");
       return false;
     }
+
+    setIsLogging(true);
+    setLogError(null);
 
     try {
       // The API call now uses the dynamic `amount`.
@@ -94,16 +101,30 @@ const useWaterTracker = () => {
         });
       }
 
+      setIsLogging(false);
       return true;
     } catch (error) {
       console.error("❌ Error logging water:", error);
-      toast.error("Could not log water. Please try again.", {
+      const errorMsg = error?.response?.data?.detail || error?.response?.data?.message || (typeof error?.response?.data === 'string' ? error.response.data : "Failed to record water intake. Please check your network connection.");
+      
+      setLogError({
+        message: errorMsg,
+        amount,
+        timestamp: new Date(),
+        retry: () => logWater(amount)
+      });
+
+      toast.error("Could not log water. Please check connection and try again.", {
         icon: <AlertTriangle size={20} className="text-[var(--color-danger-text)]" />,
       });
+
+      setIsLogging(false);
       return false;
     }
   };
   
+  const clearLogError = () => setLogError(null);
+
   // UPDATED: Renamed for clarity.
   const resetWater = () => {
     setWaterIntake((prev) => ({ ...prev, [selectedDate]: 0 }));
@@ -121,6 +142,9 @@ const useWaterTracker = () => {
     setSelectedDate,
     totalIntakeMl, // Export total ml instead of glasses
     logWater,      // Export the new flexible log function
+    isLogging,     // Pending/loading state
+    logError,      // Error details and retry fallback
+    clearLogError, // Dismiss error
     resetWater,    // Export the renamed reset function
     waterIntake,   // Export the full log object for potential other uses
   };

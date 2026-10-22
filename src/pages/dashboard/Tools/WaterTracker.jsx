@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, animate } from 'framer-motion';
-import { Droplet, Target, GlassWater, TrendingUp, Lightbulb, Wind, CheckCircle2, PlusCircle, Award } from 'lucide-react';
+import { Droplet, Target, GlassWater, TrendingUp, Lightbulb, Wind, CheckCircle2, PlusCircle, Award, AlertTriangle, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 
 // --- API & Hook Imports ---
@@ -121,7 +121,7 @@ const GoalLineLabel = ({ viewBox }) => {
 
 // --- Main Component ---
 export default function WaterTracker() {
-    const { totalIntakeMl, logWater, selectedDate } = useWaterTracker();
+    const { totalIntakeMl, logWater, selectedDate, logError, clearLogError } = useWaterTracker();
     const [dailyGoalMl, setDailyGoalMl] = useState(2000);
     const [historyData, setHistoryData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -245,6 +245,35 @@ export default function WaterTracker() {
                     </div>
                     <div className="flex flex-col items-center gap-4">
                         <h3 className="font-bold text-lg text-center text-[var(--color-text-strong)] mb-2">Log Your Intake</h3>
+
+                        {/* Error Fallback Banner */}
+                        <AnimatePresence>
+                            {logError && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="w-full max-w-lg p-3 rounded-xl border border-red-500/40 bg-red-500/10 text-[var(--color-text-strong)] flex items-center justify-between gap-3 text-xs"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <AlertTriangle className="text-red-500 shrink-0" size={16} />
+                                        <span>{logError.message || "Failed to log water intake."}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                            onClick={() => logError.retry ? logError.retry() : handleLogWater(logError.amount || 250)}
+                                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+                                        >
+                                            Retry ({logError.amount || 250}ml)
+                                        </button>
+                                        <button onClick={clearLogError} className="p-1 hover:bg-red-500/20 rounded cursor-pointer">
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {isLoading ? <Wind className="animate-spin text-[var(--color-primary)]"/> : (
                             <div className='flex flex-col items-center gap-4 w-full max-w-lg'>
                                 <div className="flex items-center justify-center gap-3 sm:gap-4 w-full">
