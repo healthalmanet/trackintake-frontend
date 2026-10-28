@@ -90,6 +90,7 @@ export default function BMICalculator() {
   const [weight, setWeight]         = useState('');
   const [weightUnit, setWeightUnit] = useState('lbs');
   const [bmi, setBmi]               = useState(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   // subscription state
   const [subscription, setSubscription] = useState(null);   // null = loading
@@ -138,8 +139,6 @@ export default function BMICalculator() {
 
   // ── what happens when user clicks Calculate ──────────────────────────────────
   // If no access → show upgrade prompt in results panel instead of result
-  const [showUpgrade, setShowUpgrade] = useState(false);
-
   const handleCalculateClick = () => {
     if (!subLoaded) return; // still loading, do nothing
 

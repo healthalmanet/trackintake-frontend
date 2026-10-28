@@ -74,6 +74,7 @@ const BookAppointment = ({ onBooked }) => {
   const [showConsultPayment, setShowConsultPayment] = useState(false);
   const [consultType, setConsultType] = useState(null);
   const [pendingSlotId, setPendingSlotId] = useState(null);
+  const [consultPaymentDetails, setConsultPaymentDetails] = useState(null);
 
   // Helper to directly load slots for a specific nutritionist without waiting for render cycle
   const loadSlotsFor = useCallback(async (nutriId, targetDate, targetType) => {
@@ -216,8 +217,6 @@ const BookAppointment = ({ onBooked }) => {
 
   // Re-fetch slots for current selection
   const fetchSlots = () => loadSlotsFor(nutritionistId, date, appointmentType);
-
-  const [consultPaymentDetails, setConsultPaymentDetails] = useState(null);
 
   // -------------------------------
   // Book appointment
