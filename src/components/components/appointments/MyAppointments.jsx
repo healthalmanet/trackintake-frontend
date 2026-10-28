@@ -450,6 +450,10 @@ const MyAppointments = ({ refresh } = {}) => {
   // Appointment Detail & Notes Modal
   const [detailModalApptId, setDetailModalApptId] = useState(null);
 
+  // Reschedule & Cancel Modals State
+  const [rescheduleModalAppt, setRescheduleModalAppt] = useState(null);
+  const [cancelModalAppt, setCancelModalAppt] = useState(null);
+
   const openFeedbackModal = (id) => {
     setSelectedAppointment(id);
     setRating(5);
@@ -503,10 +507,6 @@ const MyAppointments = ({ refresh } = {}) => {
     const timer = setTimeout(fetchAppointments, 300);
     return () => clearTimeout(timer);
   }, [search]);
-
-  // Reschedule & Cancel Modals State
-  const [rescheduleModalAppt, setRescheduleModalAppt] = useState(null);
-  const [cancelModalAppt, setCancelModalAppt] = useState(null);
 
   return (
     <div className="min-h-screen pb-16 bg-[var(--color-bg-app)] font-[var(--font-secondary)] text-[var(--color-text-strong)]">

@@ -43,6 +43,7 @@ const AppointmentDetailModal = ({
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   // Editable fields for nutritionist
   const [notes, setNotes] = useState("");
@@ -57,6 +58,7 @@ const AppointmentDetailModal = ({
   useEffect(() => {
     if (!isOpen || !appointmentId) {
       setAppointment(null);
+      setLoading(true);
       return;
     }
 
@@ -84,6 +86,7 @@ const AppointmentDetailModal = ({
   const isNutritionist = userRole === "nutritionist";
   const isVirtual = appointment?.appointment_type === "VIRTUAL";
   const isConfirmed = appointment?.status === "CONFIRMED";
+  const isCancelled = appointment?.status === "CANCELLED";
   const p = appointment?.patient_details || {};
   const n = appointment?.nutritionist_details || {};
   const slot = appointment?.slot || {};
@@ -118,8 +121,6 @@ const AppointmentDetailModal = ({
       setSavingNotes(false);
     }
   };
-
-  const [markingPaid, setMarkingPaid] = useState(false);
 
   const handleMarkPaid = async () => {
     if (!appointmentId) return;
@@ -200,31 +201,37 @@ const AppointmentDetailModal = ({
                 Loading appointment summary...
               </p>
             </div>
+          ) : !appointment ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-xs text-[var(--color-text-muted)] font-semibold">
+                Could not load appointment details.
+              </p>
+            </div>
           ) : (
             <>
               {/* Cancellation & Refund Alert Banner (if cancelled) */}
-              {!isConfirmed && (
+              {isCancelled && (
                 <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 dark:bg-rose-950/20 dark:border-rose-800 dark:text-rose-200 space-y-1">
                   <div className="flex items-center gap-2 font-bold text-xs">
                     <XCircle size={15} className="text-rose-600 shrink-0" />
-                    <span>Appointment Cancelled {appointment.cancelled_by ? `by ${appointment.cancelled_by}` : ""}</span>
+                    <span>Appointment Cancelled {appointment?.cancelled_by ? `by ${appointment?.cancelled_by}` : ""}</span>
                   </div>
-                  {appointment.cancellation_reason && (
+                  {appointment?.cancellation_reason && (
                     <p className="text-[11px] text-rose-700 dark:text-rose-300">
-                      Reason: "{appointment.cancellation_reason}"
+                      Reason: "{appointment?.cancellation_reason}"
                     </p>
                   )}
-                  {appointment.payment_status === "PENDING_REFUND" && (
+                  {appointment?.payment_status === "PENDING_REFUND" && (
                     <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 pt-1">
-                      ⚠️ Refund Status: ₹{appointment.refund_amount} (Pending Admin Review)
+                      ⚠️ Refund Status: ₹{appointment?.refund_amount} (Pending Admin Review)
                     </p>
                   )}
-                  {appointment.payment_status === "REFUNDED" && (
+                  {appointment?.payment_status === "REFUNDED" && (
                     <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 pt-1">
-                      ✓ Refund Status: ₹{appointment.refund_amount} Refunded
+                      ✓ Refund Status: ₹{appointment?.refund_amount} Refunded
                     </p>
                   )}
-                  {appointment.payment_status === "NO_REFUND" && (
+                  {appointment?.payment_status === "NO_REFUND" && (
                     <p className="text-[11px] text-gray-600 dark:text-gray-400 pt-1">
                       Refund Policy: No refund applicable for this cancellation.
                     </p>
@@ -233,11 +240,11 @@ const AppointmentDetailModal = ({
               )}
 
               {/* Reschedule tracking alert */}
-              {appointment.reschedule_count > 0 && (
+              {appointment?.reschedule_count > 0 && (
                 <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 dark:bg-blue-950/20 dark:border-blue-800 dark:text-blue-200 flex items-center justify-between text-xs">
                   <span className="font-semibold">Reschedule History:</span>
                   <span className="font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full text-[11px]">
-                    {appointment.reschedule_count} / 2 used
+                    {appointment?.reschedule_count} / 2 used
                   </span>
                 </div>
               )}
@@ -310,7 +317,7 @@ const AppointmentDetailModal = ({
                       Nutritionist Information
                     </h3>
                     <span className="text-[10px] font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] px-2 py-0.5 rounded-full border border-[var(--color-border-hover)]">
-                      {appointment.appointment_category === "EXPERT" ? "Specialist Expert" : "In-House Nutritionist"}
+                      {appointment?.appointment_category === "EXPERT" ? "Specialist Expert" : "In-House Nutritionist"}
                     </span>
                   </div>
 
@@ -388,7 +395,7 @@ const AppointmentDetailModal = ({
                     </span>
                   </div>
 
-                  {appointment.meeting_link ? (
+                  {appointment?.meeting_link ? (
                     <div>
                       <p className="text-xs font-mono break-all p-2.5 rounded-xl bg-white/95 text-blue-900 border border-blue-200 shadow-2xs mb-2.5">
                         {appointment.meeting_link}
@@ -554,7 +561,7 @@ const AppointmentDetailModal = ({
                   </div>
 
                   <div className="space-y-2">
-                    {appointment.feedbacks.map((fb, idx) => (
+                    {appointment?.feedbacks?.map((fb, idx) => (
                       <div
                         key={idx}
                         className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-1.5"
@@ -634,28 +641,32 @@ const AppointmentDetailModal = ({
         </div>
 
         {/* Reschedule Sub-Modal */}
-        <RescheduleModal
-          isOpen={isRescheduleOpen}
-          onClose={() => setIsRescheduleOpen(false)}
-          appointment={appointment}
-          userRole={userRole}
-          onRescheduled={(updated) => {
-            setAppointment(updated);
-            onNotesSaved?.(updated);
-          }}
-        />
+        {appointment && (
+          <RescheduleModal
+            isOpen={isRescheduleOpen}
+            onClose={() => setIsRescheduleOpen(false)}
+            appointment={appointment}
+            userRole={userRole}
+            onRescheduled={(updated) => {
+              setAppointment(updated);
+              onNotesSaved?.(updated);
+            }}
+          />
+        )}
 
         {/* Cancel Sub-Modal */}
-        <CancelModal
-          isOpen={isCancelOpen}
-          onClose={() => setIsCancelOpen(false)}
-          appointment={appointment}
-          userRole={userRole}
-          onCancelled={(updated) => {
-            setAppointment(updated);
-            onNotesSaved?.(updated);
-          }}
-        />
+        {appointment && (
+          <CancelModal
+            isOpen={isCancelOpen}
+            onClose={() => setIsCancelOpen(false)}
+            appointment={appointment}
+            userRole={userRole}
+            onCancelled={(updated) => {
+              setAppointment(updated);
+              onNotesSaved?.(updated);
+            }}
+          />
+        )}
       </motion.div>
     </div>
   );
