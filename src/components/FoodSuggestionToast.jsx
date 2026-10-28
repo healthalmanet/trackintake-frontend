@@ -118,12 +118,12 @@ export function FoodSuggestionToast({ suggestion, onDismiss, onViewAll }) {
                 <span style={{
                   fontSize:      "10px",
                   fontWeight:    "700",
-                  letterSpacing: "0.1em",
+                  letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   color:         "#FF7043",
                   fontFamily:    "'Poppins', sans-serif",
                 }}>
-                  Nutrition Tip
+                  {suggestion.slotTitle ? `${suggestion.slotIcon || "✨"} ${suggestion.slotTitle}` : "AI Clinical Tip"}
                 </span>
               </div>
 
@@ -151,10 +151,10 @@ export function FoodSuggestionToast({ suggestion, onDismiss, onViewAll }) {
             {/* Message */}
             <p style={{
               fontFamily:  "'Poppins', sans-serif",
-              fontSize:    "13px",
+              fontSize:    "12.5px",
               fontWeight:  "500",
               color:       "var(--color-text-strong, #263238)",
-              lineHeight:  "1.5",
+              lineHeight:  "1.45",
               marginBottom:"10px",
             }}>
               {suggestion.message}
@@ -185,7 +185,7 @@ export function FoodSuggestionToast({ suggestion, onDismiss, onViewAll }) {
                 flexShrink:     0,
                 boxShadow:      "0 2px 8px rgba(255, 112, 67, 0.3)",
               }}>
-                🥗
+                {suggestion.slotIcon || "🥗"}
               </div>
 
               <div style={{ minWidth: 0, flex: 1 }}>
@@ -201,12 +201,26 @@ export function FoodSuggestionToast({ suggestion, onDismiss, onViewAll }) {
                 }}>
                   {suggestion.topSuggestion}
                 </p>
+                {suggestion.portionSize && (
+                  <span style={{
+                    fontSize: "10px",
+                    color: "#FF7043",
+                    background: "#FFF3EE",
+                    padding: "1px 5px",
+                    borderRadius: "4px",
+                    fontWeight: "600",
+                    display: "inline-block",
+                    marginTop: "2px",
+                  }}>
+                    {suggestion.portionSize}
+                  </span>
+                )}
                 <p style={{
                   fontFamily: "'Roboto', sans-serif",
-                  fontSize:   "11.5px",
+                  fontSize:   "11px",
                   color:      "var(--color-text-muted, #6b7281)",
-                  margin:     "2px 0 0",
-                  lineHeight: "1.4",
+                  margin:     "3px 0 0",
+                  lineHeight: "1.35",
                   display:    "-webkit-box",
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical",
@@ -214,6 +228,22 @@ export function FoodSuggestionToast({ suggestion, onDismiss, onViewAll }) {
                 }}>
                   {suggestion.reason}
                 </p>
+                {suggestion.suitabilityTags?.length > 0 && (
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
+                    {suggestion.suitabilityTags.slice(0, 2).map((tag, idx) => (
+                      <span key={idx} style={{
+                        fontSize: "9px",
+                        background: "#F1F5F9",
+                        color: "#475569",
+                        padding: "1px 5px",
+                        borderRadius: "3px",
+                        fontWeight: "500",
+                      }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

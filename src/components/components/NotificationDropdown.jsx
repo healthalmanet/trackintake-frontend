@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef ,useCallback} from "react";
-import { Bell, CheckCircle, MessageCircle, Droplet, XCircle, AlertCircle } from "lucide-react";
+import { Bell, CheckCircle, MessageCircle, Droplet, XCircle, AlertCircle, Utensils } from "lucide-react";
 import useWebSockets from "../../api/useWebSockets";// Corrected path
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import { markMessageAsRead } from "../../api/messagePatientApi";
 export let clearMessageNotifications = () => {};
 export let pushWaterNotification = () => {};
 export let pushMealNotifications = () => {};
+export let pushFoodSuggestionNotification = () => {};
 
 const useClickOutside = (ref, handler) => {
   useEffect(() => {
@@ -27,9 +28,24 @@ const useClickOutside = (ref, handler) => {
 };
 
 const NotificationDropdown = () => {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem("trackintake_notifications");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isOpen, setIsOpen] = useState(false);
-  const [hasNew, setHasNew] = useState(false);
+  const [hasNew, setHasNew] = useState(() => {
+    try {
+      const saved = localStorage.getItem("trackintake_notifications");
+      const list = saved ? JSON.parse(saved) : [];
+      return list.some(n => !n.read);
+    } catch {
+      return false;
+    }
+  });
   const dropdownRef = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -38,6 +54,12 @@ const NotificationDropdown = () => {
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("trackintake_notifications", JSON.stringify(notifications));
+    } catch (e) {}
+  }, [notifications]);
 
   useEffect(() => {
     const fetchInitialMessages = async () => {
@@ -93,10 +115,22 @@ const NotificationDropdown = () => {
       formatted.forEach(addNotification);
     };
 
+    pushFoodSuggestionNotification = (suggestionNote) => {
+      if (!suggestionNote) return;
+      addNotification({
+        id: suggestionNote.id || Date.now(),
+        type: "food_suggestion",
+        title: suggestionNote.title || "AI Food Suggestion",
+        text: suggestionNote.text || suggestionNote.message || "A new personalized meal is recommended for you.",
+        data: suggestionNote.data,
+      });
+    };
+
     return () => {
       clearMessageNotifications = () => {};
       pushWaterNotification = () => {};
       pushMealNotifications = () => {};
+      pushFoodSuggestionNotification = () => {};
     };
   }, []);
 
@@ -142,6 +176,9 @@ const NotificationDropdown = () => {
   const handleClearAll = () => {
     setNotifications([]);
     setHasNew(false);
+    try {
+      localStorage.removeItem("trackintake_notifications");
+    } catch (e) {}
   };
   
   const handleActionableClick = (note) => {
@@ -155,17 +192,19 @@ const NotificationDropdown = () => {
       navigate('/dashboard/tools/water-tracker');
     } else if (note.type === 'meal_alert') {
       navigate('/dashboard/tools/meal-logger');
+    } else if (note.type === 'food_suggestion') {
+      window.dispatchEvent(new CustomEvent('trackintake:open_food_drawer', { detail: note.data }));
     }
   };
 
-  const getIcon = (type) => { switch (type) { case "reminder": return <CheckCircle className="h-5 w-5 text-[var(--color-success-text)]" />; case "message": return <MessageCircle className="h-5 w-5 text-[var(--color-primary)]" />; case "water": return <Droplet className="h-5 w-5 text-[var(--color-info-text)]" />; case "meal_alert": return <AlertCircle className="h-5 w-5 text-[var(--color-warning-text)]" />; default: return <Bell className="h-5 w-5" />; } };
-  const getIconBg = (type) => { switch (type) { case "reminder": return "bg-[var(--color-success-bg-subtle)]"; case "message": return "bg-[var(--color-primary-bg-subtle)]"; case "water": return "bg-[var(--color-info-bg-subtle)]"; case "meal_alert": return "bg-[var(--color-warning-bg-subtle)]"; default: return "bg-[var(--color-bg-interactive-subtle)]"; } };
+  const getIcon = (type) => { switch (type) { case "reminder": return <CheckCircle className="h-5 w-5 text-[var(--color-success-text)]" />; case "message": return <MessageCircle className="h-5 w-5 text-[var(--color-primary)]" />; case "water": return <Droplet className="h-5 w-5 text-[var(--color-info-text)]" />; case "meal_alert": return <AlertCircle className="h-5 w-5 text-[var(--color-warning-text)]" />; case "food_suggestion": return <Utensils className="h-5 w-5 text-[var(--color-primary)]" />; default: return <Bell className="h-5 w-5" />; } };
+  const getIconBg = (type) => { switch (type) { case "reminder": return "bg-[var(--color-success-bg-subtle)]"; case "message": return "bg-[var(--color-primary-bg-subtle)]"; case "water": return "bg-[var(--color-info-bg-subtle)]"; case "meal_alert": return "bg-[var(--color-warning-bg-subtle)]"; case "food_suggestion": return "bg-[#FFF3EE]"; default: return "bg-[var(--color-bg-interactive-subtle)]"; } };
   
   const NotificationContent = ({ note }) => (
     <div className="flex items-start gap-3">
       <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getIconBg(note.type)}`}>{getIcon(note.type)}</div>
       <div className="flex-1">
-        <p className="text-sm font-semibold text-[var(--color-text-strong)] capitalize">{note.type === 'water' ? "Water Goal" : note.type === 'reminder' ? "Reminder" : note.type === 'meal_alert' ? "Calorie Alert" : note.sender_name || "New Message"}</p>
+        <p className="text-sm font-semibold text-[var(--color-text-strong)] capitalize">{note.type === 'water' ? "Water Goal" : note.type === 'reminder' ? "Reminder" : note.type === 'meal_alert' ? "Calorie Alert" : note.type === 'food_suggestion' ? (note.title || "AI Food Suggestion") : note.sender_name || "New Message"}</p>
         <p className="text-sm text-[var(--color-text-default)] break-words">{note.text}</p>
       </div>
        {!note.read && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full self-center flex-shrink-0"></div>}
@@ -217,7 +256,7 @@ const NotificationDropdown = () => {
               <ul className="max-h-96 overflow-y-auto">
                 <AnimatePresence>
                   {notifications.map((note, idx) => {
-                    const isActionable = note.type === 'message' || note.type === 'reminder';
+                    const isActionable = note.type === 'message' || note.type === 'reminder' || note.type === 'food_suggestion' || note.type === 'water' || note.type === 'meal_alert';
                     return (
                       <motion.li key={note.id} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }} transition={{ duration: 0.25, delay: idx * 0.05 }} className={`block p-3 border-b-2 border-[var(--color-border-default)] last:border-b-0 transition-colors duration-200 ${!note.read ? 'bg-blue-500/5' : ''} ${isActionable ? 'cursor-pointer hover:bg-[var(--color-bg-interactive-subtle)]' : ''}`} onClick={isActionable ? () => handleActionableClick(note) : undefined}>
                         <NotificationContent note={note} />

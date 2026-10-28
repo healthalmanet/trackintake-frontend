@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./components/context/AuthContext";
 import { Loader } from "lucide-react";
 
@@ -16,7 +16,7 @@ import NutritionistPage from "./pages/NutritionistPage";
 import Dashboard from "./pages/Dashboard";
 
 import Navbar from "./components/components/Navbar";
-import NotificationDropdown from "./components/components/NotificationDropdown";
+import NotificationDropdown, { pushFoodSuggestionNotification } from "./components/components/NotificationDropdown";
 import Footer from "./components/components/Footer";
 import ProtectedRoute from "./components/components/ProtectedRoute";
 import logo from "./assets/logo.png";
@@ -46,6 +46,33 @@ import Career from "./pages/Career";
 import axiosInstance from "./api/axiosInstance";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// Helper to calculate daily slot: Morning (5-12), Afternoon (12-17), Evening (17-5)
+function getSlotConfig() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    return {
+      slot: "morning",
+      mealType: "Breakfast",
+      title: "Morning Energy Recommendation",
+      icon: "🌅",
+    };
+  }
+  if (hour >= 12 && hour < 17) {
+    return {
+      slot: "afternoon",
+      mealType: "Lunch",
+      title: "Afternoon Balanced Lunch",
+      icon: "☀️",
+    };
+  }
+  return {
+    slot: "evening",
+    mealType: "Dinner",
+    title: "Evening Restorative Meal",
+    icon: "🌙",
+  };
+}
+
 // ── Stable no-op callbacks defined OUTSIDE the component ────────
 // This ensures they never change reference between renders,
 // so useWebSockets' useEffect never re-runs and clears the handler.
@@ -53,6 +80,7 @@ const noop = () => { };
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
 
   const [isToolboxOpen, setIsToolboxOpen] = useState(false);
   const [toolboxTab, setToolboxTab] = useState("assistant");
@@ -60,34 +88,94 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerInitData, setDrawerInitData] = useState(null);
 
-
   // Stable callback — useCallback with [] is correct here
   const handleSuggestion = useCallback((data) => {
-    console.log("🍽️ Food suggestion received:", data); // debug log
+    console.log("🍽️ Food suggestion received via WebSocket:", data);
+    const { icon, title } = getSlotConfig();
     setSuggestion({
       message: data.message || "",
       topSuggestion: data.top_suggestion || "",
       reason: data.reason || "",
       caloriesLeft: data.calories_left || 0,
+      slot: data.slot,
+      slotIcon: icon,
+      slotTitle: title,
       receivedAt: Date.now(),
     });
   }, []);
 
   // ── useWebSockets with stable references ─────────────────────
   useWebSockets({
-    onReminder: noop,             // stable — defined outside component
-    onMessage: noop,             // stable — defined outside component
-    onSuggestion: handleSuggestion, // stable — useCallback with []
+    onReminder: noop,
+    onMessage: noop,
+    onSuggestion: handleSuggestion,
   });
 
-  // ── Trigger suggest-foods API on dashboard load ───────────────
+  // ── Open food drawer from notification click ──────────────────
+  useEffect(() => {
+    const handleOpenDrawer = (e) => {
+      setDrawerInitData(e.detail || null);
+      setDrawerOpen(true);
+    };
+    window.addEventListener("trackintake:open_food_drawer", handleOpenDrawer);
+    return () => window.removeEventListener("trackintake:open_food_drawer", handleOpenDrawer);
+  }, []);
+
+  // ── Trigger AI Food Suggestion on Dashboard ───────────────────
+  // Maximum 3 times a day: Morning (5-12), Afternoon (12-17), Evening (17-5).
+  // Deduplicated across page refreshes via localStorage key.
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "user") return;
-    console.log("🔍 Calling suggest-foods API..."); // debug log
-    axiosInstance.get("/suggest-foods/")
-      .then(res => console.log("📊 suggest-foods delivery:", res.data?.delivery))
-      .catch(() => { });
-  }, [isAuthenticated, user]);
+
+    // Trigger specifically on dashboard routes
+    const isDashboard = location.pathname === "/dashboard" || location.pathname.startsWith("/dashboard");
+    if (!isDashboard) return;
+
+    const { slot, mealType, title, icon } = getSlotConfig();
+    const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD local format
+    const storageKey = `trackintake_suggestion_slot_${user.id}_${today}_${slot}`;
+
+    // If already triggered for this time slot today, do NOT trigger again on refresh!
+    if (localStorage.getItem(storageKey) === "true") {
+      return;
+    }
+
+    // Mark as triggered immediately to avoid race conditions
+    localStorage.setItem(storageKey, "true");
+
+    axiosInstance.get(`/suggest-foods/?meal_type=${mealType}&period=daily&slot=${slot}`)
+      .then((res) => {
+        const top = res.data?.suggestions?.[0];
+        if (!top) return;
+
+        const advice = res.data?.overall_advice || `Time for ${mealType}! Here's your personalized AI suggestion:`;
+
+        // 1. Show Pop-up Toast
+        setSuggestion({
+          message: advice,
+          topSuggestion: top.food_name,
+          portionSize: top.portion_size,
+          reason: top.reasons?.[0] || "Clinically tailored to your nutritional targets.",
+          caloriesLeft: res.data?.remaining_nutrients?.calories || top.calories,
+          slot,
+          slotTitle: title,
+          slotIcon: icon,
+          suitabilityTags: top.suitability_tags || [],
+          receivedAt: Date.now(),
+        });
+
+        // 2. Add in-app notification in NotificationDropdown
+        pushFoodSuggestionNotification({
+          id: Date.now(),
+          title: `${icon} ${title}`,
+          text: `${top.food_name}: ${top.reasons?.[0] || advice}`,
+          data: res.data,
+        });
+      })
+      .catch((err) => {
+        console.warn("Could not fetch slot food suggestions:", err);
+      });
+  }, [isAuthenticated, user?.id, location.pathname]);
 
   const handleOpenAssistant = () => setIsAssistantOpen(true);
   const handleOpenNutritionSearch = () => setShowNutrition(true);

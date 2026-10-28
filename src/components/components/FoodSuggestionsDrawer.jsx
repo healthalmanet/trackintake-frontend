@@ -5,8 +5,7 @@
 // Colors: --color-primary #FF7043, warm whites, --color-text-strong #263238
 
 import { useEffect, useRef, useState, useCallback } from "react";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+import axiosInstance from "../../api/axiosInstance";
 
 // ── Meal type emoji map ──────────────────────────────────────────
 const MEAL_EMOJI = {
@@ -103,7 +102,18 @@ function SuggestionCard({ item, index }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Badges row */}
             <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "3px", flexWrap: "wrap" }}>
-              {index === 0 && (
+              {item.day && (
+                <span style={{
+                  fontSize: "9px", fontWeight: "700",
+                  color: "#0369a1", background: "#E0F2FE",
+                  border: "1px solid #BAE6FD", borderRadius: "4px",
+                  padding: "1px 5px", fontFamily: "'Poppins', sans-serif",
+                  letterSpacing: "0.04em",
+                }}>
+                  📅 {item.day}
+                </span>
+              )}
+              {index === 0 && !item.day && (
                 <span style={{
                   fontSize: "9px", fontWeight: "700",
                   color: "#FF7043", background: "#FFF3EE",
@@ -125,6 +135,16 @@ function SuggestionCard({ item, index }) {
                   {getMealEmoji(item.meal_type)} {item.meal_type}
                 </span>
               )}
+              {item.source === "ai_clinical" && (
+                <span style={{
+                  fontSize: "9px", fontWeight: "600",
+                  color: "#7c3aed", background: "#F3E8FF",
+                  borderRadius: "4px", padding: "1px 5px",
+                  fontFamily: "'Poppins', sans-serif",
+                }}>
+                  ✨ AI Clinical
+                </span>
+              )}
             </div>
             {/* Food name — always visible, wraps if needed */}
             <p style={{
@@ -138,6 +158,35 @@ function SuggestionCard({ item, index }) {
             }}>
               {item.food_name}
             </p>
+            {item.portion_size && (
+              <span style={{
+                fontSize: "10.5px",
+                color: "#FF7043",
+                fontWeight: "600",
+                fontFamily: "'Roboto', sans-serif",
+                display: "inline-block",
+                marginTop: "1px",
+              }}>
+                Portion: {item.portion_size}
+              </span>
+            )}
+            {item.suitability_tags?.length > 0 && (
+              <div style={{ display: "flex", gap: "3px", flexWrap: "wrap", marginTop: "3px" }}>
+                {item.suitability_tags.slice(0, 3).map((tag, tIdx) => (
+                  <span key={tIdx} style={{
+                    fontSize: "8.5px",
+                    background: "#F8FAFC",
+                    color: "#475569",
+                    border: "1px solid #E2E8F0",
+                    padding: "1px 4px",
+                    borderRadius: "3px",
+                    fontWeight: "500",
+                  }}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Score badge */}
@@ -279,12 +328,8 @@ export function FoodSuggestionsDrawer({ open, onClose, initialData }) {
   const fetchSuggestions = useCallback(async (p) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const res   = await fetch(`${API_BASE}/suggest-foods/?limit=10&period=${p}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      setData(json);
+      const res = await axiosInstance.get(`/suggest-foods/?limit=10&period=${p}`);
+      setData(res.data);
     } catch (e) {
       console.error("Suggestions fetch failed:", e);
     } finally {
@@ -523,6 +568,43 @@ export function FoodSuggestionsDrawer({ open, onClose, initialData }) {
                 c.replace(/^(is_|has_|low_)/, "").replace(/_/g, " ")
               ).join(" · ")}
             </span>
+          </div>
+        )}
+
+        {/* ── AI Clinical Strategy Banner ── */}
+        {data?.overall_advice && (
+          <div style={{
+            background:   "linear-gradient(135deg, #FFF9F7 0%, #FFF3EE 100%)",
+            borderBottom: "1.5px solid #FFCCBC",
+            padding:      "10px 20px",
+            flexShrink:   0,
+            display:      "flex",
+            alignItems:   "flex-start",
+            gap:          "10px",
+          }}>
+            <span style={{ fontSize: "16px", marginTop: "1px" }}>✨</span>
+            <div style={{ flex: 1 }}>
+              <span style={{
+                fontSize:      "9.5px",
+                fontWeight:    "700",
+                color:         "#FF7043",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                fontFamily:    "'Poppins', sans-serif",
+                display:       "block",
+              }}>
+                AI Clinical Strategy {data?.slot ? `(${data.slot.toUpperCase()})` : ""}
+              </span>
+              <p style={{
+                margin:     "2px 0 0",
+                fontSize:   "12px",
+                color:      "#263238",
+                lineHeight: "1.45",
+                fontFamily: "'Roboto', sans-serif",
+              }}>
+                {data.overall_advice}
+              </p>
+            </div>
           </div>
         )}
 
