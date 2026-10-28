@@ -315,6 +315,13 @@ export function FoodSuggestionsDrawer({ open, onClose, initialData }) {
   const [drawerReady, setDrawerReady] = useState(false);
   const overlayRef = useRef(null);
 
+  // Sync initialData if passed externally (e.g. from notification click)
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData);
+    }
+  }, [initialData]);
+
   // Animate in/out
   useEffect(() => {
     if (open) {
