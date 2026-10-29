@@ -329,8 +329,8 @@ const PatientChatPage = () => {
   }
 
   return (
-   <div className="h-screen w-full overflow-hidden bg-[var(--color-bg-app)] p- sm:p-6 lg:p-8 font-[var(--font-primary)]">
-        <div className="flex h-full max-w-[1600px] mx-auto overflow-hidden rounded-2xl shadow-[0_12px_60px_-10px_rgba(0,0,0,0.35)]
+   <div className="h-screen w-full overflow-hidden bg-[var(--color-bg-app)] p-0 sm:p-4 lg:p-8 font-[var(--font-primary)]">
+        <div className="flex h-full max-w-[1600px] mx-auto overflow-hidden sm:rounded-2xl shadow-[0_12px_60px_-10px_rgba(0,0,0,0.35)]
  border border-black/5">
 
         <aside className="hidden md:flex flex-col w-[320px] lg:w-[360px] border-r border-black/5 bg-[var(--color-bg-surface-alt)]/80 backdrop-blur-xl p-6">
@@ -406,27 +406,27 @@ const PatientChatPage = () => {
             <div ref={messagesEndRef} />
           </div>
           
-          <footer className="p-4 bg-[var(--color-bg-surface-glass)] backdrop-blur-lg border-t border-[var(--color-border-default)] flex-shrink-0 z-10">
+          <footer className="p-3 sm:p-4 bg-[var(--color-bg-surface-glass)] backdrop-blur-lg border-t border-[var(--color-border-default)] flex-shrink-0 z-10">
             <div className="relative">
               <AnimatePresence>
                 {showEmojiPicker && (
-                  <motion.div ref={emojiPickerRef} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="absolute bottom-full right-0 mb-2">
-                    <EmojiPicker onEmojiClick={handleEmojiClick} height={400} width={350} lazyLoadEmojis={true} />
+                  <motion.div ref={emojiPickerRef} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="absolute bottom-full right-0 mb-2 max-w-[calc(100vw-1.5rem)] sm:max-w-none">
+                    <EmojiPicker onEmojiClick={handleEmojiClick} height={380} width={Math.min(320, typeof window !== 'undefined' ? window.innerWidth - 32 : 320)} lazyLoadEmojis={true} />
                   </motion.div>
                 )}
               </AnimatePresence>
-              <form onSubmit={handleSendMessage} className="flex items-center gap-4">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-4">
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="Type a message... (max 10,000 characters)"
+                    placeholder="Type a message..."
                     maxLength={10000}
-                    className="w-full pl-12 pr-20 py-3 bg-[var(--color-bg-interactive-subtle)] border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-[var(--color-text-default)] placeholder:text-[var(--color-text-muted)] transition-all"
+                    className="w-full pl-10 sm:pl-12 pr-12 sm:pr-20 py-2.5 sm:py-3 text-xs sm:text-sm bg-[var(--color-bg-interactive-subtle)] border-2 border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-[var(--color-text-default)] placeholder:text-[var(--color-text-muted)] transition-all"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                   />
-                  <button type="button" onClick={() => setShowEmojiPicker(prev => !prev)} className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors rounded-full">
-                    <Smile size={24}/>
+                  <button type="button" onClick={() => setShowEmojiPicker(prev => !prev)} className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors rounded-full cursor-pointer">
+                    <Smile size={20} className="sm:w-6 sm:h-6" />
                   </button>
                   {newMessage.length > 8000 && (
                     <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono ${newMessage.length >= 10000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
@@ -434,8 +434,8 @@ const PatientChatPage = () => {
                     </span>
                   )}
                 </div>
-                <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} type="submit" className="p-3.5 text-[var(--color-text-on-primary)] bg-[var(--color-primary)] rounded-full shadow-lg hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-lg" style={{boxShadow: '0 4px 14px 0 rgba(255, 112, 67, 0.39)'}} disabled={!newMessage.trim()}>
-                  <Send size={22}/>
+                <motion.button whileHover={{scale: 1.05}} whileTap={{scale: 0.95}} type="submit" className="p-2.5 sm:p-3.5 text-[var(--color-text-on-primary)] bg-[var(--color-primary)] rounded-full shadow-lg hover:bg-[var(--color-primary-hover)] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-lg cursor-pointer shrink-0" style={{boxShadow: '0 4px 14px 0 rgba(255, 112, 67, 0.39)'}} disabled={!newMessage.trim()}>
+                  <Send size={18} className="sm:w-[22px] sm:h-[22px]" />
                 </motion.button>
               </form>
             </div>

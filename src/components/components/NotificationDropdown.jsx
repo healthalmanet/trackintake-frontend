@@ -225,40 +225,76 @@ const NotificationDropdown = () => {
           </span>
         )}
       </button>
+
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40 sm:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <AnimatePresence>
         {isOpen && (
-          <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.2, ease: "easeInOut" }} className="absolute right-0 mt-3 w-80 sm:w-96 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-xl shadow-2xl z-50 overflow-hidden">
-            <div className="flex justify-between items-center p-3.5 font-semibold border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.96 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 sm:w-96 max-w-[calc(100vw-1.5rem)] sm:max-w-none mx-auto sm:mx-0 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-2xl z-50 overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b-2 border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
               <div className="flex items-center gap-2">
-                <span className="text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</span>
+                <span className="text-[var(--color-text-strong)] font-[var(--font-primary)] font-bold text-sm sm:text-base">Notifications</span>
                 {notifications.length > 0 && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] font-semibold">
                     {notifications.length}
                   </span>
                 )}
               </div>
-              {notifications.length > 0 && (
+              <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                  <button
+                    onClick={handleClearAll}
+                    className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded-lg hover:bg-[var(--color-danger-bg-subtle)]"
+                  >
+                    <XCircle size={14} /> Clear All
+                  </button>
+                )}
                 <button
-                  onClick={handleClearAll}
-                  className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1 cursor-pointer"
+                  onClick={() => setIsOpen(false)}
+                  className="sm:hidden p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] cursor-pointer"
+                  aria-label="Close notifications"
                 >
-                  <XCircle size={14} /> Clear All
+                  <XCircle size={18} />
                 </button>
-              )}
+              </div>
             </div>
+
             {notifications.length === 0 ? (
               <div className="p-8 flex flex-col items-center justify-center text-center">
-                <CheckCircle className="h-12 w-12 text-green-500 opacity-50 mb-3" />
-                <p className="font-semibold text-[var(--color-text-strong)]">You're all caught up!</p>
-                <p className="text-sm text-[var(--color-text-muted)]">New notifications will appear here.</p>
+                <CheckCircle className="h-12 w-12 text-green-500 opacity-60 mb-3" />
+                <p className="font-bold text-[var(--color-text-strong)]">You're all caught up!</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">New updates, reminders, and meal suggestions will appear here.</p>
               </div>
             ) : (
-              <ul className="max-h-96 overflow-y-auto">
+              <ul className="max-h-[65vh] sm:max-h-96 overflow-y-auto divide-y divide-[var(--color-border-default)]">
                 <AnimatePresence>
                   {notifications.map((note, idx) => {
                     const isActionable = note.type === 'message' || note.type === 'reminder' || note.type === 'food_suggestion' || note.type === 'water' || note.type === 'meal_alert';
                     return (
-                      <motion.li key={note.id} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }} transition={{ duration: 0.25, delay: idx * 0.05 }} className={`block p-3 border-b-2 border-[var(--color-border-default)] last:border-b-0 transition-colors duration-200 ${!note.read ? 'bg-blue-500/5' : ''} ${isActionable ? 'cursor-pointer hover:bg-[var(--color-bg-interactive-subtle)]' : ''}`} onClick={isActionable ? () => handleActionableClick(note) : undefined}>
+                      <motion.li
+                        key={note.id}
+                        layout
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 16, transition: { duration: 0.15 } }}
+                        transition={{ duration: 0.2, delay: idx * 0.03 }}
+                        className={`block p-3.5 sm:p-3 transition-colors duration-150 ${!note.read ? 'bg-blue-500/5' : ''} ${isActionable ? 'cursor-pointer hover:bg-[var(--color-bg-interactive-subtle)] active:bg-[var(--color-bg-interactive-subtle)]' : ''}`}
+                        onClick={isActionable ? () => handleActionableClick(note) : undefined}
+                      >
                         <NotificationContent note={note} />
                       </motion.li>
                     );

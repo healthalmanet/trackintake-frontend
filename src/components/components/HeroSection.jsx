@@ -80,16 +80,16 @@ const HeroSection = ({ waterUpdateTrigger = 0, mealUpdateTrigger = 0 }) => {
 
   return (
     <div className="w-full relative bg-[var(--color-bg-surface-alt)] text-[var(--color-text-strong)]">
-      <div className="relative z-10 max-w-7xl mx-auto pt-16 pb-28 px-6 md:px-10 lg:px-12">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-10">
+      <div className="relative z-10 max-w-7xl mx-auto pt-8 sm:pt-12 md:pt-16 pb-16 sm:pb-24 md:pb-28 px-4 sm:px-6 md:px-10 lg:px-12">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 sm:gap-10">
           
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="w-full md:w-2/3 space-y-6 font-[var(--font-secondary)]">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="w-full md:w-2/3 space-y-4 sm:space-y-6 font-[var(--font-secondary)]">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] leading-tight">
                 Fuel your journey with{" "}
                 <span className="text-[var(--color-primary)]">smart nutrition</span>
               </h1>
-              <p className="mt-2 text-lg text-[var(--color-text-default)]">
+              <p className="mt-1.5 sm:mt-2 text-sm sm:text-base md:text-lg text-[var(--color-text-default)]">
                 Log, learn, and stay ahead of your health goals every day.
               </p>
             </div>
@@ -98,13 +98,13 @@ const HeroSection = ({ waterUpdateTrigger = 0, mealUpdateTrigger = 0 }) => {
                 initial="hidden"
                 animate="visible"
                 variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6"
             >
               {stats.map((stat, index) => (
                 <motion.div
                   key={stat.label}
                   variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                  className="bg-[var(--color-bg-surface)] p-5 rounded-2xl shadow-lg hover:shadow-2xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:-translate-y-2 transform transition-all duration-300 ease-in-out relative"
+                  className="bg-[var(--color-bg-surface)] p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-xl border-2 border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:-translate-y-1 transform transition-all duration-300 ease-in-out relative"
                 >
                   <div className={`absolute top-3 right-3 p-2 rounded-full ${stat.bg} ${stat.color}`}>
                     {stat.icon}

@@ -279,7 +279,7 @@ const AppointmentDetailModal = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] min-w-[140px] text-right">
+                <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] w-full sm:w-auto sm:min-w-[140px] text-left sm:text-right">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block">
                     Consultation Fee
                   </span>
@@ -602,15 +602,15 @@ const AppointmentDetailModal = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2">
+        <div className="p-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {isConfirmed && (
               <>
                 <button
                   type="button"
                   disabled={!appointment?.can_reschedule && !isNutritionist}
                   onClick={() => setIsRescheduleOpen(true)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                   title={
                     !appointment?.can_reschedule && !isNutritionist
                       ? "Rescheduling requires at least 24 hours advance notice and max 2 attempts."
@@ -623,7 +623,7 @@ const AppointmentDetailModal = ({
                 <button
                   type="button"
                   onClick={() => setIsCancelOpen(true)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                 >
                   <XCircle size={14} />
                   <span>Cancel Appointment</span>
@@ -634,7 +634,7 @@ const AppointmentDetailModal = ({
 
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all cursor-pointer shadow-2xs"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all cursor-pointer shadow-2xs text-center"
           >
             Close Details
           </button>

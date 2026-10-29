@@ -565,7 +565,7 @@ const BookingForm = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-[var(--color-bg-surface)] rounded-3xl border-2 border-[var(--color-border-default)] p-5 sm:p-7 shadow-lg space-y-6"
+      className="bg-[var(--color-bg-surface)] rounded-3xl border-2 border-[var(--color-border-default)] p-4 sm:p-7 shadow-lg space-y-5 sm:space-y-6"
     >
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -583,11 +583,11 @@ const BookingForm = ({
       </div>
 
       {/* Appointment Category Tabs (In-House vs Expert) */}
-      <div className="flex gap-2 bg-[var(--color-bg-surface-alt)] p-1 rounded-2xl border border-[var(--color-border-default)]">
+      <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 bg-[var(--color-bg-surface-alt)] p-1.5 rounded-2xl border border-[var(--color-border-default)]">
         <button
           type="button"
           onClick={() => setAppointmentCategory("IN_HOUSE")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             appointmentCategory === "IN_HOUSE" 
               ? "bg-[var(--color-primary)] text-white shadow-md" 
               : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -599,7 +599,7 @@ const BookingForm = ({
         <button
           type="button"
           onClick={() => setAppointmentCategory("EXPERT")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             appointmentCategory === "EXPERT" 
               ? "bg-[var(--color-primary)] text-white shadow-md" 
               : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -648,7 +648,7 @@ const BookingForm = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               Choose Consultation Mode
             </label>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {/* Virtual Option */}
               <button
                 type="button"
@@ -719,23 +719,25 @@ const BookingForm = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               Select Appointment Date
             </label>
-            <div className="flex flex-wrap items-center gap-2">
-              {["Today", "Tomorrow"].map((d, i) => (
-                <button
-                  type="button"
-                  key={d}
-                  onClick={() => setDate(i === 0 ? getTodayStr() : getTomorrowStr())}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer ${
-                    date === (i === 0 ? getTodayStr() : getTomorrowStr())
-                      ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-xs"
-                      : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-[var(--color-text-strong)]"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex items-center gap-2">
+                {["Today", "Tomorrow"].map((d, i) => (
+                  <button
+                    type="button"
+                    key={d}
+                    onClick={() => setDate(i === 0 ? getTodayStr() : getTomorrowStr())}
+                    className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer text-center ${
+                      date === (i === 0 ? getTodayStr() : getTomorrowStr())
+                        ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-xs"
+                        : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-[var(--color-text-strong)]"
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
 
-              <div className="relative flex-1 min-w-[160px]">
+              <div className="relative flex-1 w-full min-w-0">
                 <input
                   type="date"
                   min={getTodayStr()}

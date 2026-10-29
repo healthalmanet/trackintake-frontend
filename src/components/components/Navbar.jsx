@@ -5,7 +5,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const DropdownLink = ({ label, items, onClose }) => {
+const DropdownLink = ({ label, items, onClose, isMobile = false }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -19,10 +19,10 @@ const DropdownLink = ({ label, items, onClose }) => {
   }, []);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={isMobile ? "w-full text-center" : "relative"}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`relative font-medium transition-colors duration-300 focus:outline-none flex items-center gap-1 ${isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"
+        className={`font-medium transition-colors duration-300 focus:outline-none inline-flex items-center gap-1 ${isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-default)] hover:text-[var(--color-primary)]"
           }`}
       >
         {label}
@@ -31,12 +31,15 @@ const DropdownLink = ({ label, items, onClose }) => {
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-48 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-xl z-50 py-1">
+        <div className={isMobile
+          ? "mt-2 w-full max-w-xs mx-auto bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-xl py-1 shadow-md text-left"
+          : "absolute top-full left-0 mt-2 w-48 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-xl z-50 py-1"
+        }>
           {items.map((item) => (
             <button
               key={item.to}
-              onClick={() => { navigate(item.to); setOpen(false); onClose(); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-[var(--color-text-default)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] transition-colors"
+              onClick={() => { navigate(item.to); setOpen(false); onClose?.(); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-[var(--color-text-default)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-subtle)] transition-colors cursor-pointer"
             >
               {item.label}
             </button>
@@ -104,11 +107,11 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
     "relative font-medium text-[var(--color-text-default)] transition-colors duration-300 focus:outline-none focus:text-[var(--color-primary)]";
   const activeLinkStyle = "text-[var(--color-primary)]";
 
-  const renderNavLink = ({ to, label, children }) => {
+  const renderNavLink = ({ to, label, children }, isMobile = false) => {
     // Dropdown link
     if (children) {
       return (
-        <DropdownLink key={label} label={label} items={children} onClose={() => setIsOpen(false)} />
+        <DropdownLink key={label} label={label} items={children} onClose={() => setIsOpen(false)} isMobile={isMobile} />
       );
     }
     if (!to) return null;
@@ -154,9 +157,9 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
           : "bg-transparent"
         }`}
     >
-      <NavLink to="/" className="flex items-center">
+      <NavLink to="/" className="flex items-center shrink-0">
         {/* MODIFIED: Logo text is now responsive */}
-        <span className="text-2xl lg:text-3xl tracking-wide font-[var(--font-primary)]">
+        <span className="text-xl sm:text-2xl lg:text-3xl tracking-wide font-[var(--font-primary)]">
           <span className="font-extrabold tracking-wide font-[var(--font-primary)]"><span className="text-[var(--color-primary)]">Track</span><span className="text-[var(--color-text-strong)]">Intake</span></span>
         </span>
       </NavLink>
@@ -166,14 +169,14 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
         {links.map((link) => renderNavLink({ ...link }))}
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-4 text-sm font-medium">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm font-medium">
           {rightContent}
         </div>
         {/* MODIFIED: Hamburger menu is now hidden on large screens ('lg') */}
         <div className="lg:hidden text-[var(--color-primary)]">
-          <button onClick={toggleMenu} aria-label="Toggle menu" className="p-1">
-            {isOpen ? <X size={26} /> : <Menu size={26} />}
+          <button onClick={toggleMenu} aria-label="Toggle menu" className="p-1 cursor-pointer">
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
@@ -194,8 +197,8 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
               className="flex flex-col items-center gap-4"
             >
               {links.map((link) => (
-                <motion.div key={link.to} variants={{ hidden: { opacity: 0, y: -10 }, visible: { opacity: 1, y: 0 } }}>
-                  {renderNavLink({ ...link })}
+                <motion.div key={link.to || link.label} className="w-full flex justify-center" variants={{ hidden: { opacity: 0, y: -10 }, visible: { opacity: 1, y: 0 } }}>
+                  {renderNavLink({ ...link }, true)}
                 </motion.div>
               ))}
             </motion.div>

@@ -118,6 +118,14 @@ export const ProfileDropdown = () => {
         />
       </button>
 
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40 sm:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -125,7 +133,7 @@ export const ProfileDropdown = () => {
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="absolute right-0 mt-3 w-72 origin-top-right bg-[var(--color-bg-surface)] rounded-2xl shadow-2xl border-2 border-[var(--color-border-default)] z-50 p-2 overflow-hidden"
+            className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-72 max-w-[calc(100vw-1.5rem)] sm:max-w-none origin-top-right bg-[var(--color-bg-surface)] rounded-2xl shadow-2xl border-2 border-[var(--color-border-default)] z-50 p-2 overflow-hidden"
           >
             {/* --- Creative Dropdown Header --- */}
             <div className="p-3 mb-2 text-center border-b-2 border-[var(--color-border-default)] bg-[linear-gradient(45deg,var(--color-bg-app)_25%,transparent_25%,transparent_50%,var(--color-bg-app)_50%,var(--color-bg-app)_75%,transparent_75%,transparent_100%)] bg-[length:30px_30px]">

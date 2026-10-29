@@ -1012,41 +1012,41 @@ if (allPlans.length === 0 || !dietData) {
       </div>
 
       {activeDay && (
-        <div className="fixed inset-0 bg-[var(--color-bg-backdrop)] backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-fade-in duration-300">
-          <div className="bg-[var(--color-bg-surface)] rounded-2xl p-6 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar animate-fade-up duration-500">
+        <div className="fixed inset-0 bg-[var(--color-bg-backdrop)] backdrop-blur-sm flex justify-center items-center z-50 p-3 sm:p-4 animate-fade-in duration-300">
+          <div className="bg-[var(--color-bg-surface)] rounded-2xl p-4 sm:p-6 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar animate-fade-up duration-500">
             <button
               onClick={handleCloseModal}
-              className="absolute top-3 right-3 text-[var(--color-text-subtle)] hover:text-[var(--color-primary-hover)] bg-[var(--color-bg-interactive-subtle)] hover:bg-red-100 rounded-full p-1.5 transition-all duration-300 transform hover:rotate-90"
+              className="absolute top-3 right-3 text-[var(--color-text-subtle)] hover:text-[var(--color-primary-hover)] bg-[var(--color-bg-interactive-subtle)] hover:bg-red-100 rounded-full p-1.5 transition-all duration-300 transform hover:rotate-90 cursor-pointer"
             >
               <IoClose size={20} />
             </button>
-            <h2 className="text-2xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] mb-1">
+            <h2 className="text-xl sm:text-2xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] mb-1">
               {activeDay.dayOfWeek}
             </h2>
-            <p className="text-sm text-[var(--color-text-default)] mb-6">
+            <p className="text-xs sm:text-sm text-[var(--color-text-default)] mb-4 sm:mb-6">
               {formatDate(activeDay.date)}
             </p>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {MEAL_TYPES_ORDER.map((mealType) => {
                 const meal = activeDay.meals[mealType];
                 if (!meal) return null;
                 return (
                   <div
                     key={mealType}
-                    className="bg-[var(--color-bg-surface-alt)]/60 p-4 rounded-xl border border-[var(--color-border-default)]"
+                    className="bg-[var(--color-bg-surface-alt)]/60 p-3 sm:p-4 rounded-xl border border-[var(--color-border-default)]"
                   >
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-xl text-[var(--color-primary)]">
+                    <div className="flex items-center gap-2.5 sm:gap-3 mb-2">
+                      <span className="text-lg sm:text-xl text-[var(--color-primary)]">
                         {getMealIcon(mealType)}
                       </span>
-                      <p className="font-semibold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+                      <p className="font-semibold font-[var(--font-primary)] text-[var(--color-text-strong)] text-sm sm:text-base capitalize">
                         {mealType.replace(/-/g, " ")}
                       </p>
                     </div>
-                    <p className="text-sm text-[var(--color-text-default)] mb-3 ml-9">
+                    <p className="text-xs sm:text-sm text-[var(--color-text-default)] mb-2.5 sm:mb-3 ml-0 sm:ml-9 font-medium">
                       {meal.food_name}
                     </p>
-                    <div className="grid grid-cols-4 gap-2 text-xs text-center ml-9">
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-xs text-center ml-0 sm:ml-9 bg-[var(--color-bg-surface)]/80 p-2 rounded-lg border border-[var(--color-border-default)]/60">
                       <div>
                         <p className="text-[var(--color-text-muted)]">
                           Calories

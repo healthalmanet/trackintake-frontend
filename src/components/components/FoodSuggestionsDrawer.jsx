@@ -429,12 +429,7 @@ export function FoodSuggestionsDrawer({ open, onClose, initialData }) {
         }}
       >
         {/* ── Header ── */}
-        <div style={{
-          background:   "#FFFFFF",
-          borderBottom: "1.5px solid #ECEFF1",
-          padding:      "16px 20px 12px",
-          flexShrink:   0,
-        }}>
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-white border-b border-[#ECEFF1] shrink-0">
           {/* Top row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -520,12 +515,7 @@ export function FoodSuggestionsDrawer({ open, onClose, initialData }) {
 
         {/* ── Remaining nutrients bar ── */}
         {remaining.calories !== undefined && (
-          <div style={{
-            background:   "#FFFFFF",
-            borderBottom: "1.5px solid #ECEFF1",
-            padding:      "10px 20px",
-            flexShrink:   0,
-          }}>
+          <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border-b border-[#ECEFF1] shrink-0">
             <p style={{ margin: "0 0 6px", fontSize: "10px", fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Remaining today
             </p>
