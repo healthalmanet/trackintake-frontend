@@ -2261,28 +2261,28 @@ const PatientDetailsPage = () => {
             <BackButton label="Back to Patient List" to="/nutritionist" />
           </div>
           <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
-            <div className="flex items-center gap-6 flex-grow">
-              <div className="p-4 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-full text-5xl ring-4 ring-[var(--color-primary)]/20">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 flex-grow w-full lg:w-auto">
+              <div className="p-3 sm:p-4 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-full text-3xl sm:text-5xl ring-4 ring-[var(--color-primary)]/20 shrink-0">
                 <FaUser />
               </div>
-              <div>
-                <div className="flex items-center gap-4">
-                  <h1 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] tracking-tight">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] tracking-tight break-words">
                     {profile.full_name}
                   </h1>
                   <motion.div
                     initial="hidden"
                     whileHover="visible"
-                    className="relative"
+                    className="relative shrink-0"
                   >
                     <motion.button
                       onClick={handleNavigateToChat}
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       whileTap={{ scale: 0.9 }}
-                      className="p-3 text-[var(--color-text-muted)] bg-[var(--color-bg-app)] rounded-full shadow-md border-2 border-[var(--color-border-default)] transition-colors duration-300 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] hover:border-[var(--color-primary)]/50"
+                      className="p-2.5 sm:p-3 text-[var(--color-text-muted)] bg-[var(--color-bg-app)] rounded-full shadow-md border-2 border-[var(--color-border-default)] transition-colors duration-300 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] hover:border-[var(--color-primary)]/50"
                       aria-label={`Chat with ${profile.full_name}`}
                     >
-                      <MessageSquare size={20} />
+                      <MessageSquare size={18} className="sm:w-5 sm:h-5" />
                     </motion.button>
                     <motion.div
                       variants={{
@@ -2297,47 +2297,47 @@ const PatientDetailsPage = () => {
                     </motion.div>
                   </motion.div>
                 </div>
-                <p className="text-lg text-[var(--color-text-default)] font-[var(--font-secondary)] mt-1">
+                <p className="text-sm sm:text-lg text-[var(--color-text-default)] font-[var(--font-secondary)] mt-1">
                   Patient ID: {id}
                 </p>
               </div>
             </div>
             {targetNutrients && (
-              <div className="w-full lg:w-auto mt-4 lg:mt-0 p-4 bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-sm">
+              <div className="w-full lg:w-auto mt-2 lg:mt-0 p-3.5 sm:p-4 bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-sm">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-4 border-b border-dashed border-[var(--color-border-default)] pb-3">
-                  <Flame className="text-[var(--color-primary)] w-8 h-8 transition-transform duration-300 hover:scale-110" />
+                <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4 border-b border-dashed border-[var(--color-border-default)] pb-2.5 sm:pb-3">
+                  <Flame className="text-[var(--color-primary)] w-6 h-6 sm:w-8 sm:h-8 transition-transform duration-300 hover:scale-110 shrink-0" />
                   <div>
-                    <h3 className="text-xs font-semibold uppercase text-[var(--color-text-muted)] tracking-wider font-[var(--font-secondary)]">
+                    <h3 className="text-[11px] sm:text-xs font-semibold uppercase text-[var(--color-text-muted)] tracking-wider font-[var(--font-secondary)]">
                       Target Calories
                     </h3>
-                    <p className="text-2xl font-bold text-[var(--color-text-strong)] leading-tight font-[var(--font-primary)]">
+                    <p className="text-xl sm:text-2xl font-bold text-[var(--color-text-strong)] leading-tight font-[var(--font-primary)]">
                       {Math.round(targetNutrients.recommended_calories)}{" "}
-                      <span className="text-base font-semibold text-[var(--color-primary)] ml-1">kcal</span>
+                      <span className="text-sm sm:text-base font-semibold text-[var(--color-primary)] ml-1">kcal</span>
                     </p>
                   </div>
                 </div>
 
                 {/* Nutrients */}
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-4 gap-y-4 justify-items-center text-center font-[var(--font-secondary)]">
+                <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-4 justify-items-center text-center font-[var(--font-secondary)]">
                   {[
-                    { label: "Protein", value: targetNutrients.macronutrients?.protein_g, icon: <Drumstick size={20} /> },
-                    { label: "Carbs", value: targetNutrients.macronutrients?.carbs_g, icon: <Wheat size={20} /> },
-                    { label: "Fats", value: targetNutrients.macronutrients?.fats_g, icon: <Droplets size={20} /> },
-                    { label: "Sugar", value: targetNutrients.macronutrients?.sugar_g, icon: <Apple size={20} /> },
-                    { label: "Fiber", value: targetNutrients.macronutrients?.fiber_g, icon: <Leaf size={20} /> },
+                    { label: "Protein", value: targetNutrients.macronutrients?.protein_g, icon: <Drumstick size={18} /> },
+                    { label: "Carbs", value: targetNutrients.macronutrients?.carbs_g, icon: <Wheat size={18} /> },
+                    { label: "Fats", value: targetNutrients.macronutrients?.fats_g, icon: <Droplets size={18} /> },
+                    { label: "Sugar", value: targetNutrients.macronutrients?.sugar_g, icon: <Apple size={18} /> },
+                    { label: "Fiber", value: targetNutrients.macronutrients?.fiber_g, icon: <Leaf size={18} /> },
                   ].map((n) => (
-                    <div key={n.label} className="flex flex-col items-center w-20 group transition-all duration-200">
+                    <div key={n.label} className="flex flex-col items-center w-full max-w-[5rem] group transition-all duration-200">
                       <div className="flex items-center gap-1 text-[var(--color-text-strong)]">
                         <span className="text-[var(--color-primary)] group-hover:scale-110 transition-transform duration-200">
                           {n.icon}
                         </span>
-                        <p className="font-bold text-lg">
+                        <p className="font-bold text-base sm:text-lg">
                           {Math.round(n.value)}
-                          <span className="text-[13px] font-semibold text-[var(--color-primary)] ml-0.5">g</span>
+                          <span className="text-[12px] sm:text-[13px] font-semibold text-[var(--color-primary)] ml-0.5">g</span>
                         </p>
                       </div>
-                      <p className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase mt-1 tracking-wide">
+                      <p className="text-[11px] sm:text-[13px] font-semibold text-[var(--color-text-muted)] uppercase mt-1 tracking-wide">
                         {n.label}
                       </p>
                     </div>
@@ -3965,9 +3965,9 @@ const PatientDetailsPage = () => {
                       <h2 className="text-xl font-[var(--font-secondary)] font-semibold text-[var(--color-text-strong)]">
                         Diet Plan Management
                       </h2>
-                      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 w-full sm:w-auto">
                         {planOptions.length > 0 && (
-                          <div>
+                          <div className="w-full sm:w-auto">
                             <label
                               htmlFor="plan-selector"
                               className="block text-sm font-medium text-[var(--color-text-default)] mb-1"
@@ -3979,7 +3979,7 @@ const PatientDetailsPage = () => {
                                 id="plan-selector"
                                 value={selectedPlanId || ""}
                                 onChange={handlePlanChange}
-                                className="appearance-none w-full sm:w-80 min-w-[270px] bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2 pl-3 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                                className="appearance-none w-full sm:w-80 min-w-0 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-sm text-[var(--color-text-strong)] font-semibold py-2 pl-3 pr-8 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                               >
                                 {planOptions.map((plan) => (
                                   <option key={plan.id} value={plan.id}>
@@ -3994,6 +3994,7 @@ const PatientDetailsPage = () => {
                           </div>
                         )}
                         <div
+                          className="w-full sm:w-auto"
                           title={
                             !isProfileComplete
                               ? "Patient profile must be complete to generate a diet."
@@ -4005,7 +4006,7 @@ const PatientDetailsPage = () => {
                           <button
                             onClick={handleOpenGenerateModal}
                             disabled={!isProfileComplete || hasPendingPlan || isGenerating}
-                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-44 ${!isProfileComplete || hasPendingPlan || isGenerating
+                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all w-full sm:w-44 ${!isProfileComplete || hasPendingPlan || isGenerating
                                 ? "bg-[var(--color-bg-interactive-subtle)] opacity-60 cursor-not-allowed text-[var(--color-text-muted)]"
                                 : "bg-[var(--color-primary)] text-[var(--color-text-on-primary)] hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
                               }`}

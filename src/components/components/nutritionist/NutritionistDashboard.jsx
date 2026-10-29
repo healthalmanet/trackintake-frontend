@@ -741,7 +741,7 @@ const NutritionistDashboard = () => {
                 </div>
 
                 {/* Tab Switcher */}
-                <div className="flex p-1.5 bg-[var(--color-bg-app)] rounded-2xl border border-[var(--color-border-default)] mb-6">
+                <div className="flex flex-col xs:flex-row p-1.5 gap-1.5 xs:gap-0 bg-[var(--color-bg-app)] rounded-2xl border border-[var(--color-border-default)] mb-6">
                   <button
                     type="button"
                     onClick={() => setAddPatientMode("single")}
@@ -1523,7 +1523,7 @@ const NutritionistDashboard = () => {
               variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
               initial="hidden"
               animate="visible"
-              className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
             >
               {patients
                 .slice((currentPage - 1) * perPage, currentPage * perPage)
@@ -1543,12 +1543,12 @@ const NutritionistDashboard = () => {
         visible: { y: 0, opacity: 1 },
   }}
   onClick={() => navigate(`/nutritionist/patient/${patient.id}`)}
-  className="group cursor-pointer p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-md hover:shadow-xl hover:border-[var(--color-primary)] hover:-translate-y-2 transition-all duration-300 ease-in-out transform-gpu"
+  className="group cursor-pointer p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-md hover:shadow-xl hover:border-[var(--color-primary)] hover:-translate-y-2 transition-all duration-300 ease-in-out transform-gpu"
 >
   {/* Avatar and ID */}
-  <div className="flex items-start justify-between mb-5">
+  <div className="flex items-start justify-between mb-4 sm:mb-5">
     <div
-      className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl text-[var(--color-text-on-primary)] shadow-xl group-hover:scale-110 transition-transform duration-300"
+      className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl text-[var(--color-text-on-primary)] shadow-xl group-hover:scale-110 transition-transform duration-300"
       style={{ backgroundColor: avatarColor }}
     >
       {patientInitial}
@@ -1560,19 +1560,19 @@ const NutritionistDashboard = () => {
 
   {/* Patient Info */}
   <div className="mb-4">
-    <h3 className="text-2xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] capitalize leading-snug truncate">
+    <h3 className="text-xl sm:text-2xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] capitalize leading-snug truncate">
       {patient.full_name || "No Name"}
     </h3>
-    <p className="text-sm text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1">
+    <p className="text-xs sm:text-sm text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1">
       {calculateAge(patient.date_of_birth)} years old
     </p>
   </div>
 
   {/* Divider & Footer */}
-  <div className="mt-5 pt-5 border-t border-dashed border-[var(--color-border-default)] flex justify-between items-center">
+  <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-dashed border-[var(--color-border-default)] flex justify-between items-center">
     <GoalDisplay goal={patient.goal} />
-    <div className="text-[var(--color-primary)] opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-      <ArrowRight size={22} />
+    <div className="text-[var(--color-primary)] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform sm:translate-x-2 sm:group-hover:translate-x-0">
+      <ArrowRight size={20} className="sm:w-[22px] sm:h-[22px]" />
     </div>
   </div>
 </motion.div>
