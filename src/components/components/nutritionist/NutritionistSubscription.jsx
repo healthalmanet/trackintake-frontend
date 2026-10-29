@@ -218,7 +218,7 @@ const NutritionistSubscription = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="relative overflow-hidden rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-xs p-6 sm:p-8"
+        className="relative overflow-hidden rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-xs p-4 sm:p-8"
       >
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2">
@@ -377,7 +377,7 @@ const NutritionistSubscription = () => {
       </div>
 
       {/* ── Tab Navigation Bar ── */}
-      <div className="flex items-center gap-1.5 p-1 bg-[var(--color-bg-surface)] rounded-2xl border border-[var(--color-border-default)] shadow-xs max-w-xl overflow-x-auto no-scrollbar">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 p-1 bg-[var(--color-bg-surface)] rounded-2xl border border-[var(--color-border-default)] shadow-xs max-w-xl">
         <button
           onClick={() => setActiveTab("overview")}
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3.5 sm:px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer whitespace-nowrap ${

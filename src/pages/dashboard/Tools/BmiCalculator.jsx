@@ -153,31 +153,31 @@ export default function BMICalculator() {
   const bmiInfo = bmi && !showUpgrade ? getBMICategory(parseFloat(bmi)) : null;
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-app)] py-10 px-4 sm:px-6 lg:px-8 font-[var(--font-secondary)]">
+    <div className="min-h-screen bg-[var(--color-bg-app)] py-6 sm:py-10 px-3 sm:px-6 lg:px-8 font-[var(--font-secondary)]">
       <div className="max-w-4xl mx-auto">
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10"
+          className="text-center mb-6 sm:mb-10"
         >
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-[var(--color-primary-bg-subtle)] rounded-full shadow-lg mb-4">
-            <Calculator className="w-7 h-7 text-[var(--color-primary)]" />
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-[var(--color-primary-bg-subtle)] rounded-full shadow-md mb-3 sm:mb-4">
+            <Calculator className="w-6 h-6 sm:w-7 sm:h-7 text-[var(--color-primary)]" />
           </div>
-          <h1 className="text-3xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] mb-2 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] mb-1 sm:mb-2 tracking-tight">
             BMI Calculator
           </h1>
-          <p className="text-[var(--color-text-default)]">Know your body mass index and stay fit</p>
+          <p className="text-xs sm:text-sm md:text-base text-[var(--color-text-default)]">Know your body mass index and stay fit</p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
 
           {/* ── Input panel ─────────────────────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-xl p-6"
+            className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-md sm:shadow-xl p-4 sm:p-6"
           >
             <h2 className="text-xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)] mb-5">
               Enter Your Details
@@ -267,7 +267,7 @@ export default function BMICalculator() {
           <motion.div
             initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-xl p-6"
+            className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl shadow-md sm:shadow-xl p-4 sm:p-6"
           >
             <h2 className="text-xl font-semibold text-[var(--color-text-strong)] mb-5">Your BMI Result</h2>
 

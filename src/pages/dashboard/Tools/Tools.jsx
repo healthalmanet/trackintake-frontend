@@ -57,18 +57,18 @@ const Tools = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-app)] font-[var(--font-secondary)]">
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="text-center mb-16"
+          className="text-center mb-8 sm:mb-12 md:mb-16"
         >
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] mb-6">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] mb-2 sm:mb-4">
             Health & Wellness Tools
           </h1>
-          <p className="text-lg md:text-xl text-[var(--color-text-default)] max-w-3xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base md:text-lg text-[var(--color-text-default)] max-w-3xl mx-auto leading-relaxed">
             A suite of precision tools to accelerate your health and nutrition goals.
           </p>
         </motion.div>
@@ -77,7 +77,7 @@ const Tools = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
         >
           {tools.map((tool) => (
             <motion.div
@@ -85,7 +85,7 @@ const Tools = () => {
               variants={itemVariants}
               onClick={() => handleToolClick(tool.route)}
               // Themed card with original hover effects
-              className="group relative bg-[var(--color-bg-surface)] rounded-2xl p-6 shadow-lg border-2 border-[var(--color-border-default)] cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:border-[var(--color-primary)] hover:scale-105"
+              className="group relative bg-[var(--color-bg-surface)] rounded-2xl p-5 sm:p-6 shadow-md border-2 border-[var(--color-border-default)] cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:border-[var(--color-primary)] hover:scale-105"
             >
               {/* Themed icon container */}
               <div

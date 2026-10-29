@@ -355,8 +355,7 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                 <div ref={messagesEndRef} />
             </div>
             <footer className="p-4 bg-[var(--color-bg-surface)] border-t border-[var(--color-border-default)] flex-shrink-0">
-                <div className="relative">
-                    <AnimatePresence>{showEmojiPicker && <motion.div ref={emojiPickerRef} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} className="absolute bottom-full mb-2"><EmojiPicker onEmojiClick={(emoji) => setNewMessage(p => p + emoji.emoji)} height={400} width={350} lazyLoadEmojis /></motion.div>}</AnimatePresence>
+                    <AnimatePresence>{showEmojiPicker && <motion.div ref={emojiPickerRef} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} className="absolute bottom-full mb-2 max-w-[calc(100vw-2rem)] overflow-hidden z-30"><EmojiPicker onEmojiClick={(emoji) => setNewMessage(p => p + emoji.emoji)} height={360} width={Math.min(320, typeof window !== 'undefined' ? window.innerWidth - 32 : 320)} lazyLoadEmojis /></motion.div>}</AnimatePresence>
                     <form onSubmit={handleSendMessage} className="flex items-center bg-[var(--color-bg-interactive-subtle)] rounded-xl px-2 py-1.5 shadow-inner">
                         <button type="button" onClick={() => setShowEmojiPicker(p => !p)} className="p-3 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors rounded-full hover:bg-white"><Smile size={22} /></button>
                         <motion.button
@@ -529,8 +528,8 @@ const Chat = () => {
 
     return (
         <div className="flex flex-col h-[calc(100vh-65px)] bg-[var(--color-bg-app)] font-[var(--font-primary)]">
-            <div className="flex flex-1 overflow-hidden">
-                <aside className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-surface)] border-r border-[var(--color-border-default)] transition-transform duration-300 ease-in-out md:w-1/3 md:relative md:translate-x-0 lg:w-1/4 ${isChatVisible ? '-translate-x-full' : 'translate-x-0'}`}>
+            <div className="flex flex-1 overflow-hidden relative">
+                <aside className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-surface)] border-r border-[var(--color-border-default)] transition-transform duration-300 ease-in-out md:w-1/3 md:relative md:translate-x-0 lg:w-1/4 ${isChatVisible ? '-translate-x-full absolute inset-y-0 left-0' : 'translate-x-0 relative'}`}>
                     <header className="p-4 border-b border-[var(--color-border-default)] flex-shrink-0 space-y-3">
                         <div className="flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-[var(--color-text-strong)]">Chats</h2>
@@ -545,7 +544,7 @@ const Chat = () => {
                         <AnimatePresence mode="wait">{patients.length > 0 ? <motion.ul key="patient-list" variants={listContainerVariants} initial="hidden" animate="visible">{patients.map(p => <UserListItem key={p.id} user={p} isActive={activeUser?.id === p.id} onClick={() => handleUserSelect(p)} />)}</motion.ul> : <div className="flex flex-col items-center justify-center h-full text-center p-4"><Inbox size={44} className="mb-3 text-[var(--color-text-subtle)]" /><h4 className="font-bold text-[var(--color-text-strong)]">No Patients Found</h4><p className="text-xs text-[var(--color-text-muted)] mt-1">{searchTerm ? "Try a different search term." : "Assigned patients will appear here."}</p></div>}</AnimatePresence>
                     </div>
                 </aside>
-                <main className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-app)] transition-transform duration-300 ease-in-out md:w-2/3 md:relative md:translate-x-0 lg:w-3/4 ${isChatVisible ? 'translate-x-0' : 'translate-x-full absolute'}`}>
+                <main className={`w-full flex-shrink-0 flex flex-col bg-[var(--color-bg-app)] transition-transform duration-300 ease-in-out md:w-2/3 md:relative md:translate-x-0 lg:w-3/4 ${isChatVisible ? 'translate-x-0 relative' : 'translate-x-full absolute inset-y-0 right-0'}`}>
                     {activeUser ? <ChatWindow key={activeUser.id} user={activeUser} nutritionistId={NUTRITIONIST_ID} onNewMessageSent={(text) => handleListUpdate({ sender_id: NUTRITIONIST_ID, receiver_id: activeUser.id, text, timestamp: new Date().toISOString(), is_read: true })} onChatClose={() => setIsChatVisible(false)} /> : <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-[var(--color-text-muted)] bg-[var(--color-bg-surface)]"><Inbox size={56} className="mb-3 opacity-30 text-[var(--color-primary)]" /><h3 className="text-xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">Welcome to your Inbox</h3><p className="text-sm mt-1">{patients.length > 0 ? "Select a conversation to begin." : "You have no assigned patients yet."}</p></div>}
                 </main>
             </div>

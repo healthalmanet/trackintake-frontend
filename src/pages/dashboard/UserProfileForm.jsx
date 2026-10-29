@@ -272,24 +272,24 @@ const UserProfileForm = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto my-10 bg-[var(--color-bg-surface)] py-10 px-6 sm:px-10 rounded-2xl shadow-2xl border-2 border-[var(--color-border-default)] font-[var(--font-secondary)] text-[var(--color-text-strong)]">
+    <div className="max-w-4xl mx-auto my-4 sm:my-10 bg-[var(--color-bg-surface)] py-6 sm:py-10 px-4 sm:px-10 mx-3 sm:mx-auto rounded-2xl shadow-md sm:shadow-2xl border-2 border-[var(--color-border-default)] font-[var(--font-secondary)] text-[var(--color-text-strong)]">
       <Toaster position="top-center" />
 
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-12"
+        className="text-center mb-8 sm:mb-12"
       >
-        <h2 className="text-3xl sm:text-4xl font-[var(--font-primary)] font-bold text-[var(--color-primary)]">
+        <h2 className="text-2xl sm:text-4xl font-[var(--font-primary)] font-bold text-[var(--color-primary)]">
           Personalize Your Profile
         </h2>
-        <p className="text-md text-[var(--color-text-default)] mt-2">
+        <p className="text-xs sm:text-base text-[var(--color-text-default)] mt-1.5 sm:mt-2">
           Help us understand your health and nutrition needs better.
         </p>
       </motion.div>
 
-      <form onSubmit={handleSubmit} className="space-y-10">
+      <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-10">
 
         {/* ── Personal Details ── */}
         <motion.section
@@ -451,7 +451,7 @@ const UserProfileForm = () => {
           <h3 className="text-xl font-[var(--font-primary)] font-semibold text-[var(--color-text-strong)] border-b-2 border-dashed border-[var(--color-primary)]/20 pb-3">
             Medical History
           </h3>
-          <div className="sm:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm text-[var(--color-text-default)] font-medium">
+          <div className="sm:col-span-2 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-x-6 sm:gap-y-4 text-sm text-[var(--color-text-default)] font-medium">
             {medicalConditions.map(({ field, label }) => (
               <label key={field} className="flex items-center space-x-3 cursor-pointer p-2 rounded-md">
                 <input

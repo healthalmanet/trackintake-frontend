@@ -196,53 +196,69 @@ const NutriNavbar = () => {
                         </motion.button>
                         <AnimatePresence>
                             {isDropdownOpen && (
-                                <motion.div 
-                                    ref={dropdownRef} 
-                                    variants={dropdownVariants} 
-                                    initial="hidden" 
-                                    animate="visible" 
-                                    exit="exit" 
-                                    className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 md:w-96 max-w-sm bg-[var(--color-bg-surface)] rounded-3xl shadow-2xl border-2 border-[var(--color-border-default)] overflow-hidden font-[var(--font-secondary)] z-50"
-                                >
-                                    <div className="flex justify-between items-center p-3.5 sm:p-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-base sm:text-lg text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</h3>
-                                            {notifications.length > 0 && (
-                                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] font-medium">
-                                                    {notifications.length}
-                                                </span>
-                                            )}
+                                <>
+                                    {/* Mobile Backdrop for tap-outside dismiss */}
+                                    <div 
+                                        onClick={() => setIsDropdownOpen(false)} 
+                                        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 sm:hidden" 
+                                    />
+                                    <motion.div 
+                                        ref={dropdownRef} 
+                                        variants={dropdownVariants} 
+                                        initial="hidden" 
+                                        animate="visible" 
+                                        exit="exit" 
+                                        className="fixed inset-x-3 top-16 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 w-auto sm:w-80 md:w-96 max-w-[calc(100vw-1.5rem)] sm:max-w-none bg-[var(--color-bg-surface)] rounded-2xl sm:rounded-3xl shadow-2xl border-2 border-[var(--color-border-default)] overflow-hidden font-[var(--font-secondary)]"
+                                    >
+                                        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-app)]">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold text-base sm:text-lg text-[var(--color-text-strong)] font-[var(--font-primary)]">Notifications</h3>
+                                                {notifications.length > 0 && (
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] font-medium">
+                                                        {notifications.length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {notifications.length > 0 && (
+                                                    <button onClick={handleClearAll} className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1 cursor-pointer">
+                                                        <Trash2 size={13} /> Clear All
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => setIsDropdownOpen(false)} 
+                                                    className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] sm:hidden"
+                                                    aria-label="Close notifications"
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            </div>
                                         </div>
-                                        {notifications.length > 0 && (
-                                            <button onClick={handleClearAll} className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-danger-text)] transition-colors flex items-center gap-1 cursor-pointer">
-                                                <Trash2 size={13} /> Clear All
-                                            </button>
-                                        )}
-                                    </div>
-                                    <motion.div variants={listVariants} initial="hidden" animate="visible" className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                        {notifications.length > 0 ? (
-                                            notifications.map((notif) => (
-                                                <motion.div key={notif.id} variants={itemVariants} onClick={() => handleNotificationClick(notif)} whileHover={{ backgroundColor: 'var(--color-bg-interactive-subtle)', x: 2 }} className="flex items-start gap-3 p-3.5 sm:p-4 cursor-pointer border-b border-[var(--color-border-default)] last:border-b-0 transition-colors">
-                                                    <div className="p-2 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-xl mt-0.5 flex-shrink-0"><MessageSquare size={17} /></div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-semibold text-xs sm:text-sm text-[var(--color-text-strong)] font-[var(--font-primary)] truncate">{notif.sender_name || 'New Message'}</p>
-                                                        <p className="text-xs sm:text-sm text-[var(--color-text-default)] leading-snug line-clamp-2">{notif.text}</p>
-                                                        <p className="text-[11px] text-[var(--color-text-muted)] mt-1">{timeSince(new Date(notif.timestamp))}</p>
-                                                    </div>
-                                                    {(!notif.is_read && !notif.read) && (
-                                                        <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 self-center" />
-                                                    )}
+                                        <motion.div variants={listVariants} initial="hidden" animate="visible" className="max-h-[60vh] sm:max-h-[340px] overflow-y-auto custom-scrollbar">
+                                            {notifications.length > 0 ? (
+                                                notifications.map((notif) => (
+                                                    <motion.div key={notif.id} variants={itemVariants} onClick={() => handleNotificationClick(notif)} whileHover={{ backgroundColor: 'var(--color-bg-interactive-subtle)', x: 2 }} className="flex items-start gap-3 p-3 sm:p-4 cursor-pointer border-b border-[var(--color-border-default)] last:border-b-0 transition-colors">
+                                                        <div className="p-2 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-xl mt-0.5 flex-shrink-0"><MessageSquare size={17} /></div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-semibold text-xs sm:text-sm text-[var(--color-text-strong)] font-[var(--font-primary)] truncate">{notif.sender_name || 'New Message'}</p>
+                                                            <p className="text-xs sm:text-sm text-[var(--color-text-default)] leading-snug line-clamp-2">{notif.text}</p>
+                                                            <p className="text-[11px] text-[var(--color-text-muted)] mt-1">{timeSince(new Date(notif.timestamp))}</p>
+                                                        </div>
+                                                        {(!notif.is_read && !notif.read) && (
+                                                            <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 self-center" />
+                                                        )}
+                                                    </motion.div>
+                                                ))
+                                            ) : (
+                                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8 sm:p-10 text-sm text-[var(--color-text-muted)]">
+                                                    <BellOff size={34} className="mb-2.5 text-[var(--color-text-subtle)]" />
+                                                    <p className="font-semibold text-sm sm:text-base text-[var(--color-text-strong)] font-[var(--font-primary)]">All caught up!</p>
+                                                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">New notifications will appear here.</p>
                                                 </motion.div>
-                                            ))
-                                        ) : (
-                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8 sm:p-10 text-sm text-[var(--color-text-muted)]">
-                                                <BellOff size={34} className="mb-2.5 text-[var(--color-text-subtle)]" />
-                                                <p className="font-semibold text-sm sm:text-base text-[var(--color-text-strong)] font-[var(--font-primary)]">All caught up!</p>
-                                                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">New notifications will appear here.</p>
-                                            </motion.div>
-                                        )}
+                                            )}
+                                        </motion.div>
                                     </motion.div>
-                                </motion.div>
+                                </>
                             )}
                         </AnimatePresence>
                     </div>

@@ -172,7 +172,7 @@ const AddReport = () => {
               <p className="text-sm font-semibold text-[var(--color-text-strong)]">
                 Upload Lab Report (PDF/Image)
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <input
                   id="report_file"
                   type="file"
@@ -182,7 +182,7 @@ const AddReport = () => {
                 />
                 <label
                   htmlFor="report_file"
-                  className="flex-1 flex items-center justify-between bg-white border border-[var(--color-border-default)] rounded-lg px-4 py-2.5 cursor-pointer hover:border-[var(--color-primary)] transition-colors"
+                  className="w-full sm:flex-1 flex items-center justify-between bg-white border border-[var(--color-border-default)] rounded-lg px-4 py-2.5 cursor-pointer hover:border-[var(--color-primary)] transition-colors min-w-0"
                 >
                   <span className="text-sm text-[var(--color-text-muted)] truncate">
                     {file ? file.name : "Choose File   No file chosen"}
@@ -201,7 +201,7 @@ const AddReport = () => {
                   type="button"
                   onClick={handleExtract}
                   disabled={extracting || !file}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer shadow-xs"
                 >
                   {extracting ? <Loader size={14} className="animate-spin" /> : <UploadCloud size={14} />}
                   Extract & Auto-Fill
@@ -273,29 +273,29 @@ const AddReport = () => {
               <div className="space-y-3">
                 {additionalParams.map((param, idx) => (
                   <div key={idx} className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-xl p-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                       <input
                         value={param.name}
                         onChange={(e) => updateParameter(idx, "name", e.target.value)}
                         placeholder="Parameter name"
-                        className="bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                        className="w-full bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
                       />
                       <input
                         value={param.value}
                         onChange={(e) => updateParameter(idx, "value", e.target.value)}
                         placeholder="Value"
-                        className="bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                        className="w-full bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
                       />
                       <input
                         value={param.unit}
                         onChange={(e) => updateParameter(idx, "unit", e.target.value)}
                         placeholder="Unit"
-                        className="bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                        className="w-full bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
                       />
                       <select
                         value={param.category}
                         onChange={(e) => updateParameter(idx, "category", e.target.value)}
-                        className="bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                        className="w-full bg-[var(--color-bg-app)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
                       >
                         {CATEGORY_OPTIONS.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
@@ -336,32 +336,34 @@ const AddReport = () => {
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex flex-wrap items-center gap-3 pb-8">
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard/health-dashboard")}
-              className="px-4 py-2.5 rounded-lg border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] text-sm font-semibold hover:bg-[var(--color-bg-interactive-subtle)] transition-all"
-            >
-              Edit Latest
-            </button>
-            <button
-              type="button"
-              onClick={handleClear}
-              className="px-4 py-2.5 rounded-lg border-2 border-[var(--color-danger-text)] text-[var(--color-danger-text)] text-sm font-semibold hover:bg-[var(--color-danger-bg-subtle)] transition-all"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-4 py-2.5 rounded-lg border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] text-sm font-semibold hover:bg-[var(--color-bg-interactive-subtle)] transition-all"
-            >
-              Cancel
-            </button>
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pb-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/health-dashboard")}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] text-sm font-semibold hover:bg-[var(--color-bg-interactive-subtle)] transition-all text-center cursor-pointer"
+              >
+                Edit Latest
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg border-2 border-[var(--color-danger-text)] text-[var(--color-danger-text)] text-sm font-semibold hover:bg-[var(--color-danger-bg-subtle)] transition-all text-center cursor-pointer"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] text-sm font-semibold hover:bg-[var(--color-bg-interactive-subtle)] transition-all text-center cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
             <button
               type="submit"
               disabled={loading || !verified}
-              className="ml-auto flex items-center gap-2 px-8 py-2.5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? <><Loader size={16} className="animate-spin" /> Saving...</> : "Submit Report"}
             </button>

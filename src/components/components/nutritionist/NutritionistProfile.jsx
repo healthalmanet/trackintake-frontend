@@ -474,7 +474,7 @@ const NutritionistProfile = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="relative overflow-hidden rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-xs p-6 sm:p-8"
+        className="relative overflow-hidden rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-xs p-4 sm:p-8"
       >
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           {/* Avatar & Practitioner Bio */}

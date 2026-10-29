@@ -289,28 +289,28 @@ export default function FatCalculator() {
   const itemVariants     = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } } };
 
   return (
-    <div className="min-h-screen w-full bg-[var(--color-bg-app)] flex flex-col items-center font-[var(--font-secondary)] p-4 sm:p-8">
+    <div className="min-h-screen w-full bg-[var(--color-bg-app)] flex flex-col items-center font-[var(--font-secondary)] p-3 sm:p-6 md:p-8">
 
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-center mb-10 w-full max-w-2xl mx-auto"
+        className="text-center mb-6 sm:mb-10 w-full max-w-2xl mx-auto"
       >
-        <h1 className="text-4xl md:text-5xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">
+        <h1 className="text-2xl sm:text-4xl md:text-5xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)]">
           Body Composition <span className="text-[var(--color-primary)]">Estimator</span>
         </h1>
-        <p className="text-lg text-[var(--color-text-default)] mt-2">
+        <p className="text-xs sm:text-base md:text-lg text-[var(--color-text-default)] mt-1.5 sm:mt-2">
           Get a quick estimate of your body fat percentage to guide your fitness journey.
         </p>
       </motion.header>
 
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8 items-start">
 
         {/* ── Input panel ───────────────────────────────────────────────────── */}
         <motion.div
           variants={itemVariants} initial="hidden" animate="visible"
-          className="lg:col-span-2 flex flex-col bg-[var(--color-bg-surface)] p-8 rounded-2xl border-2 border-[var(--color-border-default)] shadow-xl"
+          className="lg:col-span-2 flex flex-col bg-[var(--color-bg-surface)] p-4 sm:p-6 md:p-8 rounded-2xl border-2 border-[var(--color-border-default)] shadow-md sm:shadow-xl"
         >
           <div className="space-y-6">
             <h2 className="text-2xl font-[var(--font-primary)] font-bold text-[var(--color-text-strong)] flex items-center gap-3">
@@ -355,7 +355,7 @@ export default function FatCalculator() {
         {/* ── Result panel ──────────────────────────────────────────────────── */}
         <motion.div
           variants={itemVariants} initial="hidden" animate="visible" transition={{ delay: 0.2 }}
-          className="lg:col-span-3 flex flex-col items-center justify-center text-center bg-[var(--color-bg-surface)] p-8 rounded-2xl border-2 border-[var(--color-border-default)] h-full shadow-xl"
+          className="lg:col-span-3 flex flex-col items-center justify-center text-center bg-[var(--color-bg-surface)] p-4 sm:p-6 md:p-8 rounded-2xl border-2 border-[var(--color-border-default)] h-full shadow-md sm:shadow-xl"
         >
           <AnimatePresence mode="wait">
 

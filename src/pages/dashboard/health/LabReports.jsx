@@ -62,19 +62,19 @@ const LabReports = () => {
   return (
     <div className="bg-[var(--color-bg-app)] min-h-screen">
       <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 font-[var(--font-secondary)]">
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-3xl font-bold font-[var(--font-primary)] text-[var(--color-text-strong)]">
+            <h1 className="text-2xl sm:text-3xl font-bold font-[var(--font-primary)] text-[var(--color-text-strong)]">
               My Lab Reports
             </h1>
-            <p className="text-[var(--color-text-default)] mt-1">
+            <p className="text-xs sm:text-sm text-[var(--color-text-default)] mt-1">
               Total Reports:{" "}
               <span className="font-semibold text-[var(--color-primary)]">{reports.length}</span>
             </p>
           </div>
           <button
             onClick={() => navigate("/dashboard/add-report")}
-            className="flex items-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] font-semibold px-4 py-2 rounded-lg transition-all shadow-md"
+            className="flex items-center justify-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md w-full sm:w-auto cursor-pointer"
           >
             <Plus size={16} /> Add Report
           </button>
@@ -108,14 +108,14 @@ const LabReports = () => {
                   key={report.id}
                   className="bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] rounded-2xl p-5 shadow-md hover:shadow-lg hover:border-[var(--color-primary)] transition-all duration-300"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🧪</span>
-                      <h3 className="font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] text-lg">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <span className="text-xl sm:text-2xl">🧪</span>
+                      <h3 className="font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] text-base sm:text-lg">
                         Lab Report - {date}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                       {report.report_file && (
                         <a
                           href={report.report_file}
@@ -129,7 +129,7 @@ const LabReports = () => {
                       )}
                       <button
                         onClick={() => handleDelete(report.id)}
-                        className="p-1.5 text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] rounded-full transition-colors"
+                        className="p-1.5 text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg-subtle)] rounded-full transition-colors cursor-pointer"
                         title="Delete Report"
                       >
                         <Trash2 size={18} />
@@ -137,11 +137,11 @@ const LabReports = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-x-6 sm:gap-y-3">
                     {KEY_FIELDS.filter(({ key }) => report[key] != null && report[key] !== "").map(({ key, label, unit, diastolicKey }) => (
                       <div key={key}>
                         <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
-                        <p className="font-semibold text-[var(--color-text-strong)] text-sm">
+                        <p className="font-semibold text-[var(--color-text-strong)] text-xs sm:text-sm">
                           {diastolicKey
                             ? `${report[key]}/${report[diastolicKey]} ${unit}`
                             : `${report[key]} ${unit}`}
@@ -150,7 +150,7 @@ const LabReports = () => {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-4 mt-4 pt-3 border-t border-[var(--color-border-default)]">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-4 pt-3 border-t border-[var(--color-border-default)]">
                     <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
                       📊 {totalParams} parameters measured
                     </span>

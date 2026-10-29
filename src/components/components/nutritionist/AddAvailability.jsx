@@ -1165,9 +1165,9 @@ const AddAvailability = () => {
         <div className="p-4 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs space-y-3">
           
           {/* Main Horizon & Mode & Status Row */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Horizon Filter Tabs (Upcoming / Past / All) */}
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto no-scrollbar max-w-full">
               {[
                 { key: "upcoming", label: "Upcoming", count: summary.upcoming_count },
                 { key: "past", label: "Past", count: summary.past_count },
@@ -1178,7 +1178,7 @@ const AddAvailability = () => {
                   <button
                     key={tab.key}
                     onClick={() => setTimeHorizon(tab.key)}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
                         ? "bg-[var(--color-primary)] text-white shadow-xs"
                         : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -1203,7 +1203,7 @@ const AddAvailability = () => {
             </div>
 
             {/* Mode Filter Tabs (All / Virtual / In-Clinic / Both) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto no-scrollbar max-w-full">
               {[
                 { key: "ALL", label: "All Modes" },
                 { key: "VIRTUAL", label: "Virtual", icon: <Video size={11} /> },
@@ -1215,7 +1215,7 @@ const AddAvailability = () => {
                   <button
                     key={m.key}
                     onClick={() => setModeFilter(m.key)}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
                         ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
                         : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -1233,7 +1233,7 @@ const AddAvailability = () => {
             </div>
 
             {/* Status Tabs (All / Open / Booked) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto no-scrollbar max-w-full">
               {[
                 { key: "ALL", label: "All", count: totalCount },
                 { key: "AVAILABLE", label: "Open", count: availableCount },
@@ -1244,7 +1244,7 @@ const AddAvailability = () => {
                   <button
                     key={st.key}
                     onClick={() => setStatusFilter(st.key)}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
                         ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
                         : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"

@@ -70,11 +70,11 @@ export function FoodSuggestionToast({ suggestion, onDismiss, onViewAll }) {
         }
       `}</style>
 
-      {/* ── Positioned: bottom-right, above FAB ── */}
+      {/* ── Positioned: responsive bottom on mobile, bottom-right on desktop ── */}
       <div
         role="alert"
         aria-live="polite"
-        className={`fixed bottom-24 right-5 z-50 w-[340px] max-w-[calc(100vw-1.25rem)] ${leaving ? "tip-leave" : "tip-enter"}`}
+        className={`fixed bottom-20 sm:bottom-24 inset-x-3 sm:inset-x-auto sm:right-5 z-50 w-auto sm:w-[360px] max-w-full mx-auto sm:mx-0 ${leaving ? "tip-leave" : "tip-enter"}`}
         style={{ fontFamily: "'Poppins', sans-serif" }}
       >
         {/* ── Card shell — matches app's .Toastify__toast card style ── */}

@@ -174,7 +174,7 @@ const NutritionistPayouts = () => {
         {/* ── Toolbar: Filters & Search ── */}
         <div className="p-4 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] self-start">
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] self-start max-w-full overflow-x-auto no-scrollbar">
             {[
               { key: "ALL", label: "All Payouts" },
               { key: "PENDING", label: "Pending" },
@@ -184,7 +184,7 @@ const NutritionistPayouts = () => {
                 key={tab.key}
                 type="button"
                 onClick={() => setStatusFilter(tab.key)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   statusFilter === tab.key
                     ? "bg-[var(--color-primary)] text-white shadow-xs"
                     : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -196,7 +196,7 @@ const NutritionistPayouts = () => {
           </div>
 
           {/* Search Box */}
-          <div className="relative min-w-[240px]">
+          <div className="relative w-full sm:w-auto min-w-0 sm:min-w-[240px]">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="text"

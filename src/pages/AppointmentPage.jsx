@@ -65,11 +65,11 @@ const AppointmentPage = () => {
             </div>
 
             {/* Segmented Tab Navigation Switcher */}
-            <div className="inline-flex p-1.5 rounded-2xl bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)] self-start md:self-auto shadow-2xs">
+            <div className="flex flex-col sm:flex-row w-full md:w-auto p-1.5 rounded-2xl bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)] shadow-2xs gap-1.5 sm:gap-1">
               <button
                 type="button"
                 onClick={() => handleTabChange("book")}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                className={`relative flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                   activeTab === "book"
                     ? "bg-[var(--color-primary)] text-white shadow-md"
                     : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
@@ -82,7 +82,7 @@ const AppointmentPage = () => {
               <button
                 type="button"
                 onClick={() => handleTabChange("my-appointments")}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                className={`relative flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                   activeTab === "my-appointments"
                     ? "bg-[var(--color-primary)] text-white shadow-md"
                     : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
