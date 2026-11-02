@@ -2,7 +2,24 @@ import '../index.css';
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle2, UserPlus, ArrowRight, HelpCircle } from "lucide-react";
+import {
+  X,
+  CheckCircle2,
+  UserPlus,
+  ArrowRight,
+  HelpCircle,
+  Briefcase,
+  Sparkles,
+  MapPin,
+  ChevronRight,
+  Globe,
+  HeartHandshake,
+  TrendingUp,
+  ShieldCheck
+} from "lucide-react";
+import Navbar from '../components/components/Navbar';
+import Footer from '../components/components/Footer';
+import { useAuth } from '../components/context/AuthContext';
 
 /* ── JOB DATA ───────────────────────────────────────────── */
 const JOBS = [
@@ -319,6 +336,17 @@ export default function Career() {
   const [openId, setOpenId] = useState(null);
   const [selectedJobForApply, setSelectedJobForApply] = useState(null);
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+
+  // App.jsx renders Navbar & Footer if isAuthenticated && user?.role === "user"
+  const hasGlobalNav = isAuthenticated && user?.role === "user";
+
+  const publicNavLinks = [
+    { label: "Home", to: "/" },
+    { label: "Career", to: "/career" },
+    { label: "Blogs", to: "/blogs" },
+    { label: "Contact", to: "/contact" },
+  ];
 
   const handleApplyClick = (job) => {
     setSelectedJobForApply(job);
@@ -341,44 +369,191 @@ export default function Career() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg-app)' }}>
-      <div className="max-w-[900px] mx-auto px-4 py-6 space-y-5">
+    <div className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: 'var(--color-bg-app)' }}>
+      {/* ── Top Navigation Bar (for visitors and non-user roles) ── */}
+      {!hasGlobalNav && (
+        <Navbar
+          links={publicNavLinks}
+          align="right"
+          rightContent={
+            user ? (
+              <Link
+                to={user.role === "nutritionist" ? "/nutritionist" : "/dashboard"}
+                className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-full shadow-md transition-all hover:scale-105"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <Link
+                  to="/login"
+                  className="border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-bg-subtle)] px-4 py-1.5 text-xs sm:text-sm rounded-full font-semibold transition duration-300"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-xs sm:text-sm font-semibold px-4 py-1.5 rounded-full shadow-md transition-all duration-300 hover:scale-105"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )
+          }
+        />
+      )}
 
-        {/* Banner */}
-        <div
-          className="rounded-2xl p-5"
+      {/* ── Main Content Container ── */}
+      <main className="flex-1 max-w-[1020px] w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-8 font-[var(--font-secondary)]">
+
+        {/* Breadcrumb Navigation */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+          <Link to="/" className="hover:text-[var(--color-primary)] transition-colors">
+            Home
+          </Link>
+          <ChevronRight size={13} />
+          <span className="text-[var(--color-text-strong)] font-semibold">
+            Careers
+          </span>
+        </nav>
+
+        {/* Hero Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="relative overflow-hidden rounded-3xl p-6 sm:p-10 shadow-xl border border-orange-500/20 text-white"
           style={{
-            background: 'linear-gradient(135deg, var(--color-primary), #f08040)',
-            color: '#fff',
+            background: 'linear-gradient(135deg, var(--color-primary) 0%, #ff8a50 50%, #f4511e 100%)',
           }}
         >
-          <p className="text-xs uppercase tracking-widest">
-            Careers at TrackIntake
-          </p>
+          <div className="relative z-10 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[11px] font-bold uppercase tracking-wider mb-4 border border-white/25">
+              <Sparkles size={13} />
+              <span>Careers at TrackIntake</span>
+            </div>
 
-          <h1 className="text-2xl font-extrabold">
-             Open Positions
-          </h1>
+            <h1 className="text-2xl sm:text-4xl font-extrabold font-[var(--font-primary)] tracking-tight leading-tight mb-3">
+              Shape the Future of Personalized Health & Nutrition
+            </h1>
 
-          <p className="text-xs mt-1">
-            Help us make nutrition simple and accessible for everyone.
-          </p>
+            <p className="text-xs sm:text-base text-white/90 leading-relaxed font-normal mb-6">
+              Help us empower certified dietitians and everyday health seekers through cutting-edge dietary analytics, meal management, and seamless clinical care.
+            </p>
+
+            {/* Quick Metrics */}
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4 border-t border-white/20 text-xs sm:text-sm font-semibold">
+              <div className="flex items-center gap-2">
+                <Globe size={16} className="text-amber-200" />
+                <span>100% Remote-First</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <HeartHandshake size={16} className="text-amber-200" />
+                <span>Health & Clinical Mission</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <TrendingUp size={16} className="text-amber-200" />
+                <span>High-Growth Ecosystem</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Decorative glowing gradient ring */}
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        </motion.div>
+
+        {/* Why Work With Us Cards */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            className="p-5 rounded-2xl border transition-all hover:shadow-md"
+            style={{
+              backgroundColor: 'var(--color-bg-surface)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-[var(--color-primary)] flex items-center justify-center mb-3">
+              <Globe size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] mb-1">
+              Flexible Remote Work
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+              Work from wherever you're most productive with asynchronous communication and clear ownership.
+            </p>
+          </div>
+
+          <div
+            className="p-5 rounded-2xl border transition-all hover:shadow-md"
+            style={{
+              backgroundColor: 'var(--color-bg-surface)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+              <Sparkles size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] mb-1">
+              Direct Health Impact
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+              Touch thousands of lives helping patients balance blood sugar, maintain hydration, and achieve wellness.
+            </p>
+          </div>
+
+          <div
+            className="p-5 rounded-2xl border transition-all hover:shadow-md"
+            style={{
+              backgroundColor: 'var(--color-bg-surface)',
+              borderColor: 'var(--color-border-default)',
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center mb-3">
+              <ShieldCheck size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-[var(--color-text-strong)] font-[var(--font-primary)] mb-1">
+              Mentorship & Growth
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+              Collaborate directly with senior dietitians and full-stack engineers in a fast-paced environment.
+            </p>
+          </div>
+        </section>
+
+        {/* Section Title */}
+        <div className="flex items-center justify-between pt-2">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold font-[var(--font-primary)] text-[var(--color-text-strong)] flex items-center gap-2.5">
+              <Briefcase size={22} className="text-[var(--color-primary)]" />
+              <span>Available Opportunities</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-1">
+              Click on any role to view detailed responsibilities, experience levels, and qualifications.
+            </p>
+          </div>
+          <span className="hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-bold bg-orange-500/10 text-[var(--color-primary)] border border-orange-500/20">
+            {JOBS.length} Openings
+          </span>
         </div>
 
-        {/* Jobs */}
-        {JOBS.map((job) => (
-          <JobItem
-            key={job.id}
-            job={job}
-            isOpen={openId === job.id}
-            onToggle={() =>
-              setOpenId(prev => (prev === job.id ? null : job.id))
-            }
-            onApply={handleApplyClick}
-          />
-        ))}
+        {/* Jobs List */}
+        <div className="space-y-4">
+          {JOBS.map((job) => (
+            <JobItem
+              key={job.id}
+              job={job}
+              isOpen={openId === job.id}
+              onToggle={() =>
+                setOpenId(prev => (prev === job.id ? null : job.id))
+              }
+              onApply={handleApplyClick}
+            />
+          ))}
+        </div>
 
-      </div>
+      </main>
+
+      {/* ── Footer ── */}
+      {!hasGlobalNav && <Footer />}
 
       {/* ── Registration Check Modal ── */}
       <AnimatePresence>
