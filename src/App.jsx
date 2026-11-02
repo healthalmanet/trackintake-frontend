@@ -256,6 +256,7 @@ function App() {
         <Route path="/terms-conditions" element={<TermsConditions />} />
         <Route path="/refund-policy" element={<RefundPolicy />} />
         <Route path="/Contact" element={<ContactPage />} />
+        <Route path="/career" element={<Career />} />
         <Route path="/pages/Career" element={<Career />} />
       </Routes>
 

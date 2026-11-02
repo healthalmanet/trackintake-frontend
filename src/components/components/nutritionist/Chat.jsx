@@ -404,7 +404,6 @@ const ChatWindow = ({ user, nutritionistId, onNewMessageSent, onChatClose }) => 
                         </div>
                         <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="submit" className="p-3 text-white bg-[var(--color-primary)] rounded-lg shadow-md hover:bg-[var(--color-primary-hover)] transition-colors disabled:bg-opacity-50" disabled={!newMessage.trim()}><Send size={20} /></motion.button>
                     </form>
-                </div>
             </footer>
         </>
     );
