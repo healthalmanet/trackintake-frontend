@@ -3,16 +3,27 @@ import { registerUser, sendOtp, verifyOtp } from "../api/auth";
 import { User, Mail, Lock, CircleCheck, CircleX, User2, KeyRound, Phone, Sparkles } from "lucide-react";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import NutritionistRegistrationModal from "../components/components/nutritionist/NutritionistRegistrationModal";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Register = ({ onSwitchToLogin }) => {
-  const [role, setRole] = useState("");
-  const [isNutritionistModalOpen, setIsNutritionistModalOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const queryRole = searchParams.get("role") || "";
+  const [role, setRole] = useState(queryRole);
+  const [isNutritionistModalOpen, setIsNutritionistModalOpen] = useState(queryRole === "nutritionist");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+
+  useEffect(() => {
+    if (queryRole === "nutritionist") {
+      setRole("nutritionist");
+      setIsNutritionistModalOpen(true);
+    } else if (queryRole === "user") {
+      setRole("user");
+    }
+  }, [queryRole]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");

@@ -1,5 +1,8 @@
 import '../index.css';
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, CheckCircle2, UserPlus, ArrowRight, HelpCircle } from "lucide-react";
 
 /* ── JOB DATA ───────────────────────────────────────────── */
 const JOBS = [
@@ -144,7 +147,7 @@ const JOBS = [
 ];
 
 /* ── JOB ITEM ───────────────────────────────── */
-function JobItem({ job, isOpen, onToggle }) {
+function JobItem({ job, isOpen, onToggle, onApply }) {
   return (
     <div
       className="rounded-2xl transition-all"
@@ -294,18 +297,17 @@ function JobItem({ job, isOpen, onToggle }) {
           </div>
 
           {/* Apply */}
-          <a
-            href={job.applyLink}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full mt-3 text-sm font-bold py-2.5 rounded-lg text-center block"
+          <button
+            type="button"
+            onClick={() => onApply(job)}
+            className="w-full mt-3 text-sm font-bold py-2.5 rounded-lg text-center block transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
             style={{
               backgroundColor: 'var(--color-primary)',
               color: '#fff',
             }}
           >
             Apply Now →
-          </a>
+          </button>
         </div>
       )}
     </div>
@@ -315,6 +317,28 @@ function JobItem({ job, isOpen, onToggle }) {
 /* ── MAIN PAGE ───────────────────────────────── */
 export default function Career() {
   const [openId, setOpenId] = useState(null);
+  const [selectedJobForApply, setSelectedJobForApply] = useState(null);
+  const navigate = useNavigate();
+
+  const handleApplyClick = (job) => {
+    setSelectedJobForApply(job);
+  };
+
+  const handleConfirmRegistered = () => {
+    if (selectedJobForApply?.applyLink) {
+      window.open(selectedJobForApply.applyLink, "_blank", "noopener,noreferrer");
+    }
+    setSelectedJobForApply(null);
+  };
+
+  const handleGoToRegister = () => {
+    const isNutritionist =
+      selectedJobForApply?.id === 1 ||
+      selectedJobForApply?.title?.toLowerCase().includes("nutritionist");
+    const targetUrl = isNutritionist ? "/register?role=nutritionist" : "/register?role=user";
+    setSelectedJobForApply(null);
+    navigate(targetUrl);
+  };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg-app)' }}>
@@ -350,10 +374,148 @@ export default function Career() {
             onToggle={() =>
               setOpenId(prev => (prev === job.id ? null : job.id))
             }
+            onApply={handleApplyClick}
           />
         ))}
 
       </div>
+
+      {/* ── Registration Check Modal ── */}
+      <AnimatePresence>
+        {selectedJobForApply && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedJobForApply(null)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+
+            {/* Modal Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 15 }}
+              transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
+              className="relative w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl z-10 border border-[var(--color-border-default)] overflow-hidden"
+              style={{
+                backgroundColor: 'var(--color-bg-surface)',
+                color: 'var(--color-text-strong)',
+              }}
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedJobForApply(null)}
+                className="absolute top-4 right-4 p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-surface-alt)] transition-colors cursor-pointer"
+                aria-label="Close dialog"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Icon Badge */}
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-[var(--color-primary)] flex items-center justify-center mb-4 border border-orange-500/20">
+                <HelpCircle size={26} />
+              </div>
+
+              {/* Title & Description */}
+              <h3 className="text-xl font-bold font-[var(--font-primary)] mb-2 text-[var(--color-text-strong)]">
+                Have you registered on the website?
+              </h3>
+              <p className="text-xs sm:text-sm text-[var(--color-text-default)] leading-relaxed mb-4">
+                Please register on TrackIntake first before applying for{" "}
+                <span className="font-semibold text-[var(--color-primary)]">
+                  {selectedJobForApply.title.trim()}
+                </span>.
+              </p>
+
+              {/* Role Requirement Callout */}
+              <div
+                className="p-3.5 rounded-xl mb-5 text-xs border leading-relaxed"
+                style={{
+                  backgroundColor: 'var(--color-bg-surface-alt)',
+                  borderColor: 'var(--color-border-default)',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                {selectedJobForApply.id === 1 || selectedJobForApply.title.toLowerCase().includes("nutritionist") ? (
+                  <div className="flex items-start gap-2">
+                    <span className="text-base leading-none">🥗</span>
+                    <div>
+                      <strong className="text-[var(--color-text-strong)]">Practitioner Requirement:</strong> Candidates applying for Nutritionist & Dietitian positions must register through our <strong>Nutritionist Portal</strong>.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <span className="text-base leading-none">💼</span>
+                    <div>
+                      <strong className="text-[var(--color-text-strong)]">Candidate Screening:</strong> A registered TrackIntake account is required for candidate identity verification and application processing.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5">
+                {/* Option: Yes, I am registered */}
+                <button
+                  type="button"
+                  onClick={handleConfirmRegistered}
+                  className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-between transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md hover:opacity-95"
+                  style={{
+                    backgroundColor: 'var(--color-primary)',
+                    color: '#fff',
+                  }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 size={18} />
+                    <span>Yes, I am registered</span>
+                  </div>
+                  <ArrowRight size={16} />
+                </button>
+
+                {/* Option: No, register first */}
+                <button
+                  type="button"
+                  onClick={handleGoToRegister}
+                  className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-between border-2 transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-surface-alt)]"
+                  style={{
+                    borderColor: 'var(--color-primary)',
+                    color: 'var(--color-primary)',
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <UserPlus size={18} />
+                    <span>
+                      {selectedJobForApply.id === 1 || selectedJobForApply.title.toLowerCase().includes("nutritionist")
+                        ? "No, open Nutritionist Register"
+                        : "No, open Register Portal"}
+                    </span>
+                  </div>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+
+              {/* Bottom Login Link */}
+              <div className="mt-4 pt-3 text-center border-t border-[var(--color-border-default)]">
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Already registered but not signed in?{" "}
+                  <Link
+                    to="/login"
+                    onClick={() => setSelectedJobForApply(null)}
+                    className="font-bold underline text-[var(--color-primary)] hover:opacity-80"
+                  >
+                    Log in here
+                  </Link>
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
