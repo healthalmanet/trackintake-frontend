@@ -30,6 +30,7 @@ import PatientChat from "../components/components/messages/PatientChat";
 import DashboardPlans from "./dashboard/plans";
 import UpgradeCard from "../components/subscription/upgradecard";
 import { getMySubscription } from "../api/subscriptionService";
+import TrackMartPromo from "../components/components/TrackMartPromo";
 
 import SubscriptionGuard from "../components/subscription/SubscriptionGuard";
 
@@ -47,6 +48,9 @@ const DashboardHome = ({
     <UpgradeCard />
     <QuickMealLogger onMealLogged={onMealLogged} />
     <WaterIntakeWidget onWaterLogged={onWaterLogged} />
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 my-6">
+      <TrackMartPromo variant="banner" />
+    </div>
     <HealthTools />
     <DietRecommendations />
   </>

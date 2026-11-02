@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Twitter, Instagram, Heart } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Heart, Leaf, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -63,6 +63,23 @@ const Footer = () => {
                   <Icon className="w-4 h-4" />
                 </motion.a>
               ))}
+            </div>
+
+            {/* Ecosystem Partner */}
+            <div className="mt-6 pt-4 border-t border-[var(--color-border-default)]">
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)] block mb-1.5">
+                Our Ecosystem
+              </span>
+              <a
+                href="https://trackmart-frontend-1erg.onrender.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-semibold group transition-colors"
+              >
+                <Leaf className="w-3.5 h-3.5 text-emerald-500" />
+                <span>TrackMart — Organic Food Marketplace</span>
+                <ArrowUpRight className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </a>
             </div>
           </div>
 

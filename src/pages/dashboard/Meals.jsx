@@ -42,6 +42,7 @@ import { Loader } from "lucide-react";
 import { getDietApi, getDietHistoryApi } from "../../api/dietApi";
 import { getUserProfile } from "../../api/userProfile";
 import { getDiabeticProfile } from "../../api/diabeticApi";
+import TrackMartPromo from "../../components/components/TrackMartPromo";
 
 // Generate structured 4-pillar suggestions fallback if plan does not have explicit suggestions yet
 const generateHealthTips = (profile, report) => {
@@ -847,6 +848,11 @@ if (allPlans.length === 0 || !dietData) {
                 ))}
               </div>
             </section>
+
+            {/* TrackMart Organic Delivery Ecosystem Banner */}
+            <div className="opacity-0 animate-fade-up" style={{ animationDelay: "450ms", animationFillMode: "forwards" }}>
+              <TrackMartPromo variant="banner" className="mb-6" />
+            </div>
 
             <section
               className="opacity-0 animate-fade-up"
