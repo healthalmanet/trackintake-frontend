@@ -95,5 +95,45 @@ export const markAppointmentPaidAtClinic = (appointmentId) => {
   return axiosInstance.post(`/appointments/${appointmentId}/mark-paid/`);
 };
 
+/**
+ * Expert sets the consultation price for a pending variable case appointment
+ */
+export const setAppointmentPrice = (appointmentId, data) => {
+  return axiosInstance.post(`/appointments/${appointmentId}/set-price/`, data);
+};
+
+/**
+ * Expert declines a pending variable case appointment
+ */
+export const declineAppointmentCase = (appointmentId, data = {}) => {
+  return axiosInstance.post(`/appointments/${appointmentId}/decline-case/`, data);
+};
+
+/**
+ * Patient confirms payment and booking for an appointment that has received a price quote
+ */
+export const confirmQuotedPayment = (appointmentId) => {
+  return axiosInstance.post(`/appointments/${appointmentId}/confirm-payment/`);
+};
+
+/**
+ * Fetch persistent appointment notifications (in-app alerts for bell icon)
+ */
+export const getAppointmentNotifications = () => {
+  return axiosInstance.get("/appointments/notifications/");
+};
+
+/**
+ * Mark persistent appointment notifications as read (specific ID or all)
+ */
+export const markAppointmentNotificationsRead = (notificationId = null) => {
+  return axiosInstance.post(
+    "/appointments/notifications/mark-read/",
+    notificationId ? { notification_id: notificationId } : {}
+  );
+};
+
+
+
 
 

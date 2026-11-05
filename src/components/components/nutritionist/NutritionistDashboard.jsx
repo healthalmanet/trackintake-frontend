@@ -820,22 +820,22 @@ const NutritionistDashboard = () => {
                     </div>
 
                     {/* Default Account Password Banner */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border-2 border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-blue-50/40 to-transparent dark:from-indigo-950/40 dark:via-blue-950/20 border-2 border-indigo-200 dark:border-indigo-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                       <div className="flex items-start gap-3.5">
-                        <div className="p-2.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl flex-shrink-0 mt-0.5 sm:mt-0">
+                        <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl flex-shrink-0 mt-0.5 sm:mt-0">
                           <KeyRound size={22} />
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-2.5">
-                            <h4 className="font-bold text-sm sm:text-base text-[var(--color-text-strong)]">
+                            <h4 className="font-bold text-sm sm:base text-[var(--color-text-strong)]">
                               Default Patient Login Password:
                             </h4>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-amber-500/40 text-[var(--color-text-strong)] font-mono font-bold text-sm shadow-sm">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[var(--color-bg-surface)] border border-indigo-300 dark:border-indigo-700 text-[var(--color-text-strong)] font-mono font-bold text-sm shadow-sm">
                               <span>Default@123</span>
                               <button
                                 type="button"
                                 onClick={handleCopyPassword}
-                                className="text-amber-600 dark:text-amber-400 hover:text-amber-700 p-0.5 rounded transition-colors"
+                                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 p-0.5 rounded transition-colors"
                                 title="Copy default password"
                               >
                                 {copiedPassword ? <CheckCheck size={16} className="text-emerald-500" /> : <Copy size={16} />}
@@ -843,12 +843,12 @@ const NutritionistDashboard = () => {
                             </div>
                           </div>
                           <p className="text-xs text-[var(--color-text-muted)] mt-1.5 leading-relaxed">
-                            Patients can log in to TrackIntake using their registered <strong>Email</strong> and <code className="font-bold text-amber-700 dark:text-amber-300">Default@123</code> (unless specified in the Excel sheet). They can change their password anytime after logging in.
+                            Patients can log in to TrackIntake using their registered <strong>Email</strong> and <code className="font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">Default@123</code> (unless specified in the Excel sheet). They can change their password anytime after logging in.
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 font-semibold bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 flex-shrink-0 self-end sm:self-center">
-                        <ShieldCheck size={16} />
+                      <div className="flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200 font-bold bg-indigo-100/70 dark:bg-indigo-900/40 px-3 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 flex-shrink-0 self-end sm:self-center">
+                        <ShieldCheck size={16} className="text-indigo-600 dark:text-indigo-400" />
                         <span>Pre-configured</span>
                       </div>
                     </div>
@@ -1042,12 +1042,12 @@ const NutritionistDashboard = () => {
                             </div>
                             <p className="text-xs text-emerald-800 dark:text-emerald-300 font-bold mt-1 uppercase tracking-wide">Successfully Created</p>
                           </div>
-                          <div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/30 flex flex-col justify-center">
-                            <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+                          <div className="p-4 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border-2 border-rose-200 dark:border-rose-800 flex flex-col justify-center">
+                            <div className="flex items-center justify-center gap-1.5 text-rose-600 dark:text-rose-400">
                               <AlertTriangle size={20} />
                               <span className="text-3xl font-extrabold">{bulkUploadResult.failed_count || 0}</span>
                             </div>
-                            <p className="text-xs text-amber-800 dark:text-amber-300 font-bold mt-1 uppercase tracking-wide">Errors / Skipped Rows</p>
+                            <p className="text-xs text-rose-900 dark:text-rose-200 font-bold mt-1 uppercase tracking-wide">Errors / Skipped Rows</p>
                           </div>
                         </div>
 
@@ -1059,7 +1059,7 @@ const NutritionistDashboard = () => {
                               onClick={() => setResultsTab("errors")}
                               className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
                                 resultsTab === "errors"
-                                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-sm"
+                                  ? "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-100 border border-rose-300 dark:border-rose-700 shadow-sm"
                                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
                               }`}
                             >
@@ -1092,7 +1092,7 @@ const NutritionistDashboard = () => {
                               {bulkUploadResult.errors.map((err, i) => (
                                 <div key={i} className="text-xs p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
                                   <div className="flex items-center gap-2.5">
-                                    <span className="px-2 py-1 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs whitespace-nowrap border border-amber-500/30">
+                                    <span className="px-2 py-1 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200 font-mono font-bold text-xs whitespace-nowrap border border-rose-300 dark:border-rose-700">
                                       Row {err.row}
                                     </span>
                                     <div>

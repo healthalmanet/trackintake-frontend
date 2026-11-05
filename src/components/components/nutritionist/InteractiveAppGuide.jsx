@@ -1001,7 +1001,7 @@ export const InteractiveAppGuide = ({
 
               {/* Tip Box if available */}
               {selectedTopic.tip && (
-                <div className="mt-3.5 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                <div className="mt-3.5 p-2.5 bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-[11px] text-indigo-950 dark:text-indigo-200 font-medium">
                   {selectedTopic.tip}
                 </div>
               )}

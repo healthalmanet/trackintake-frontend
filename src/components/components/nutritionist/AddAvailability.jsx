@@ -177,31 +177,74 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
         {/* Modal Body */}
         <div className="p-5 space-y-4">
           {/* Price & Payment Summary */}
-          <div className="p-3 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] flex items-center justify-between">
-            <span className="text-xs font-bold text-[var(--color-text-muted)]">Consultation Fee</span>
-            <span className="text-sm font-black text-[var(--color-text-strong)]">
-              ₹{price} <span className="text-[10px] text-emerald-600 font-semibold">{isInPerson && !slot.offline_payment_required ? "(Pay at Clinic)" : "(Paid Online)"}</span>
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500">Consultation Fee</span>
+            <span className="text-sm font-black text-slate-900">
+              {appt.status === "PENDING_REVIEW" ? (
+                <span className="text-orange-700 font-bold">Quote Required</span>
+              ) : appt.status === "AWAITING_PAYMENT" ? (
+                <span className="text-orange-600 font-bold">₹{appt.fee_amount || price} (Quoted)</span>
+              ) : (
+                <>₹{price} <span className="text-[10px] text-emerald-600 font-semibold">{isInPerson && !slot.offline_payment_required ? "(Pay at Clinic)" : "(Paid Online)"}</span></>
+              )}
             </span>
           </div>
 
+          {/* Consultation Reason & Focus Areas */}
+          {(appt.patient_case_summary || (Array.isArray(appt.patient_medical_conditions) && appt.patient_medical_conditions.length > 0)) && (
+            <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2 text-xs">
+              <span className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                <FileText size={13} className="text-orange-600" /> Consultation Reason & Focus Areas
+              </span>
+              {appt.patient_case_summary && (
+                <p className="text-slate-800 italic leading-relaxed bg-white p-2.5 rounded-xl border border-orange-200">
+                  "{appt.patient_case_summary}"
+                </p>
+              )}
+              {Array.isArray(appt.patient_medical_conditions) && appt.patient_medical_conditions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[11px] font-bold text-slate-600">Focus Areas:</span>
+                  {appt.patient_medical_conditions.map((c, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded-md bg-white border border-orange-200 text-[10px] font-bold text-orange-800">
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Pending Review Alert Banner */}
+          {appt.status === "PENDING_REVIEW" && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 space-y-1.5 text-xs">
+              <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                <Sparkles size={14} className="text-amber-600" />
+                <span>Case Review & Fee Quote Required</span>
+              </div>
+              <p className="text-[11px] text-amber-800 font-medium">
+                Patient is waiting for your fee quote. Review the clinical dossier and set your consultation fee to confirm the slot.
+              </p>
+            </div>
+          )}
+
           {/* Zoom Meeting Link Section (If Virtual) */}
           {isVirtual ? (
-            <div className="p-4 rounded-2xl bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)]">
+            <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
-                  <Video size={15} className="text-[var(--color-primary)]" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-strong)]">
+                  <Video size={15} className="text-orange-600" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                     Zoom Video Consultation
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
                   Active Session
                 </span>
               </div>
 
               {link ? (
                 <div>
-                  <p className="text-xs font-mono break-all mb-3 px-3 py-2 rounded-xl bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] shadow-xs">
+                  <p className="text-xs font-mono break-all mb-3 px-3 py-2 rounded-xl bg-white text-slate-900 border border-slate-200 shadow-xs">
                     {link}
                   </p>
                   <div className="flex gap-2">
@@ -209,13 +252,13 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-sm transition-colors cursor-pointer text-center"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-sm transition-colors cursor-pointer text-center"
                     >
                       <ExternalLink size={13} /> Open Zoom Meeting
                     </a>
                     <button
                       onClick={copyLink}
-                      className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl text-xs font-bold text-[var(--color-primary)] bg-[var(--color-bg-surface)] border border-[var(--color-border-hover)] hover:bg-[var(--color-primary-bg-subtle)] transition-colors cursor-pointer"
+                      className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                       {copied ? <Check size={13} /> : <Copy size={13} />}
                       <span>{copied ? "Copied" : "Copy"}</span>
@@ -223,23 +266,23 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-[var(--color-primary)] italic">
+                <p className="text-xs text-orange-600 italic">
                   Zoom link will be generated and sent prior to the session start.
                 </p>
               )}
             </div>
           ) : (
-            <div className="p-4 rounded-2xl bg-[var(--color-bg-surface-alt)] border-2 border-[var(--color-border-default)]">
-              <div className="flex items-center gap-1.5 mb-1 text-emerald-700">
+            <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200">
+              <div className="flex items-center gap-1.5 mb-1 text-slate-800 font-bold">
                 <Building2 size={16} />
-                <span className="text-xs font-bold uppercase tracking-wider">In-Clinic Appointment</span>
+                <span className="text-xs uppercase tracking-wider">In-Clinic Appointment</span>
               </div>
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p className="text-xs text-slate-600">
                 The patient will visit your clinic for this session.
               </p>
               {slot.offline_location && (
-                <p className="text-xs font-semibold text-emerald-800 mt-2 flex items-start gap-1">
-                  <MapPin size={13} className="shrink-0 mt-0.5" />
+                <p className="text-xs font-semibold text-slate-900 mt-2 flex items-start gap-1">
+                  <MapPin size={13} className="shrink-0 mt-0.5 text-orange-600" />
                   <span>{slot.offline_location}</span>
                 </p>
               )}
@@ -248,23 +291,35 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
 
           {/* Patient Details */}
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5 mb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 mb-2">
               <User size={12} /> Patient Information
             </h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface-alt)]">
-                <span className="text-[10px] text-[var(--color-text-muted)] block mb-0.5">Email</span>
-                <span className="font-semibold text-[var(--color-text-strong)] break-all">{p.email || "—"}</span>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] text-slate-500 block mb-0.5">Email</span>
+                <span className="font-semibold text-slate-900 break-all">{p.email || "—"}</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface-alt)]">
-                <span className="text-[10px] text-[var(--color-text-muted)] block mb-0.5">Phone</span>
-                <span className="font-semibold text-[var(--color-text-strong)]">{p.phone || p.phone_number || "—"}</span>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] text-slate-500 block mb-0.5">Phone</span>
+                <span className="font-semibold text-slate-900">{p.phone || p.phone_number || "—"}</span>
               </div>
+              {p.gender && (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">Gender</span>
+                  <span className="font-semibold text-slate-900 capitalize">{p.gender}</span>
+                </div>
+              )}
+              {p.goal && (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block mb-0.5">Health Goal</span>
+                  <span className="font-semibold text-orange-950 truncate block">🎯 {p.goal}</span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-2 pt-2 border-t border-[var(--color-border-default)]">
+          <div className="space-y-2 pt-2 border-t border-slate-200">
             {appt.id && (
               <button
                 type="button"
@@ -272,9 +327,17 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                   onClose();
                   onOpenDetail?.(appt.id);
                 }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer bg-orange-500 hover:bg-orange-600"
               >
-                <FileText size={14} /> View Session Details & Clinical Notes
+                {appt.status === "PENDING_REVIEW" ? (
+                  <>
+                    <Sparkles size={14} /> Review Case & Set Quote Fee →
+                  </>
+                ) : (
+                  <>
+                    <FileText size={14} /> View Session Details & Clinical Notes
+                  </>
+                )}
               </button>
             )}
 
@@ -285,7 +348,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                   onClose();
                   navigate(`/nutritionist/patient/${p.id}`);
                 }}
-                className="w-full py-2 px-4 rounded-xl text-xs font-semibold text-[var(--color-text-strong)] bg-[var(--color-bg-surface-alt)] hover:bg-[var(--color-border-default)] border border-[var(--color-border-default)] transition-colors cursor-pointer text-center"
+                className="w-full py-2 px-4 rounded-xl text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer text-center"
               >
                 Go to Patient Profile & Diet Plan →
               </button>
@@ -301,6 +364,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
 const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
   // Mode selection
   const [slotType, setSlotType] = useState("VIRTUAL"); // VIRTUAL | IN_PERSON | BOTH
+  const [pricingMode, setPricingMode] = useState("FIXED"); // FIXED | VARIABLE
 
   // Date mode selection: SINGLE vs RANGE
   const [dateMode, setDateMode] = useState("RANGE"); // SINGLE | RANGE
@@ -402,6 +466,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
           start_time: cur.toTimeString().slice(0, 5),
           end_time: next.toTimeString().slice(0, 5),
           slot_type: slotType,
+          pricing_mode: profileData?.nutritionist_type === "expert" ? pricingMode : "FIXED",
         });
         cur = next;
       }
@@ -409,7 +474,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
 
     setGeneratedSlots(temp);
     setSelectedIdxs(new Set(temp.map((_, i) => i)));
-  }, [dateMode, singleDate, startDate, endDate, skipWeekends, startTime, endTime, duration, slotType]);
+  }, [dateMode, singleDate, startDate, endDate, skipWeekends, startTime, endTime, duration, slotType, pricingMode, profileData]);
 
   const toggleSlot = (idx) => {
     const next = new Set(selectedIdxs);
@@ -475,30 +540,30 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
   const offlineLocation = profileData?.offline_location || "No clinic address set in profile";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn" onClick={onClose}>
       <div
-        className="relative w-full max-w-3xl rounded-3xl bg-[var(--color-bg-surface)] shadow-2xl overflow-hidden border border-[var(--color-border-default)]"
+        className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-200"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: "94vh", display: "flex", flexDirection: "column" }}
       >
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-slate-200 bg-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200 flex items-center justify-center shadow-xs">
               <CalendarDays size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+              <h2 className="text-lg font-black text-slate-900 font-[var(--font-primary)]">
                 Create Availability Slots
               </h2>
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p className="text-xs text-slate-500">
                 Choose consultation mode, custom date range, and generate bookable slots.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-[var(--color-bg-interactive-subtle)] text-[var(--color-text-muted)] transition-colors cursor-pointer"
+            className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -510,10 +575,10 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
           {/* ── STEP 1: Consultation Mode Selection ── */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                 1. Select Consultation Mode
               </label>
-              <span className="text-[11px] text-[var(--color-primary)] font-semibold">
+              <span className="text-[11px] text-orange-600 font-semibold">
                 Applies to generated slots
               </span>
             </div>
@@ -548,63 +613,129 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                   onClick={() => setSlotType(m.key)}
                   className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
                     slotType === m.key
-                      ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-xs ring-2 ring-[var(--color-primary)]/20"
-                      : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] hover:border-[var(--color-border-hover)]"
+                      ? "border-orange-500 bg-orange-50/70 shadow-xs ring-2 ring-orange-500/20"
+                      : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`p-1.5 rounded-xl ${slotType === m.key ? "bg-[var(--color-primary)] text-white" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                    <span className={`p-1.5 rounded-xl ${slotType === m.key ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"}`}>
                       {m.icon}
                     </span>
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-gray-200/70 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${slotType === m.key ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-600"}`}>
                       {m.tag}
                     </span>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-[var(--color-text-strong)]">{m.label}</h4>
-                    <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{m.sub}</p>
+                    <h4 className="text-xs font-bold text-slate-900">{m.label}</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{m.sub}</p>
                   </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* ── PRICING PREVIEW: Grayed-out Configured Settings ── */}
-          <div className="p-4 rounded-2xl bg-gray-50/90 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">
-                <Lock size={13} className="text-gray-500" />
-                <span>Your Configured Profile Pricing & Settings (Read-Only)</span>
+          {/* ── EXPERT PRICING MODE: Fixed vs Variable Slots ── */}
+          {profileData?.nutritionist_type === "expert" && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-orange-600">
+                  Slot Booking & Pricing Mode
+                </label>
+                <span className="text-[11px] font-semibold text-slate-500">
+                  {pricingMode === "FIXED" ? "⚡ Instant Booking" : "📋 Two-Step Case Review"}
+                </span>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                Automatic Rates
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPricingMode("FIXED")}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    pricingMode === "FIXED"
+                      ? "border-orange-500 bg-orange-50/70 shadow-xs ring-2 ring-orange-500/20"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`p-1.5 rounded-xl ${pricingMode === "FIXED" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"}`}>
+                      <Zap size={16} />
+                    </span>
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-800">
+                      Instant
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">Fixed Price Slot</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Patient pays your standard rate upfront at booking</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPricingMode("VARIABLE")}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    pricingMode === "VARIABLE"
+                      ? "border-orange-500 bg-orange-50/70 shadow-xs ring-2 ring-orange-500/20"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`p-1.5 rounded-xl ${pricingMode === "VARIABLE" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"}`}>
+                      <FileText size={16} />
+                    </span>
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                      2-Step Quote
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">Variable Case Slot</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Patient submits case details first; you set price based on complexity</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── PRICING PREVIEW: Grayed-out Configured Settings ── */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+                <Lock size={13} className="text-slate-500" />
+                <span>
+                  {profileData?.nutritionist_type === "expert"
+                    ? "Your Practice Consultation Rates"
+                    : "Standard Platform Consultation Rates"}
+                </span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
+                {profileData?.nutritionist_type === "expert" ? "Specialist Tier" : "In-House Tier"}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs">
-                <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-400 block mb-0.5">
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                   Virtual / Online Rate
                 </span>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-extrabold text-gray-800 dark:text-gray-100">
-                    ₹{onlineFee} <span className="text-[10px] font-normal text-gray-500">/ session</span>
+                  <span className="text-sm font-black text-slate-900">
+                    ₹{onlineFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200 font-bold">
                     {profileData?.is_online_available ? "Enabled" : "Disabled"}
                   </span>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs">
-                <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-400 block mb-0.5">
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                   In-Clinic / Physical Rate
                 </span>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-extrabold text-gray-800 dark:text-gray-100">
-                    ₹{offlineFee} <span className="text-[10px] font-normal text-gray-500">/ session</span>
+                  <span className="text-sm font-black text-slate-900">
+                    ₹{offlineFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200 font-bold">
                     {offlinePaymentRequired ? "Pay Online" : "Pay at Clinic"}
                   </span>
                 </div>
@@ -612,13 +743,13 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
             </div>
 
             {profileData?.offline_location && (
-              <div className="flex items-start gap-1.5 text-[11px] text-gray-600 dark:text-gray-400 pt-0.5">
-                <MapPin size={12} className="text-[var(--color-primary)] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-1.5 text-[11px] text-slate-700 pt-0.5">
+                <MapPin size={12} className="text-orange-600 shrink-0 mt-0.5" />
                 <span className="truncate"><strong>Practice Clinic:</strong> {profileData.offline_location}</span>
               </div>
             )}
 
-            <div className="flex items-center gap-1 text-[10px] text-gray-500 italic pt-0.5">
+            <div className="flex items-center gap-1 text-[10px] text-slate-500 italic pt-0.5">
               <Info size={11} className="shrink-0" />
               <span>
                 These rates are automatically applied to appointments. {offlinePaymentRequired ? "Online payment is required for offline visits." : "Patients can pay upon arrival for offline visits."}
@@ -627,21 +758,21 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
           </div>
 
           {/* ── STEP 2: Custom Date Range / Single Date ── */}
-          <div className="space-y-3 pt-1 border-t border-[var(--color-border-default)]">
+          <div className="space-y-3 pt-1 border-t border-slate-200">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                 2. Select Date or Custom Date Range
               </label>
 
               {/* Mode Toggle: Single Date vs Date Range */}
-              <div className="flex items-center p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
+              <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setDateMode("RANGE")}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     dateMode === "RANGE"
-                      ? "bg-[var(--color-primary)] text-white shadow-xs"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      ? "bg-orange-500 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   Custom Date Range
@@ -651,8 +782,8 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                   onClick={() => setDateMode("SINGLE")}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     dateMode === "SINGLE"
-                      ? "bg-[var(--color-primary)] text-white shadow-xs"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                      ? "bg-orange-500 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   Single Day
@@ -669,8 +800,8 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                     onClick={() => setSingleDate(i === 0 ? getTodayStr() : getTomorrowStr())}
                     className={`px-3.5 py-2 rounded-xl text-xs font-semibold border-2 transition-all cursor-pointer ${
                       singleDate === (i === 0 ? getTodayStr() : getTomorrowStr())
-                        ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-xs"
-                        : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)]"
+                        ? "bg-orange-500 text-white border-orange-500 shadow-xs"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                     }`}
                   >
                     {d}
@@ -681,7 +812,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                   min={getTodayStr()}
                   value={singleDate}
                   onChange={(e) => setSingleDate(e.target.value)}
-                  className="px-3.5 py-2 rounded-xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs font-semibold text-[var(--color-text-strong)] focus:outline-none focus:border-[var(--color-primary)]"
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500"
                 />
               </div>
             ) : (
@@ -699,7 +830,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                       key={p.key}
                       type="button"
                       onClick={() => applyRangePreset(p.key)}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-slate-200 bg-white hover:border-orange-500 hover:text-orange-600 text-slate-700 transition-all cursor-pointer"
                     >
                       {p.label}
                     </button>
@@ -709,7 +840,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                 {/* Date Inputs Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="text-[11px] font-semibold text-[var(--color-text-muted)] block mb-1">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">
                       From Date (Start)
                     </span>
                     <input
@@ -717,12 +848,12 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                       min={getTodayStr()}
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs font-semibold text-[var(--color-text-strong)] focus:outline-none focus:border-[var(--color-primary)]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500"
                     />
                   </div>
 
                   <div>
-                    <span className="text-[11px] font-semibold text-[var(--color-text-muted)] block mb-1">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">
                       To Date (End)
                     </span>
                     <input
@@ -730,18 +861,18 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                       min={startDate || getTodayStr()}
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs font-semibold text-[var(--color-text-strong)] focus:outline-none focus:border-[var(--color-primary)]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500"
                     />
                   </div>
                 </div>
 
                 {/* Exclude Weekends Checkbox */}
-                <label className="inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)] cursor-pointer select-none">
+                <label className="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={skipWeekends}
                     onChange={(e) => setSkipWeekends(e.target.checked)}
-                    className="rounded text-[var(--color-primary)] focus:ring-[var(--color-primary)] cursor-pointer"
+                    className="rounded text-orange-500 focus:ring-orange-500 cursor-pointer"
                   />
                   <span>Exclude weekends (Saturday & Sunday) from slot generation</span>
                 </label>
@@ -750,8 +881,8 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
           </div>
 
           {/* ── STEP 3: Working Hours & Slot Duration ── */}
-          <div className="space-y-3 pt-1 border-t border-[var(--color-border-default)]">
-            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <div className="space-y-3 pt-1 border-t border-slate-200">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
               3. Working Hours & Duration
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -767,14 +898,14 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                   onClick={() => applyPreset(p.key)}
                   className={`p-2.5 rounded-2xl border-2 text-left transition-all cursor-pointer ${
                     activePreset === p.key
-                      ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-xs ring-1 ring-[var(--color-primary)]"
-                      : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)]"
+                      ? "border-orange-500 bg-orange-50 text-slate-900 shadow-xs ring-1 ring-orange-500"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-bold text-xs">
                     {p.icon} <span>{p.label}</span>
                   </div>
-                  <span className="text-[11px] opacity-75 block mt-0.5">{p.sub}</span>
+                  <span className="text-[11px] text-slate-500 block mt-0.5">{p.sub}</span>
                 </button>
               ))}
             </div>
@@ -785,7 +916,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                 { l: "End Time", v: endTime, s: setEndTime },
               ].map((f) => (
                 <div key={f.l}>
-                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)] block mb-1">
+                  <span className="text-[11px] font-semibold text-slate-500 block mb-1">
                     {f.l}
                   </span>
                   <input
@@ -795,19 +926,19 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                       f.s(e.target.value);
                       setActivePreset("CUSTOM");
                     }}
-                    className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs font-semibold focus:outline-none focus:border-[var(--color-primary)]"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500"
                   />
                 </div>
               ))}
 
               <div>
-                <span className="text-[11px] font-semibold text-[var(--color-text-muted)] block mb-1">
+                <span className="text-[11px] font-semibold text-slate-500 block mb-1">
                   Duration
                 </span>
                 <select
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs font-semibold focus:outline-none focus:border-[var(--color-primary)]"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500"
                 >
                   <option value={15}>15 mins</option>
                   <option value={30}>30 mins</option>
@@ -819,13 +950,13 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
           </div>
 
           {/* ── STEP 4: Review & Toggle Slots ── */}
-          <div className="space-y-3 pt-1 border-t border-[var(--color-border-default)]">
+          <div className="space-y-3 pt-1 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   4. Generated Slots Preview ({selectedIdxs.size}/{generatedSlots.length})
                 </label>
-                <p className="text-[11px] text-[var(--color-text-muted)]">
+                <p className="text-[11px] text-slate-500">
                   {dateMode === "RANGE"
                     ? `Generated across date range with ${slotType} mode`
                     : `Generated for ${singleDate} with ${slotType} mode`}
@@ -834,14 +965,14 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
               <button
                 type="button"
                 onClick={toggleAll}
-                className="text-xs font-bold text-[var(--color-primary)] hover:underline cursor-pointer"
+                className="text-xs font-bold text-orange-600 hover:underline cursor-pointer"
               >
                 {selectedIdxs.size === generatedSlots.length ? "Deselect All" : "Select All"}
               </button>
             </div>
 
             {generatedSlots.length === 0 ? (
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs text-center">
+              <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs text-center font-medium">
                 No slots generated. Please ensure your dates and time range are valid.
               </div>
             ) : (
@@ -853,11 +984,11 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
                     onClick={() => toggleSlot(idx)}
                     className={`py-2 px-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
                       selectedIdxs.has(idx)
-                        ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] font-bold shadow-2xs text-[var(--color-text-strong)]"
-                        : "border-dashed border-gray-300 bg-gray-50 dark:bg-gray-800/40 opacity-60 text-gray-500"
+                        ? "border-orange-500 bg-orange-50 font-black shadow-2xs text-slate-900"
+                        : "border-dashed border-slate-300 bg-slate-50 opacity-60 text-slate-400"
                     }`}
                   >
-                    <span className="text-[10px] text-[var(--color-text-muted)] font-medium">
+                    <span className="text-[10px] text-slate-500 font-medium">
                       {fmtDate(s.date)}
                     </span>
                     <span className="text-xs font-bold">
@@ -872,9 +1003,9 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
 
         {/* Saving / Progress feedback */}
         {saving && (
-          <div className="mx-5 mb-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex items-center justify-between text-xs text-blue-700 dark:text-blue-300">
+          <div className="mx-5 mb-2 p-3 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between text-xs text-orange-800">
             <div className="flex items-center gap-2">
-              <Loader2 className="animate-spin text-sm" size={16} />
+              <Loader2 className="animate-spin text-sm text-orange-600" size={16} />
               <span className="font-semibold">
                 Generating and saving {selectedIdxs.size} availability slots...
               </span>
@@ -891,7 +1022,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
 
         {/* Retry on failure feedback */}
         {saveError && !saving && (
-          <div className="mx-5 mb-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 flex items-center justify-between text-xs text-red-700 dark:text-red-300">
+          <div className="mx-5 mb-2 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between text-xs text-red-700">
             <span className="font-medium truncate mr-2">
               {saveError}
             </span>
@@ -907,11 +1038,11 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
         )}
 
         {/* Modal Footer Actions */}
-        <div className="p-4 sm:p-5 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-t border-slate-200 bg-white flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={handleCancelSave}
-            className="px-4 py-2.5 rounded-xl border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
           >
             {saving ? "Cancel Generation" : "Cancel"}
           </button>
@@ -919,7 +1050,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
             type="button"
             onClick={handleSave}
             disabled={saving || selectedIdxs.size === 0}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-md disabled:opacity-50 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md disabled:opacity-50 transition-all cursor-pointer"
           >
             {saving ? (
               <>
@@ -978,7 +1109,7 @@ const AddAvailability = () => {
       if (timeHorizon && timeHorizon !== "all") params.time_horizon = timeHorizon;
       if (modeFilter && modeFilter !== "ALL") params.slot_type = modeFilter;
       if (statusFilter === "AVAILABLE") params.status = "unbooked";
-      if (statusFilter === "BOOKED") params.status = "booked";
+      if (statusFilter === "BOOKED" || statusFilter === "PENDING_REVIEW") params.status = "booked";
       if (filterDate) params.date = filterDate;
       if (search) params.search = search;
 
@@ -1019,10 +1150,18 @@ const AddAvailability = () => {
 
   /* ─── Combine & Group Slots for Clean Presentation ─────────── */
   const allSlots = useMemo(() => {
-    const combined = [
-      ...unbookedSlots.map((s) => ({ ...s, is_booked: false })),
-      ...bookedSlots.map((s) => ({ ...s, is_booked: true })),
-    ];
+    let combined = [];
+    if (statusFilter === "PENDING_REVIEW") {
+      combined = bookedSlots
+        .filter((s) => s.appointment?.status === "PENDING_REVIEW")
+        .map((s) => ({ ...s, is_booked: true }));
+    } else {
+      combined = [
+        ...unbookedSlots.map((s) => ({ ...s, is_booked: false })),
+        ...bookedSlots.map((s) => ({ ...s, is_booked: true })),
+      ];
+    }
+
     return combined.sort((a, b) => {
       if (a.date !== b.date) {
         return timeHorizon === "past"
@@ -1033,7 +1172,11 @@ const AddAvailability = () => {
         ? b.start_time.localeCompare(a.start_time)
         : a.start_time.localeCompare(b.start_time);
     });
-  }, [unbookedSlots, bookedSlots, timeHorizon]);
+  }, [unbookedSlots, bookedSlots, timeHorizon, statusFilter]);
+
+  const pendingReviewCount = useMemo(() => {
+    return bookedSlots.filter((s) => s.appointment?.status === "PENDING_REVIEW").length;
+  }, [bookedSlots]);
 
   // Group by date
   const groupedSlots = useMemo(() => {
@@ -1056,15 +1199,15 @@ const AddAvailability = () => {
   const bookedCount = bookedSlots.length;
 
   return (
-    <div className="min-h-screen pb-20 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] font-[var(--font-secondary)]">
+    <div className="min-h-screen pb-20 bg-white text-slate-900 font-[var(--font-secondary)]">
       <Toaster
         position="top-right"
         toastOptions={{
           style: {
             borderRadius: "14px",
             fontFamily: "var(--font-secondary)",
-            background: "var(--color-bg-surface)",
-            color: "var(--color-text-strong)",
+            background: "#ffffff",
+            color: "#0f172a",
             boxShadow: "0 10px 30px -10px rgba(0,0,0,0.15)",
           },
         }}
@@ -1104,56 +1247,74 @@ const AddAvailability = () => {
             <div className="mb-3">
               <BackButton label="Back to Dashboard" to="/nutritionist" />
             </div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] text-[11px] font-bold tracking-wider uppercase mb-1.5 border border-[var(--color-border-hover)]">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[11px] font-bold tracking-wider uppercase mb-1.5 border border-orange-200">
               <CalendarDays size={12} /> Flexible Virtual & In-Clinic Availability
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
               Consultation Schedule
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
               Manage online Zoom & clinic appointment slots, select custom date ranges, and review booked sessions.
             </p>
           </div>
 
           {/* Quick Metrics Chips & Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs flex items-center gap-2.5 sm:gap-3">
+            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white border-2 border-slate-200 shadow-xs flex items-center gap-2.5 sm:gap-3">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div>
                 <span className="text-base sm:text-lg font-black text-emerald-600 block leading-tight">
                   {summary.total_available ?? availableCount}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Available Slots
                 </span>
               </div>
             </div>
 
-            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs flex items-center gap-2.5 sm:gap-3">
-              <Lock size={14} className="text-[var(--color-primary)]" />
+            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white border-2 border-slate-200 shadow-xs flex items-center gap-2.5 sm:gap-3">
+              <Lock size={14} className="text-orange-600" />
               <div>
-                <span className="text-base sm:text-lg font-black text-[var(--color-primary)] block leading-tight">
+                <span className="text-base sm:text-lg font-black text-orange-600 block leading-tight">
                   {summary.total_booked ?? bookedCount}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Booked Sessions
                 </span>
               </div>
             </div>
 
+            {pendingReviewCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("PENDING_REVIEW")}
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-orange-50 border-2 border-orange-300 shadow-xs flex items-center gap-2.5 sm:gap-3 cursor-pointer hover:bg-orange-100 transition-all text-left"
+              >
+                <Sparkles size={16} className="text-orange-600 animate-pulse shrink-0" />
+                <div>
+                  <span className="text-base sm:text-lg font-black text-orange-700 block leading-tight">
+                    {pendingReviewCount}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-900">
+                    Quotes Due
+                  </span>
+                </div>
+              </button>
+            )}
+
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchSlots}
                 disabled={fetching}
-                className="p-2.5 rounded-2xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors cursor-pointer shadow-xs"
+                className="p-2.5 rounded-2xl border-2 border-slate-200 bg-white hover:border-orange-500 text-slate-500 hover:text-orange-600 transition-colors cursor-pointer shadow-xs"
                 title="Refresh Slots"
               >
-                <RefreshCw size={16} className={fetching ? "animate-spin text-[var(--color-primary)]" : ""} />
+                <RefreshCw size={16} className={fetching ? "animate-spin text-orange-600" : ""} />
               </button>
 
               <button
                 onClick={() => setCreateModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-md hover:shadow-[var(--color-primary)]/20 active:scale-98 transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md active:scale-98 transition-all cursor-pointer"
               >
                 <Plus size={16} /> Add Slots
               </button>
@@ -1161,13 +1322,38 @@ const AddAvailability = () => {
           </div>
         </div>
 
+        {/* ── Case Review Alert Banner (if any pending) ── */}
+        {pendingReviewCount > 0 && (
+          <div className="p-4 rounded-3xl bg-orange-50 border-2 border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">
+                  You have {pendingReviewCount} case consultation {pendingReviewCount === 1 ? "request" : "requests"} awaiting your fee quotation!
+                </p>
+                <p className="text-xs text-slate-600">
+                  Review the patient's medical condition notes and provide your custom quote so they can pay and confirm.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setStatusFilter("PENDING_REVIEW")}
+              className="self-start sm:self-auto px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-sm transition-all cursor-pointer whitespace-nowrap"
+            >
+              View Requests ({pendingReviewCount}) →
+            </button>
+          </div>
+        )}
+
         {/* ── Streamlined Filter Toolbar (Horizon + Mode + Status + Search) ── */}
-        <div className="p-4 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs space-y-3">
+        <div className="p-4 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-3">
           
           {/* Main Horizon & Mode & Status Row */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Horizon Filter Tabs (Upcoming / Past / All) */}
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto no-scrollbar max-w-full">
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
               {[
                 { key: "upcoming", label: "Upcoming", count: summary.upcoming_count },
                 { key: "past", label: "Past", count: summary.past_count },
@@ -1180,8 +1366,8 @@ const AddAvailability = () => {
                     onClick={() => setTimeHorizon(tab.key)}
                     className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
-                        ? "bg-[var(--color-primary)] text-white shadow-xs"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                        ? "bg-orange-500 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     {isActive && fetching && (
@@ -1192,7 +1378,7 @@ const AddAvailability = () => {
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                         isActive
                           ? "bg-white/25 text-white"
-                          : "bg-[var(--color-border-default)] text-[var(--color-text-muted)]"
+                          : "bg-slate-200 text-slate-700"
                       }`}>
                         {tab.count}
                       </span>
@@ -1203,7 +1389,7 @@ const AddAvailability = () => {
             </div>
 
             {/* Mode Filter Tabs (All / Virtual / In-Clinic / Both) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto no-scrollbar max-w-full">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
               {[
                 { key: "ALL", label: "All Modes" },
                 { key: "VIRTUAL", label: "Virtual", icon: <Video size={11} /> },
@@ -1217,12 +1403,12 @@ const AddAvailability = () => {
                     onClick={() => setModeFilter(m.key)}
                     className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
-                        ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                        ? "bg-white text-orange-600 shadow-xs font-black border-2 border-orange-500"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     {isActive && fetching ? (
-                      <Loader2 size={11} className="animate-spin text-[var(--color-primary)] shrink-0" />
+                      <Loader2 size={11} className="animate-spin text-orange-600 shrink-0" />
                     ) : (
                       m.icon
                     )}
@@ -1232,12 +1418,15 @@ const AddAvailability = () => {
               })}
             </div>
 
-            {/* Status Tabs (All / Open / Booked) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto no-scrollbar max-w-full">
+            {/* Status Tabs (All / Open / Booked / Case Requests) */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
               {[
                 { key: "ALL", label: "All", count: totalCount },
                 { key: "AVAILABLE", label: "Open", count: availableCount },
                 { key: "BOOKED", label: "Booked", count: bookedCount },
+                ...(pendingReviewCount > 0
+                  ? [{ key: "PENDING_REVIEW", label: "Case Requests ⚡", count: pendingReviewCount }]
+                  : []),
               ].map((st) => {
                 const isActive = statusFilter === st.key;
                 return (
@@ -1246,12 +1435,12 @@ const AddAvailability = () => {
                     onClick={() => setStatusFilter(st.key)}
                     className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
-                        ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                        ? "bg-white text-orange-600 shadow-xs font-black border-2 border-orange-500"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     {isActive && fetching && (
-                      <Loader2 size={11} className="animate-spin text-[var(--color-primary)] shrink-0" />
+                      <Loader2 size={11} className="animate-spin text-orange-600 shrink-0" />
                     )}
                     <span>{st.label}</span>
                     <span className="text-[10px] opacity-75 font-normal">({st.count})</span>
@@ -1262,17 +1451,17 @@ const AddAvailability = () => {
           </div>
 
           {/* Search & Specific Date Picker */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[var(--color-border-default)]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200">
             <div className="relative">
               {fetching && search ? (
                 <Loader2
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-primary)] animate-spin"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-600 animate-spin"
                 />
               ) : (
                 <Search
                   size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
               )}
               <input
@@ -1280,12 +1469,12 @@ const AddAvailability = () => {
                 placeholder="Search patient name or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] focus:border-[var(--color-primary)] focus:outline-none text-xs text-[var(--color-text-strong)]"
+                className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 bg-white focus:border-orange-500 focus:outline-none text-xs text-slate-900 font-medium"
               />
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X size={13} />
                 </button>
@@ -1297,13 +1486,13 @@ const AddAvailability = () => {
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] focus:border-[var(--color-primary)] focus:outline-none text-xs text-[var(--color-text-strong)] font-semibold"
+                className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:border-orange-500 focus:outline-none text-xs text-slate-900 font-semibold"
               />
               {filterDate && (
                 <button
                   onClick={() => setFilterDate("")}
                   title="Clear Date"
-                  className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X size={12} />
                 </button>
@@ -1311,7 +1500,7 @@ const AddAvailability = () => {
               {fetching && filterDate && (
                 <Loader2
                   size={12}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-primary)] animate-spin"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-orange-600 animate-spin"
                 />
               )}
             </div>
@@ -1325,7 +1514,7 @@ const AddAvailability = () => {
                   setFilterDate("");
                   setSearch("");
                 }}
-                className="w-full py-1.5 px-3 rounded-xl border border-[var(--color-border-default)] text-xs font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-alt)] transition-colors cursor-pointer"
+                className="w-full py-1.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Reset Filters
               </button>
@@ -1334,8 +1523,8 @@ const AddAvailability = () => {
 
           {/* Active Filter Progress Bar */}
           {fetching && (
-            <div className="w-full h-1 bg-[var(--color-border-default)]/40 overflow-hidden rounded-full mt-2">
-              <div className="h-full bg-gradient-to-r from-[var(--color-primary)]/30 via-[var(--color-primary)] to-[var(--color-primary)]/30 w-full animate-pulse" />
+            <div className="w-full h-1 bg-slate-200 overflow-hidden rounded-full mt-2">
+              <div className="h-full bg-orange-500 w-full animate-pulse" />
             </div>
           )}
         </div>
@@ -1344,14 +1533,14 @@ const AddAvailability = () => {
         {fetching ? (
           <div className="space-y-6">
             {/* Shimmering Loader Header */}
-            <div className="p-8 sm:p-10 rounded-3xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-center shadow-xs">
-              <div className="w-14 h-14 rounded-2xl bg-[var(--color-primary-bg-subtle)] flex items-center justify-center mx-auto mb-3 text-[var(--color-primary)]">
-                <Loader2 size={28} className="animate-spin text-[var(--color-primary)]" />
+            <div className="p-8 sm:p-10 rounded-3xl border-2 border-slate-200 bg-white text-center shadow-xs">
+              <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3 text-orange-600">
+                <Loader2 size={28} className="animate-spin text-orange-600" />
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 font-[var(--font-primary)]">
                 Loading Availability Slots...
               </h3>
-              <p className="text-xs text-[var(--color-text-muted)] max-w-sm mx-auto mt-1">
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
                 Fetching {timeHorizon === "all" ? "all" : timeHorizon} consultation slots with current filters
               </p>
             </div>
@@ -1359,26 +1548,26 @@ const AddAvailability = () => {
             {/* Skeleton Slot Cards Shimmer */}
             {[1, 2].map((groupKey) => (
               <div key={groupKey} className="space-y-3 animate-pulse">
-                <div className="flex items-center justify-between pb-1.5 border-b border-[var(--color-border-default)]">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-md bg-[var(--color-border-default)]" />
-                    <div className="w-36 h-4 rounded-md bg-[var(--color-border-default)]" />
-                    <div className="w-16 h-4 rounded-full bg-[var(--color-border-default)]" />
+                    <div className="w-4 h-4 rounded-md bg-slate-200" />
+                    <div className="w-36 h-4 rounded-md bg-slate-200" />
+                    <div className="w-16 h-4 rounded-full bg-slate-200" />
                   </div>
-                  <div className="w-14 h-3 rounded-md bg-[var(--color-border-default)]" />
+                  <div className="w-14 h-3 rounded-md bg-slate-200" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[1, 2, 3].map((cardKey) => (
                     <div
                       key={cardKey}
-                      className="p-4 rounded-2xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] space-y-3"
+                      className="p-4 rounded-2xl border-2 border-slate-200 bg-white space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="w-24 h-5 rounded-lg bg-[var(--color-border-default)]" />
-                        <div className="w-16 h-5 rounded-lg bg-[var(--color-border-default)]" />
+                        <div className="w-24 h-5 rounded-lg bg-slate-200" />
+                        <div className="w-16 h-5 rounded-lg bg-slate-200" />
                       </div>
-                      <div className="w-32 h-4 rounded-md bg-[var(--color-border-default)]" />
-                      <div className="w-full h-9 rounded-xl bg-[var(--color-border-default)]" />
+                      <div className="w-32 h-4 rounded-md bg-slate-200" />
+                      <div className="w-full h-9 rounded-xl bg-slate-200" />
                     </div>
                   ))}
                 </div>
@@ -1386,14 +1575,14 @@ const AddAvailability = () => {
             ))}
           </div>
         ) : groupedSlots.length === 0 ? (
-          <div className="text-center py-16 px-4 rounded-3xl border-2 border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-3 text-amber-600">
+          <div className="text-center py-16 px-4 rounded-3xl border-2 border-dashed border-slate-200 bg-white">
+            <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3 text-orange-600">
               <CalendarDays size={28} />
             </div>
-            <h3 className="text-base font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+            <h3 className="text-base font-bold text-slate-900 font-[var(--font-primary)]">
               No {timeHorizon === "all" ? "availability" : timeHorizon} slots found
             </h3>
-            <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto mt-1 mb-4">
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
               {search
                 ? `No consultation slots match your search "${search}".`
                 : filterDate
@@ -1416,7 +1605,7 @@ const AddAvailability = () => {
                     setFilterDate("");
                     setSearch("");
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] hover:bg-[var(--color-bg-interactive-subtle)] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 cursor-pointer"
                 >
                   <RefreshCw size={13} /> Reset Filters
                 </button>
@@ -1425,13 +1614,13 @@ const AddAvailability = () => {
                 <>
                   <button
                     onClick={() => setTimeHorizon("past")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] hover:bg-[var(--color-bg-interactive-subtle)] cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 cursor-pointer"
                   >
                     View Past Slots ({summary.past_count})
                   </button>
                   <button
                     onClick={() => setTimeHorizon("all")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--color-text-strong)] bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] hover:bg-[var(--color-border-default)] cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-900 bg-slate-100 border border-slate-200 hover:bg-slate-200 cursor-pointer"
                   >
                     View All Slots ({summary.total_count})
                   </button>
@@ -1439,7 +1628,7 @@ const AddAvailability = () => {
               )}
               <button
                 onClick={() => setCreateModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-md cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md cursor-pointer"
               >
                 <Plus size={15} /> Add Availability Slots
               </button>
@@ -1450,10 +1639,10 @@ const AddAvailability = () => {
             {groupedSlots.map(({ date, slots, relative }) => (
               <div key={date} className="space-y-3">
                 {/* Date Group Header */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-[var(--color-border-default)]">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
                   <div className="flex items-center gap-2">
-                    <Calendar size={15} className="text-[var(--color-primary)]" />
-                    <h2 className="text-sm font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                    <Calendar size={15} className="text-orange-600" />
+                    <h2 className="text-sm font-bold text-slate-900 font-[var(--font-primary)]">
                       {fmtDate(date)}
                     </h2>
                     {relative && (
@@ -1461,14 +1650,14 @@ const AddAvailability = () => {
                         relative === "Today"
                           ? "bg-emerald-100 text-emerald-800"
                           : relative === "Tomorrow"
-                          ? "bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]"
-                          : "bg-gray-100 text-gray-700"
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-slate-100 text-slate-700"
                       }`}>
                         {relative}
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-[var(--color-text-muted)] font-semibold">
+                  <span className="text-xs text-slate-500 font-semibold">
                     {slots.length} slot{slots.length > 1 ? "s" : ""}
                   </span>
                 </div>
@@ -1486,35 +1675,44 @@ const AddAvailability = () => {
                         onClick={() => {
                           if (isBooked) setSelectedSlot(slot);
                         }}
-                        className={`rounded-2xl border-2 transition-all p-4 bg-[var(--color-bg-surface)] flex flex-col justify-between shadow-xs ${
+                        className={`rounded-2xl border-2 transition-all p-4 bg-white flex flex-col justify-between shadow-xs ${
                           isBooked
-                            ? "cursor-pointer hover:shadow-md hover:border-[var(--color-primary)] border-[var(--color-border-hover)]"
-                            : "hover:border-[var(--color-primary)] border-[var(--color-border-default)]"
+                            ? "cursor-pointer hover:shadow-md hover:border-orange-500 border-orange-200"
+                            : "hover:border-orange-400 border-slate-200"
                         }`}
                       >
                         <div>
                           {/* Slot Header */}
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div>
-                              <span className="text-sm font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                              <span className="text-sm font-black text-slate-900 font-[var(--font-primary)]">
                                 {slot.start_time} – {slot.end_time}
                               </span>
 
-                              {/* Mode Badge */}
-                              <div className="mt-1 flex items-center gap-1.5">
+                              {/* Mode Badge & Pricing Mode Badge */}
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                 {mode === "VIRTUAL" && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-200">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
                                     <Video size={10} /> Virtual
                                   </span>
                                 )}
                                 {mode === "IN_PERSON" && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md border border-emerald-200">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                                     <Building2 size={10} /> In-Clinic
                                   </span>
                                 )}
                                 {mode === "BOTH" && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-md border border-purple-200">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                                     <Layers size={10} /> Online / Clinic
+                                  </span>
+                                )}
+                                {slot.pricing_mode === "VARIABLE" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-800 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                                    <FileText size={10} /> Variable Quote
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    <Zap size={10} /> Fixed
                                   </span>
                                 )}
                               </div>
@@ -1522,9 +1720,19 @@ const AddAvailability = () => {
 
                             <div>
                               {isBooked ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]">
-                                  <Lock size={10} /> Booked
-                                </span>
+                                slot.appointment?.status === "PENDING_REVIEW" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-900 border border-orange-300 animate-pulse">
+                                    <Sparkles size={10} /> Review Case
+                                  </span>
+                                ) : slot.appointment?.status === "AWAITING_PAYMENT" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-800 border border-orange-200">
+                                    <Clock size={10} /> Quoted
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                                    <Lock size={10} /> Booked
+                                  </span>
+                                )
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Open
@@ -1534,12 +1742,16 @@ const AddAvailability = () => {
                           </div>
 
                           {/* Price Display */}
-                          <div className="flex items-center justify-between text-xs py-1.5 border-t border-[var(--color-border-default)]">
-                            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
-                              Fee: <strong className="text-[var(--color-text-strong)]">₹{price}</strong>
+                          <div className="flex items-center justify-between text-xs py-1.5 border-t border-slate-200">
+                            <span className="text-[11px] font-medium text-slate-600">
+                              {slot.pricing_mode === "VARIABLE" ? (
+                                <span className="text-orange-700 font-bold">Quote upon case review</span>
+                              ) : (
+                                <>Fee: <strong className="text-slate-900">₹{price}</strong></>
+                              )}
                             </span>
                             {mode === "IN_PERSON" && (
-                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
                                 {slot.offline_payment_required ? "Pay Online" : "Pay at Clinic"}
                               </span>
                             )}
@@ -1547,16 +1759,16 @@ const AddAvailability = () => {
 
                           {/* Patient Snippet for Booked Slots */}
                           {isBooked && slot.patient && (
-                            <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] my-2">
+                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 my-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                                   {(slot.patient.name || "P").charAt(0).toUpperCase()}
                                 </div>
                                 <div className="overflow-hidden">
-                                  <p className="text-xs font-bold text-[var(--color-text-strong)] truncate">
+                                  <p className="text-xs font-bold text-slate-900 truncate">
                                     {slot.patient.name || "Patient"}
                                   </p>
-                                  <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                                  <p className="text-[10px] text-slate-500 truncate">
                                     {slot.patient.email || "No email"}
                                   </p>
                                 </div>
@@ -1566,15 +1778,23 @@ const AddAvailability = () => {
                         </div>
 
                         {/* Slot Footer Actions */}
-                        <div className="pt-2 mt-1 border-t border-[var(--color-border-default)] flex items-center justify-between">
+                        <div className="pt-2 mt-1 border-t border-slate-200 flex items-center justify-between">
                           {isBooked ? (
-                            <div className="flex items-center justify-between w-full text-xs font-bold text-[var(--color-primary)]">
-                              <span>Patient Details</span>
-                              <ArrowRight size={13} />
+                            <div className="flex items-center justify-between w-full text-xs font-bold text-orange-600">
+                              <span className={slot.appointment?.status === "PENDING_REVIEW" ? "text-orange-700 font-black flex items-center gap-1" : ""}>
+                                {slot.appointment?.status === "PENDING_REVIEW" ? (
+                                  <>
+                                    <Sparkles size={12} /> Review Case Request
+                                  </>
+                                ) : (
+                                  "Patient Details"
+                                )}
+                              </span>
+                              <ArrowRight size={13} className={slot.appointment?.status === "PENDING_REVIEW" ? "text-orange-700" : ""} />
                             </div>
                           ) : (
                             <div className="flex items-center justify-between w-full">
-                              <span className="text-[10px] text-[var(--color-text-muted)]">
+                              <span className="text-[10px] text-slate-500">
                                 Available for booking
                               </span>
                               <button

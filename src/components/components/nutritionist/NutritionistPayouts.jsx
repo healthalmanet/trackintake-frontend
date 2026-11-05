@@ -69,7 +69,7 @@ const NutritionistPayouts = () => {
   }, [search]);
 
   return (
-    <div className="min-h-screen pb-16 bg-[var(--color-bg-app)] font-[var(--font-secondary)] text-[var(--color-text-strong)]">
+    <div className="min-h-screen pb-16 bg-white font-[var(--font-secondary)] text-slate-900">
       <Toaster position="top-right" toastOptions={{ style: { borderRadius: 14 } }} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 space-y-6">
@@ -78,10 +78,10 @@ const NutritionistPayouts = () => {
           <div className="flex items-center gap-3.5">
             <BackButton to="/nutritionist" label="Dashboard" />
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold tracking-wider uppercase mb-1 border border-emerald-500/20">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[11px] font-bold tracking-wider uppercase mb-1 border border-orange-200">
                 Financial Management
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
                 Appointment Earnings & Payouts
               </h1>
             </div>
@@ -89,9 +89,9 @@ const NutritionistPayouts = () => {
 
           <button
             onClick={fetchPayouts}
-            className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs font-bold text-[var(--color-text-strong)] hover:bg-[var(--color-bg-surface-alt)] transition-colors cursor-pointer shadow-xs"
+            className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 border-slate-200 bg-white text-xs font-bold text-slate-900 hover:border-orange-500 hover:text-orange-600 transition-colors cursor-pointer shadow-xs"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin text-[var(--color-primary)]" : ""} />
+            <RefreshCw size={14} className={loading ? "animate-spin text-orange-600" : ""} />
             <span>Refresh</span>
           </button>
         </div>
@@ -99,82 +99,82 @@ const NutritionistPayouts = () => {
         {/* ── Summary Statistics Cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
           {/* Total Earnings */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs space-y-1">
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Total Earnings
               </span>
-              <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+              <div className="p-2 rounded-xl bg-orange-50 text-orange-600">
                 <DollarSign size={18} />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
               ₹{Number(summary.total_earned || 0).toLocaleString()}
             </p>
-            <p className="text-[11px] text-[var(--color-text-muted)] font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               From online booking fees
             </p>
           </div>
 
           {/* Pending Payout */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-amber-500/30 shadow-xs space-y-1 bg-gradient-to-br from-[var(--color-bg-surface)] to-amber-500/5">
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-orange-300 shadow-xs space-y-1 bg-orange-50/20">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-orange-800">
                 Pending Payout
               </span>
-              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600">
+              <div className="p-2 rounded-xl bg-orange-100 text-orange-600">
                 <Clock size={18} />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-amber-900 dark:text-amber-200 font-[var(--font-primary)]">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
               ₹{Number(summary.pending_payout || 0).toLocaleString()}
             </p>
-            <p className="text-[11px] text-amber-700/80 dark:text-amber-400 font-medium">
+            <p className="text-[11px] text-slate-600 font-medium">
               To be transferred by Admin
             </p>
           </div>
 
           {/* Completed Payout */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-emerald-500/30 shadow-xs space-y-1 bg-gradient-to-br from-[var(--color-bg-surface)] to-emerald-500/5">
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
                 Paid Out
               </span>
-              <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600">
+              <div className="p-2 rounded-xl bg-slate-100 text-slate-800">
                 <CheckCircle2 size={18} />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-200 font-[var(--font-primary)]">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
               ₹{Number(summary.completed_payout || 0).toLocaleString()}
             </p>
-            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               Disbursed to your account
             </p>
           </div>
 
           {/* Total Bookings */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs space-y-1">
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Online Consultations
               </span>
-              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
+              <div className="p-2 rounded-xl bg-orange-50 text-orange-600">
                 <TrendingUp size={18} />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
               {summary.total_bookings || 0}
             </p>
-            <p className="text-[11px] text-[var(--color-text-muted)] font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               Platform appointment sessions
             </p>
           </div>
         </div>
 
         {/* ── Toolbar: Filters & Search ── */}
-        <div className="p-4 rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="p-4 rounded-3xl bg-white border-2 border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] self-start max-w-full overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 self-start max-w-full overflow-x-auto no-scrollbar">
             {[
               { key: "ALL", label: "All Payouts" },
               { key: "PENDING", label: "Pending" },
@@ -186,8 +186,8 @@ const NutritionistPayouts = () => {
                 onClick={() => setStatusFilter(tab.key)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   statusFilter === tab.key
-                    ? "bg-[var(--color-primary)] text-white shadow-xs"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+                    ? "bg-orange-500 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 {tab.label}
@@ -197,33 +197,33 @@ const NutritionistPayouts = () => {
 
           {/* Search Box */}
           <div className="relative w-full sm:w-auto min-w-0 sm:min-w-[240px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search by patient name or ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs text-[var(--color-text-strong)] focus:border-[var(--color-primary)] focus:outline-none"
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:border-orange-500 focus:outline-none placeholder:text-slate-400 font-medium"
             />
           </div>
         </div>
 
         {/* ── Payouts Table ── */}
-        <div className="rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs overflow-hidden">
+        <div className="rounded-3xl bg-white border-2 border-slate-200 shadow-xs overflow-hidden">
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-2">
-              <RefreshCw size={26} className="animate-spin text-[var(--color-primary)]" />
-              <p className="text-xs font-semibold text-[var(--color-text-muted)]">
+              <RefreshCw size={26} className="animate-spin text-orange-600" />
+              <p className="text-xs font-semibold text-slate-500">
                 Loading earnings records...
               </p>
             </div>
           ) : payouts.length === 0 ? (
             <div className="py-16 text-center space-y-2">
-              <DollarSign size={36} className="mx-auto text-[var(--color-text-muted)] opacity-50" />
-              <h3 className="text-base font-bold text-[var(--color-text-strong)]">
+              <DollarSign size={36} className="mx-auto text-slate-400 opacity-60" />
+              <h3 className="text-base font-bold text-slate-900">
                 No Payment Records Found
               </h3>
-              <p className="text-xs text-[var(--color-text-muted)] max-w-sm mx-auto">
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 No online appointment bookings match your filter criteria. When patients book online consultations, your earnings will appear here.
               </p>
             </div>
@@ -231,7 +231,7 @@ const NutritionistPayouts = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-[var(--color-text-muted)] uppercase tracking-wider font-extrabold text-[10px]">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 uppercase tracking-wider font-extrabold text-[10px]">
                     <th className="py-3.5 px-4">Appt ID</th>
                     <th className="py-3.5 px-4">Patient</th>
                     <th className="py-3.5 px-4">Session Date & Time</th>
@@ -242,80 +242,80 @@ const NutritionistPayouts = () => {
                     <th className="py-3.5 px-4">Admin Disbursement</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--color-border-default)]">
+                <tbody className="divide-y divide-slate-200">
                   {payouts.map((item) => {
                     const isPending = item.payout_status === "PENDING";
                     const isPaid = item.payout_status === "PAID";
                     return (
                       <tr
                         key={item.id}
-                        className="hover:bg-[var(--color-bg-surface-alt)] transition-colors"
+                        className="hover:bg-slate-50/80 transition-colors"
                       >
-                        <td className="py-3.5 px-4 font-mono font-bold text-[var(--color-text-strong)]">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
                           #{item.id}
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-bold text-[var(--color-text-strong)]">
+                          <p className="font-bold text-slate-900">
                             {item.patient_name || "Patient"}
                           </p>
-                          <p className="text-[11px] text-[var(--color-text-muted)] truncate max-w-[180px]">
+                          <p className="text-[11px] text-slate-500 truncate max-w-[180px]">
                             {item.patient_email}
                           </p>
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-bold text-[var(--color-text-strong)]">
+                          <p className="font-bold text-slate-900">
                             {fmtDate(item.session_date)}
                           </p>
-                          <p className="text-[11px] text-[var(--color-text-muted)]">
+                          <p className="text-[11px] text-slate-500">
                             {item.session_time}
                           </p>
                         </td>
                         <td className="py-3.5 px-4">
                           {item.appointment_type === "VIRTUAL" ? (
-                            <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg text-[10px]">
+                            <span className="inline-flex items-center gap-1 font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-lg text-[10px]">
                               <Video size={11} /> Virtual
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg text-[10px]">
+                            <span className="inline-flex items-center gap-1 font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg text-[10px]">
                               In-Clinic
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-[var(--color-text-muted)]">
+                        <td className="py-3.5 px-4 font-bold text-slate-600">
                           ₹{item.fee_amount || 0}
                         </td>
-                        <td className="py-3.5 px-4 font-extrabold text-[var(--color-text-strong)] text-sm">
+                        <td className="py-3.5 px-4 font-black text-slate-900 text-sm">
                           ₹{item.payout_amount || item.fee_amount || 0}
                         </td>
                         <td className="py-3.5 px-4">
                           {isPending ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-800 border border-orange-200">
                               <Clock size={11} /> Pending Payout
                             </span>
                           ) : isPaid ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-900 border border-slate-300">
                               <CheckCircle2 size={11} /> Paid Out
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700">
                               {item.payout_status}
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-[11px] text-[var(--color-text-muted)]">
+                        <td className="py-3.5 px-4 text-[11px] text-slate-600">
                           {isPaid ? (
                             <div>
-                              <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                              <p className="font-semibold text-slate-900">
                                 {fmtDateTime(item.payout_marked_at)}
                               </p>
                               {item.payout_transaction_ref && (
-                                <p className="font-mono text-[10px] text-gray-500">
+                                <p className="font-mono text-[10px] text-slate-500">
                                   Ref: {item.payout_transaction_ref}
                                 </p>
                               )}
                             </div>
                           ) : (
-                            <span className="italic text-gray-400">Awaiting Admin Settlement</span>
+                            <span className="italic text-slate-400">Awaiting Admin Settlement</span>
                           )}
                         </td>
                       </tr>

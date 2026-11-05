@@ -23,6 +23,7 @@ class WebSocketManager {
       onMessage: new Set(),
       onReminder: new Set(),
       onSuggestion: new Set(),
+      onAppointment: new Set(),
     };
     this.wsUrl = import.meta.env.VITE_WS_URL;
     this.heartbeatInterval = 30000;
@@ -73,10 +74,16 @@ class WebSocketManager {
         if (data.type === 'pong') return;
 
         if (type === 'message') {
-          this.listeners.onMessage.forEach(handler => handler(data));
+          if (data.type === 'appointment_notification') {
+            this.listeners.onAppointment.forEach(handler => handler(data));
+          } else {
+            this.listeners.onMessage.forEach(handler => handler(data));
+          }
         } else {
           if (data.type === 'food_suggestion') {
             this.listeners.onSuggestion.forEach(handler => handler(data));
+          } else if (data.type === 'appointment_notification') {
+            this.listeners.onAppointment.forEach(handler => handler(data));
           } else {
             this.listeners.onReminder.forEach(handler => handler(data));
           }
@@ -155,25 +162,29 @@ class WebSocketManager {
 
 const manager = new WebSocketManager();
 
-const useWebSockets = ({ onReminder, onMessage, onSuggestion } = {}) => {
+const useWebSockets = ({ onReminder, onMessage, onSuggestion, onAppointment } = {}) => {
   const onReminderRef = useRef(onReminder);
   const onMessageRef = useRef(onMessage);
   const onSuggestionRef = useRef(onSuggestion);
+  const onAppointmentRef = useRef(onAppointment);
 
   useEffect(() => {
     onReminderRef.current = onReminder;
     onMessageRef.current = onMessage;
     onSuggestionRef.current = onSuggestion;
+    onAppointmentRef.current = onAppointment;
   });
 
   useEffect(() => {
     const handleMsg = (data) => onMessageRef.current?.(data);
     const handleRem = (data) => onReminderRef.current?.(data);
     const handleSug = (data) => onSuggestionRef.current?.(data);
+    const handleApp = (data) => onAppointmentRef.current?.(data);
 
     manager.addListener('onMessage', handleMsg);
     manager.addListener('onReminder', handleRem);
     manager.addListener('onSuggestion', handleSug);
+    manager.addListener('onAppointment', handleApp);
 
     manager.connect('message');
     manager.connect('reminder');
@@ -182,6 +193,7 @@ const useWebSockets = ({ onReminder, onMessage, onSuggestion } = {}) => {
       manager.removeListener('onMessage', handleMsg);
       manager.removeListener('onReminder', handleRem);
       manager.removeListener('onSuggestion', handleSug);
+      manager.removeListener('onAppointment', handleApp);
     };
   }, []);
 };

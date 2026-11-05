@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef ,useCallback} from "react";
-import { Bell, CheckCircle, MessageCircle, Droplet, XCircle, AlertCircle, Utensils } from "lucide-react";
-import useWebSockets from "../../api/useWebSockets";// Corrected path
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Bell, CheckCircle, MessageCircle, Droplet, XCircle, AlertCircle, Utensils, Calendar } from "lucide-react";
+import useWebSockets from "../../api/useWebSockets";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // Corrected path
+import { useAuth } from "../context/AuthContext";
 import { getMessages } from "../../api/nutritionistApi";
 import { markMessageAsRead } from "../../api/messagePatientApi";
+import { getAppointmentNotifications, markAppointmentNotificationsRead } from "../../api/appointmentApi";
 
 export let clearMessageNotifications = () => {};
 export let pushWaterNotification = () => {};
@@ -62,9 +63,10 @@ const NotificationDropdown = () => {
   }, [notifications]);
 
   useEffect(() => {
-    const fetchInitialMessages = async () => {
+    const fetchInitialNotifications = async () => {
       if (!user) return;
       try {
+        // 1. Fetch unread chat messages
         const response = await getMessages();
         const messages = response.data.results || response.data || [];
         const newNotifications = [];
@@ -76,15 +78,42 @@ const NotificationDropdown = () => {
             }
           }
         });
+
+        // 2. Fetch persistent in-app appointment notifications from database
+        try {
+          const appRes = await getAppointmentNotifications();
+          const appList = appRes.data?.notifications || [];
+          appList.forEach((notif) => {
+            const uniqueId = `app_${notif.id}`;
+            if (!processedNotificationIds.current.has(uniqueId)) {
+              newNotifications.push({
+                id: uniqueId,
+                dbId: notif.id,
+                type: "appointment",
+                title: notif.title,
+                text: notif.message,
+                read: notif.is_read,
+                appointmentId: notif.appointment_id,
+                timestamp: notif.created_at,
+              });
+              processedNotificationIds.current.add(uniqueId);
+            }
+          });
+        } catch (appErr) {
+          console.warn("Failed to fetch appointment notifications:", appErr);
+        }
+
         if (newNotifications.length > 0) {
           setNotifications(prev => [...newNotifications, ...prev]);
-          setHasNew(true);
+          if (newNotifications.some(n => !n.read)) {
+            setHasNew(true);
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch initial messages:", error);
+        console.error("Failed to fetch initial notifications:", error);
       }
     };
-    fetchInitialMessages();
+    fetchInitialNotifications();
   }, [user]);
 
   useEffect(() => {
@@ -155,7 +184,27 @@ const NotificationDropdown = () => {
     }
   }, []);
 
-  useWebSockets({ onMessage, onReminder });
+  const onAppointment = useCallback((data) => {
+    const uniqueId = `app_${data.id || Date.now()}`;
+    if (!processedNotificationIds.current.has(uniqueId)) {
+      processedNotificationIds.current.add(uniqueId);
+      const newNotification = {
+        id: uniqueId,
+        dbId: data.id,
+        type: "appointment",
+        title: data.title || "Appointment Update",
+        text: data.text || data.message || "Consultation update",
+        read: false,
+        appointmentId: data.appointment_id,
+        timestamp: data.timestamp || new Date().toISOString(),
+        ...data,
+      };
+      setNotifications((prev) => [newNotification, ...prev]);
+      setHasNew(true);
+    }
+  }, []);
+
+  useWebSockets({ onMessage, onReminder, onAppointment });
   
   // Auto-read on opening notifications status
   const toggleDropdown = async () => {
@@ -166,9 +215,12 @@ const NotificationDropdown = () => {
       // Automatically mark all notifications as read upon opening
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       try {
-        await markMessageAsRead({});
+        await Promise.allSettled([
+          markMessageAsRead({}),
+          markAppointmentNotificationsRead(),
+        ]);
       } catch (err) {
-        console.warn("Could not mark messages as read on server:", err);
+        console.warn("Could not mark notifications as read on server:", err);
       }
     }
   };
@@ -178,6 +230,7 @@ const NotificationDropdown = () => {
     setHasNew(false);
     try {
       localStorage.removeItem("trackintake_notifications");
+      markAppointmentNotificationsRead().catch(() => {});
     } catch (e) {}
   };
   
@@ -186,6 +239,11 @@ const NotificationDropdown = () => {
     setIsOpen(false);
     if (note.type === 'message') {
       navigate('/dashboard/messages');
+    } else if (note.type === 'appointment') {
+      if (note.dbId) {
+        markAppointmentNotificationsRead(note.dbId).catch(() => {});
+      }
+      navigate('/dashboard/appointments');
     } else if (note.type === 'reminder') {
       navigate('/dashboard/tools/custom-reminder'); 
     } else if (note.type === 'water') {
@@ -197,17 +255,29 @@ const NotificationDropdown = () => {
     }
   };
 
-  const getIcon = (type) => { switch (type) { case "reminder": return <CheckCircle className="h-5 w-5 text-[var(--color-success-text)]" />; case "message": return <MessageCircle className="h-5 w-5 text-[var(--color-primary)]" />; case "water": return <Droplet className="h-5 w-5 text-[var(--color-info-text)]" />; case "meal_alert": return <AlertCircle className="h-5 w-5 text-[var(--color-warning-text)]" />; case "food_suggestion": return <Utensils className="h-5 w-5 text-[var(--color-primary)]" />; default: return <Bell className="h-5 w-5" />; } };
-  const getIconBg = (type) => { switch (type) { case "reminder": return "bg-[var(--color-success-bg-subtle)]"; case "message": return "bg-[var(--color-primary-bg-subtle)]"; case "water": return "bg-[var(--color-info-bg-subtle)]"; case "meal_alert": return "bg-[var(--color-warning-bg-subtle)]"; case "food_suggestion": return "bg-[#FFF3EE]"; default: return "bg-[var(--color-bg-interactive-subtle)]"; } };
+  const getIcon = (type) => { switch (type) { case "appointment": return <Calendar className="h-5 w-5 text-indigo-600" />; case "reminder": return <CheckCircle className="h-5 w-5 text-[var(--color-success-text)]" />; case "message": return <MessageCircle className="h-5 w-5 text-[var(--color-primary)]" />; case "water": return <Droplet className="h-5 w-5 text-[var(--color-info-text)]" />; case "meal_alert": return <AlertCircle className="h-5 w-5 text-[var(--color-warning-text)]" />; case "food_suggestion": return <Utensils className="h-5 w-5 text-[var(--color-primary)]" />; default: return <Bell className="h-5 w-5" />; } };
+  const getIconBg = (type) => { switch (type) { case "appointment": return "bg-indigo-50 border border-indigo-100"; case "reminder": return "bg-[var(--color-success-bg-subtle)]"; case "message": return "bg-[var(--color-primary-bg-subtle)]"; case "water": return "bg-[var(--color-info-bg-subtle)]"; case "meal_alert": return "bg-[var(--color-warning-bg-subtle)]"; case "food_suggestion": return "bg-[#FFF3EE]"; default: return "bg-[var(--color-bg-interactive-subtle)]"; } };
   
   const NotificationContent = ({ note }) => (
     <div className="flex items-start gap-3">
       <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getIconBg(note.type)}`}>{getIcon(note.type)}</div>
-      <div className="flex-1">
-        <p className="text-sm font-semibold text-[var(--color-text-strong)] capitalize">{note.type === 'water' ? "Water Goal" : note.type === 'reminder' ? "Reminder" : note.type === 'meal_alert' ? "Calorie Alert" : note.type === 'food_suggestion' ? (note.title || "AI Food Suggestion") : note.sender_name || "New Message"}</p>
-        <p className="text-sm text-[var(--color-text-default)] break-words">{note.text}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[var(--color-text-strong)] truncate">
+          {note.type === 'water' ? "Water Goal" :
+           note.type === 'reminder' ? "Reminder" :
+           note.type === 'meal_alert' ? "Calorie Alert" :
+           note.type === 'food_suggestion' ? (note.title || "AI Food Suggestion") :
+           note.type === 'appointment' ? (note.title || "Consultation Update") :
+           note.sender_name || "New Message"}
+        </p>
+        <p className="text-sm text-[var(--color-text-default)] break-words leading-snug">{note.text}</p>
+        {note.timestamp && (
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+            {new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
       </div>
-       {!note.read && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full self-center flex-shrink-0"></div>}
+      {!note.read && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full self-center flex-shrink-0"></div>}
     </div>
   );
 

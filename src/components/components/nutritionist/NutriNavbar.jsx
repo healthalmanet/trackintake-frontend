@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, BellOff, Trash2, Menu, X } from 'lucide-react';
+import { Bell, MessageSquare, BellOff, Trash2, Menu, X, Calendar } from 'lucide-react';
 import { createPortal } from "react-dom";
 import LogoutButton from "../LogoutButton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import useWebSockets from "../../../api/useWebSockets";
 import { getMessages, markMessageAsRead } from "../../../api/nutritionistApi";
+import { getAppointmentNotifications, markAppointmentNotificationsRead } from "../../../api/appointmentApi";
 import toast from "react-hot-toast";
 
 export let clearNotificationsFromSender = (senderId) => {};
@@ -52,8 +53,9 @@ const NutriNavbar = () => {
 
     useEffect(() => {
         if (!user) return;
-        const fetchInitialUnreadMessages = async () => {
+        const fetchInitialNotifications = async () => {
             try {
+                // 1. Fetch unread chat messages
                 const response = await getMessages({ is_read: 'false' }); 
                 const allFetchedMessages = response.data.results || [];
                 const unreadMessages = allFetchedMessages.filter(msg => msg.is_read === false);
@@ -62,6 +64,35 @@ const NutriNavbar = () => {
 
                 if (newNotifications.length > 0) {
                     newNotifications.forEach(n => processedNotificationIds.current.add(n.id));
+                }
+
+                // 2. Fetch persistent in-app appointment notifications from database
+                try {
+                    const appRes = await getAppointmentNotifications();
+                    const appList = appRes.data?.notifications || [];
+                    appList.forEach(notif => {
+                        const uniqueId = `app_${notif.id}`;
+                        if (!processedNotificationIds.current.has(uniqueId)) {
+                            processedNotificationIds.current.add(uniqueId);
+                            newNotifications.push({
+                                id: uniqueId,
+                                dbId: notif.id,
+                                type: 'appointment',
+                                title: notif.title,
+                                text: notif.message,
+                                sender_name: notif.title || 'Consultation Update',
+                                timestamp: notif.created_at,
+                                is_read: notif.is_read,
+                                read: notif.is_read,
+                                appointmentId: notif.appointment_id,
+                            });
+                        }
+                    });
+                } catch (appErr) {
+                    console.warn("Failed to fetch nutritionist appointment notifications:", appErr);
+                }
+
+                if (newNotifications.length > 0) {
                     setNotifications(prev => 
                         [...newNotifications, ...prev]
                         .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
@@ -69,10 +100,10 @@ const NutriNavbar = () => {
                     );
                 }
             } catch (error) {
-                console.error("Failed to fetch initial unread messages:", error);
+                console.error("Failed to fetch initial nutritionist notifications:", error);
             }
         };
-        fetchInitialUnreadMessages();
+        fetchInitialNotifications();
     }, [user]);
 
     const handleNewNotification = useCallback((data) => {
@@ -84,10 +115,46 @@ const NutriNavbar = () => {
         }
     }, [user]);
 
-    useWebSockets({ onMessage: handleNewNotification });
+    const handleAppointmentNotification = useCallback((data) => {
+        const uniqueId = `app_${data.id || Date.now()}`;
+        if (!processedNotificationIds.current.has(uniqueId)) {
+            processedNotificationIds.current.add(uniqueId);
+            const newNotif = {
+                id: uniqueId,
+                dbId: data.id,
+                type: 'appointment',
+                title: data.title || 'Appointment Update',
+                text: data.text || data.message || 'Consultation update',
+                sender_name: data.title || 'Consultation Update',
+                timestamp: data.timestamp || new Date().toISOString(),
+                is_read: false,
+                read: false,
+                appointmentId: data.appointment_id,
+                ...data,
+            };
+            setNotifications(prev => [newNotif, ...prev].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+        }
+    }, []);
+
+    useWebSockets({ onMessage: handleNewNotification, onAppointment: handleAppointmentNotification });
 
     const handleNotificationClick = async (clickedNotification) => {
         setIsDropdownOpen(false);
+
+        if (clickedNotification.type === 'appointment') {
+            if (clickedNotification.dbId) {
+                try {
+                    await markAppointmentNotificationsRead(clickedNotification.dbId);
+                } catch (err) {
+                    console.warn("Failed to mark appointment notification read:", err);
+                }
+            }
+            setNotifications(prev => prev.map(n => n.id === clickedNotification.id ? { ...n, is_read: true, read: true } : n));
+            // Navigate to Availability/Appointments page to view the case or booking
+            navigate('/nutritionist/availability');
+            return;
+        }
+
         const patientId = clickedNotification.sender_id;
         try {
             await markMessageAsRead({ sender_id: patientId });
@@ -126,9 +193,12 @@ const NutriNavbar = () => {
             // Automatically mark all notifications as read upon opening
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read: true })));
             try {
-                await markMessageAsRead({});
+                await Promise.allSettled([
+                    markMessageAsRead({}),
+                    markAppointmentNotificationsRead(),
+                ]);
             } catch (error) {
-                console.warn("Could not mark messages as read on server:", error);
+                console.warn("Could not mark notifications as read on server:", error);
             }
         }
     };
@@ -138,7 +208,10 @@ const NutriNavbar = () => {
         setNotifications([]);
         processedNotificationIds.current.clear();
         try {
-            await markMessageAsRead({});
+            await Promise.allSettled([
+                markMessageAsRead({}),
+                markAppointmentNotificationsRead(),
+            ]);
         } catch (error) {
             console.warn("Could not clear all notifications on server:", error);
         }
@@ -238,9 +311,11 @@ const NutriNavbar = () => {
                                             {notifications.length > 0 ? (
                                                 notifications.map((notif) => (
                                                     <motion.div key={notif.id} variants={itemVariants} onClick={() => handleNotificationClick(notif)} whileHover={{ backgroundColor: 'var(--color-bg-interactive-subtle)', x: 2 }} className="flex items-start gap-3 p-3 sm:p-4 cursor-pointer border-b border-[var(--color-border-default)] last:border-b-0 transition-colors">
-                                                        <div className="p-2 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-xl mt-0.5 flex-shrink-0"><MessageSquare size={17} /></div>
+                                                        <div className={`p-2 rounded-xl mt-0.5 flex-shrink-0 ${notif.type === 'appointment' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)]'}`}>
+                                                            {notif.type === 'appointment' ? <Calendar size={17} /> : <MessageSquare size={17} />}
+                                                        </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="font-semibold text-xs sm:text-sm text-[var(--color-text-strong)] font-[var(--font-primary)] truncate">{notif.sender_name || 'New Message'}</p>
+                                                            <p className="font-semibold text-xs sm:text-sm text-[var(--color-text-strong)] font-[var(--font-primary)] truncate">{notif.sender_name || 'New Notification'}</p>
                                                             <p className="text-xs sm:text-sm text-[var(--color-text-default)] leading-snug line-clamp-2">{notif.text}</p>
                                                             <p className="text-[11px] text-[var(--color-text-muted)] mt-1">{timeSince(new Date(notif.timestamp))}</p>
                                                         </div>

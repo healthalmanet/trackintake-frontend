@@ -1,14 +1,42 @@
 import React from 'react';
-import { Facebook, Twitter, Instagram, Heart, Leaf, ArrowUpRight } from 'lucide-react';
+import { Youtube, Linkedin, Instagram, Twitter, Heart, Leaf, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const socialLinks = [
+  {
+    name: "YouTube",
+    href: "https://www.youtube.com/@TrackIntake",
+    icon: Youtube,
+    hoverClass: "hover:bg-[#FF0000] hover:border-[#FF0000] hover:text-white dark:hover:bg-[#FF0000] dark:hover:text-white",
+  },
+  {
+    name: "LinkedIn",
+    href: "https://www.linkedin.com/company/trackintake/about/?viewAsMember=true",
+    icon: Linkedin,
+    hoverClass: "hover:bg-[#0A66C2] hover:border-[#0A66C2] hover:text-white dark:hover:bg-[#0A66C2] dark:hover:text-white",
+  },
+  {
+    name: "Instagram",
+    href: "https://www.instagram.com/trackintake/",
+    icon: Instagram,
+    hoverClass: "hover:bg-gradient-to-tr hover:from-amber-500 hover:via-rose-500 hover:to-purple-600 hover:border-rose-500 hover:text-white",
+  },
+  {
+    name: "Twitter / X",
+    href: "https://x.com/trackintake",
+    icon: Twitter,
+    hoverClass: "hover:bg-black hover:border-black hover:text-white dark:hover:bg-white dark:hover:border-white dark:hover:text-black",
+  },
+];
+
 const userQuickLinks = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Tools", path: "/dashboard/tools" },
-  { label: "Profile", path: "/dashboard/user-profile" },
-  { label: "Health", path: "/dashboard/health-section" },
+  { label: "Consultations", path: "/dashboard/appointments" },
+  { label: "Health Profile", path: "/dashboard/health-section" },
+  { label: "My Profile", path: "/dashboard/user-profile" },
 ];
 
 const nutritionistQuickLinks = [
@@ -16,6 +44,7 @@ const nutritionistQuickLinks = [
   { label: "Nutrition Search", path: "/nutritionist/search" },
   { label: "Patient Chat", path: "/nutritionist/chat" },
   { label: "Manage Availability", path: "/nutritionist/availability" },
+  { label: "Earnings & Payouts", path: "/nutritionist/payouts" },
   { label: "Subscription", path: "/nutritionist/subscription" },
 ];
 
@@ -23,7 +52,8 @@ const legalLinks = [
   { label: "Privacy Policy", path: "/privacy-policy" },
   { label: "Terms & Conditions", path: "/terms-conditions" },
   { label: "Refund & Return Policy", path: "/refund-policy" },
-  { label: "Contact", path: "/contact" },
+  { label: "Careers", path: "/career" },
+  { label: "Contact Us", path: "/contact" },
 ];
 
 const Footer = () => {
@@ -50,15 +80,18 @@ const Footer = () => {
             </p>
 
             {/* Social Media Links */}
-            <div className="flex items-center gap-4">
-              {[Facebook, Twitter, Instagram].map((Icon, i) => (
+            <div className="flex items-center gap-3">
+              {socialLinks.map(({ name, href, icon: Icon, hoverClass }) => (
                 <motion.a
-                  key={i}
-                  href="#"
+                  key={name}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   whileHover={{ scale: 1.1, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="w-10 h-10 rounded-full flex items-center justify-center border-2 border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:bg-[var(--color-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-text-on-primary)] transition-all duration-300"
-                  aria-label="Social Icon"
+                  className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-[var(--color-border-default)] text-[var(--color-text-muted)] ${hoverClass} transition-all duration-300 shadow-sm cursor-pointer`}
+                  aria-label={name}
+                  title={name}
                 >
                   <Icon className="w-4 h-4" />
                 </motion.a>
@@ -100,9 +133,9 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Legal */}
+          {/* Legal & Company */}
           <div>
-            <h4 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-primary)] mb-4">Legal</h4>
+            <h4 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-primary)] mb-4">Legal & Company</h4>
             <ul className="space-y-3">
               {legalLinks.map((item, i) => (
                 <li key={i}>
@@ -145,32 +178,3 @@ const Footer = () => {
 };
 
 export default Footer;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

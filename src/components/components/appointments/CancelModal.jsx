@@ -69,26 +69,29 @@ const CancelModal = ({
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-md rounded-3xl bg-[var(--color-bg-surface)] border-2 border-rose-200 dark:border-rose-900 shadow-2xl overflow-hidden font-[var(--font-secondary)]"
+          className="relative w-full max-w-md rounded-3xl bg-white border-2 border-neutral-200 shadow-2xl overflow-hidden font-[var(--font-secondary)]"
         >
+          {/* Top accent */}
+          <div className="h-1.5 w-full bg-rose-600" />
+
           {/* Header */}
-          <div className="p-5 sm:p-6 bg-rose-50/70 dark:bg-rose-950/20 border-b border-rose-100 dark:border-rose-900/40 flex items-start justify-between gap-3">
+          <div className="p-5 sm:p-6 bg-white border-b-2 border-neutral-200 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
                 <XCircle size={24} />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-rose-900 dark:text-rose-200 font-[var(--font-primary)]">
+                <h2 className="text-lg sm:text-xl font-black text-black font-[var(--font-primary)]">
                   Cancel Consultation
                 </h2>
-                <p className="text-xs text-rose-700/80 dark:text-rose-400 mt-0.5">
+                <p className="text-xs text-neutral-700 font-bold mt-0.5">
                   Confirm cancellation and review refund terms
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-rose-700/60 hover:text-rose-900 hover:bg-rose-100/50 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-black hover:bg-neutral-100 border border-neutral-200 transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -97,26 +100,26 @@ const CancelModal = ({
           {/* Modal Body */}
           <div className="p-5 sm:p-6 space-y-4 text-xs">
             {/* Slot Info Card */}
-            <div className="p-3.5 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] flex items-center justify-between">
+            <div className="p-3.5 rounded-2xl bg-neutral-50 border-2 border-neutral-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-[var(--color-primary)]" />
-                <span className="font-bold text-[var(--color-text-strong)]">
+                <Calendar size={15} className="text-[#F26722]" />
+                <span className="font-black text-black">
                   {fmtDate(slotDate)}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-[var(--color-text-muted)] font-semibold">
+              <div className="flex items-center gap-1.5 text-neutral-800 font-bold">
                 <Clock size={13} />
                 <span>{slotStartTime} – {slotEndTime}</span>
               </div>
             </div>
 
             {/* Comprehensive Refund & Cancellation Policy Notice */}
-            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-200 space-y-2">
-              <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-300">
-                <Info size={15} className="text-amber-600 shrink-0" />
+            <div className="p-4 rounded-2xl bg-orange-50/70 border-2 border-orange-200 text-black space-y-2">
+              <div className="flex items-center gap-1.5 font-black text-black">
+                <Info size={15} className="text-[#F26722] shrink-0" />
                 <span>Cancellation & Refund Policy</span>
               </div>
-              <div className="space-y-1 text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+              <div className="space-y-1 text-[11px] text-neutral-800 leading-relaxed font-bold">
                 <p>
                   • <strong>Nutritionist cancellation:</strong> Full refund is eligible for the patient (Status: <em>Pending Refund</em> for Admin processing).
                 </p>
@@ -126,7 +129,7 @@ const CancelModal = ({
                 <p>
                   • <strong>Patient cancellation &gt; 24 hours in advance:</strong> Eligible for refund (Status: <em>Pending Refund</em> for Admin processing).
                 </p>
-                <p className="pt-1 text-emerald-800 dark:text-emerald-300 font-semibold">
+                <p className="pt-1 text-emerald-900 font-black">
                   ✓ The appointment time slot will be reopened immediately and made available again for others to book.
                 </p>
               </div>
@@ -134,24 +137,24 @@ const CancelModal = ({
 
             {/* Reason Input */}
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <label className="block text-[11px] font-black uppercase tracking-wider text-black">
                 Reason for cancellation (optional):
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Please tell us why you need to cancel this appointment..."
-                className="w-full p-3 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] focus:border-rose-400 focus:outline-none text-xs text-[var(--color-text-strong)] min-h-[75px]"
+                className="w-full p-3 rounded-2xl border-2 border-neutral-300 bg-white focus:border-rose-500 focus:outline-none text-xs text-black font-bold min-h-[75px]"
               />
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="p-4 sm:p-5 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex gap-2.5">
+          <div className="p-4 sm:p-5 border-t-2 border-neutral-200 bg-white flex gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] transition-colors cursor-pointer"
+              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black border-2 border-neutral-300 text-black hover:bg-neutral-50 transition-colors cursor-pointer"
             >
               Keep Appointment
             </button>
@@ -159,7 +162,7 @@ const CancelModal = ({
               type="button"
               disabled={submitting}
               onClick={handleConfirmCancel}
-              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-white bg-rose-600 hover:bg-rose-700 transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               {submitting ? (
                 <>

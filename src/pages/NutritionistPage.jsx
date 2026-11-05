@@ -65,13 +65,20 @@ const NutritionistPage = () => {
 
       {/* ⏳ Pending Admin Verification Top Alert Banner */}
       {!loadingProfile && !isVerified && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-center text-xs sm:text-sm font-medium text-amber-900 dark:text-amber-200 flex items-center justify-center gap-2 flex-wrap z-30">
-          <Clock size={16} className="text-amber-600 shrink-0" />
-          <span>
-            <strong>Account Status: Pending Admin Verification.</strong> Your profile & subscription are active. Practice actions will fully unlock as soon as Admin approves your account.
+        <div className="bg-white border-b-2 border-orange-200 px-4 py-2.5 text-center text-xs sm:text-sm font-semibold text-slate-900 flex items-center justify-center gap-2.5 flex-wrap z-30 shadow-xs">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-black text-[11px] uppercase tracking-wider shadow-xs">
+            <Clock size={12} className="shrink-0 stroke-[2.5]" />
+            <span>Verification Pending</span>
           </span>
-          <NavLink to="/nutritionist/profile" className="underline font-bold text-amber-700 dark:text-amber-300 flex items-center gap-0.5">
-            View Status <ArrowRight size={12} />
+          <span className="text-slate-800">
+            Your profile & subscription are active. Clinical practice actions will fully unlock as soon as Admin completes verification.
+          </span>
+          <NavLink
+            to="/nutritionist/profile"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs transition-colors border border-orange-300"
+          >
+            <span>View Status</span>
+            <ArrowRight size={13} />
           </NavLink>
         </div>
       )}
@@ -79,23 +86,23 @@ const NutritionistPage = () => {
       {/* 📄 Dynamic Routed Content with Suspense Code-Splitting */}
       <div className="flex-1 relative">
         {!loadingProfile && !isVerified && !isProfileRoute && (
-          <div className="absolute inset-0 z-30 bg-[var(--color-bg-app)]/70 backdrop-blur-xs flex items-start justify-center pt-16 px-4">
-            <div className="max-w-md w-full bg-[var(--color-bg-surface)] border-2 border-amber-500/40 p-6 sm:p-8 rounded-3xl shadow-xl text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center mx-auto">
-                <Clock size={30} className="animate-pulse" />
+          <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-xs flex items-start justify-center pt-16 px-4">
+            <div className="max-w-md w-full bg-white border-2 border-slate-200 p-6 sm:p-8 rounded-3xl shadow-2xl text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mx-auto border border-orange-200 shadow-xs">
+                <Clock size={32} className="animate-pulse" />
               </div>
-              <h3 className="text-xl font-black font-[var(--font-primary)] text-[var(--color-text-strong)]">
+              <h3 className="text-xl font-black font-[var(--font-primary)] text-slate-900">
                 Admin Verification Pending
               </h3>
-              <p className="text-xs text-[var(--color-text-muted)] leading-relaxed font-[var(--font-secondary)]">
+              <p className="text-xs text-slate-600 leading-relaxed font-[var(--font-secondary)]">
                 Welcome to TrackIntake! Your account registration & subscription access are active. Clinical practice features (assigning patients, diet plan generation, and patient chat) will automatically unlock once Admin completes your verification.
               </p>
               <div className="pt-2 flex justify-center gap-3">
                 <NavLink
                   to="/nutritionist/profile"
-                  className="px-5 py-2.5 rounded-xl bg-[var(--color-primary)] text-white font-bold text-xs shadow-sm hover:bg-[var(--color-primary-hover)] transition-all"
+                  className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md transition-all"
                 >
-                  View Profile & Pricing Status →
+                  View Profile & Verification Status →
                 </NavLink>
               </div>
             </div>

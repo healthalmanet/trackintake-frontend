@@ -66,7 +66,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [professionalBio, setProfessionalBio] = useState("");
   const [languagesSpoken, setLanguagesSpoken] = useState("English, Hindi");
 
-  // Step 3: Specializations & Pricing
+  // Step 3: Specializations & Practitioner Tier
+  const [nutritionistType, setNutritionistType] = useState("inhouse"); // "inhouse" | "expert"
   const [selectedSpecializations, setSelectedSpecializations] = useState([]);
   const [isOnlineAvailable, setIsOnlineAvailable] = useState(true);
   const [isOfflineAvailable, setIsOfflineAvailable] = useState(false);
@@ -193,9 +194,17 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         errors.appointmentMode = "Please enable at least one consultation mode (Online or Offline).";
       }
 
-      if (isOnlineAvailable) {
-        if (onlinePrice === "" || isNaN(parseFloat(onlinePrice)) || parseFloat(onlinePrice) < 0) {
-          errors.onlinePrice = "Please enter a valid online consultation fee (₹0 or more).";
+      if (nutritionistType === "expert") {
+        if (isOnlineAvailable) {
+          if (onlinePrice === "" || isNaN(parseFloat(onlinePrice)) || parseFloat(onlinePrice) < 0) {
+            errors.onlinePrice = "Please enter a valid online consultation fee (₹0 or more).";
+          }
+        }
+
+        if (isOfflineAvailable) {
+          if (offlinePrice === "" || isNaN(parseFloat(offlinePrice)) || parseFloat(offlinePrice) < 0) {
+            errors.offlinePrice = "Please enter a valid offline consultation fee (₹0 or more).";
+          }
         }
       }
 
@@ -204,10 +213,6 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           errors.offlineLocation = "Please enter the physical clinic/practice address for offline appointments.";
         } else if (offlineLocation.trim().length < 5) {
           errors.offlineLocation = "Please enter a detailed clinic address (at least 5 characters).";
-        }
-
-        if (offlinePrice === "" || isNaN(parseFloat(offlinePrice)) || parseFloat(offlinePrice) < 0) {
-          errors.offlinePrice = "Please enter a valid offline consultation fee (₹0 or more).";
         }
       }
 
@@ -326,11 +331,12 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       formData.append("specializations", JSON.stringify(selectedSpecializations));
 
       // Appointment Config
+      formData.append("nutritionist_type", nutritionistType);
       formData.append("is_online_available", isOnlineAvailable);
       formData.append("is_offline_available", isOfflineAvailable);
       formData.append("offline_location", offlineLocation || "");
-      formData.append("online_price", onlinePrice ? parseFloat(onlinePrice) : 0);
-      formData.append("offline_price", offlinePrice ? parseFloat(offlinePrice) : 0);
+      formData.append("online_price", nutritionistType === "expert" && onlinePrice ? parseFloat(onlinePrice) : 0);
+      formData.append("offline_price", nutritionistType === "expert" && offlinePrice ? parseFloat(offlinePrice) : 0);
       formData.append("offline_payment_required", offlinePaymentRequired);
 
       // Files
@@ -799,18 +805,169 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
             </motion.div>
           )}
 
-          {/* ──────────────── PAGE 3: CLINICAL SPECIALIZATIONS ──────────────── */}
+          {/* ──────────────── PAGE 3: PRACTITIONER TIER & CLINICAL SPECIALIZATIONS ──────────────── */}
           {step === 3 && (
-            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
               <div className="pb-2 border-b border-[var(--color-border-default)] flex items-center justify-between">
-                <p className="text-xs sm:text-sm font-bold text-[var(--color-primary)] uppercase tracking-wider">
-                  Page 3: Clinical Specializations Setup
-                </p>
-                <span className="text-rose-500 font-bold text-xs">* Required (Select at least 1)</span>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-[var(--color-primary)] uppercase tracking-wider">
+                    Page 3: Practitioner Classification & Specializations
+                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    Select your operational practitioner role and areas of clinical expertise.
+                  </p>
+                </div>
+                <span className="text-rose-500 font-bold text-xs shrink-0">* Required</span>
               </div>
 
-              {/* Specializations Badges */}
+              {/* ── Practitioner Classification Selector (In-House vs Specialist Expert) ── */}
               <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs sm:text-sm font-bold text-[var(--color-text-strong)]">
+                    Choose Your Practitioner Role <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-[var(--color-primary)]">
+                    {nutritionistType === "expert" ? "⭐ Specialist Expert Practice" : "🏢 General / In-House Practice"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {/* Option 1: In-House Nutritionist */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNutritionistType("inhouse");
+                      clearError("nutritionistType");
+                    }}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                      nutritionistType === "inhouse"
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-sm"
+                        : "border-[var(--color-border-default)] bg-[var(--color-bg-app)] hover:border-[var(--color-border-hover)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2.5 rounded-xl ${nutritionistType === "inhouse" ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]"}`}>
+                        <Building size={20} />
+                      </div>
+                      {nutritionistType === "inhouse" && (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--color-primary)] text-white text-[11px] font-bold">
+                          <Check size={12} />
+                          <span>Selected Role</span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-[var(--color-text-strong)] flex items-center gap-1.5">
+                        <span>In-House Nutritionist</span>
+                      </h4>
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1 leading-relaxed">
+                        Core care team practitioner providing lifestyle, balanced diet, and wellness consultations. Appointments are booked seamlessly at standardized platform session rates or under covered patient care plans.
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 2: Specialist Expert Nutritionist */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNutritionistType("expert");
+                      clearError("nutritionistType");
+                    }}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                      nutritionistType === "expert"
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-sm"
+                        : "border-[var(--color-border-default)] bg-[var(--color-bg-app)] hover:border-[var(--color-border-hover)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2.5 rounded-xl ${nutritionistType === "expert" ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]"}`}>
+                        <Award size={20} />
+                      </div>
+                      {nutritionistType === "expert" && (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--color-primary)] text-white text-[11px] font-bold">
+                          <Check size={12} />
+                          <span>Selected Role</span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-[var(--color-text-strong)] flex items-center gap-1.5">
+                        <span>Specialist Expert Nutritionist</span>
+                        <Sparkles size={14} className="text-amber-500 fill-amber-500" />
+                      </h4>
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1 leading-relaxed">
+                        Clinical specialist treating complex, chronic, or high-acuity medical conditions. Featured in the public <strong>Specialist Directory</strong> with full freedom to offer instant fixed slots or review patient health cases before quoting custom fees.
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Educational Guide: What is an Expert Nutritionist? ── */}
+              {nutritionistType === "expert" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 sm:p-5 rounded-2xl bg-orange-50 border-2 border-orange-200 space-y-3"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <Sparkles size={18} className="text-orange-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h5 className="text-xs sm:text-sm font-black text-slate-900">
+                        What Defines a Specialist Expert on TrackIntake?
+                      </h5>
+                      <p className="text-[11px] sm:text-xs text-slate-700 mt-0.5 font-medium">
+                        Specialist Experts manage specialized clinical cases and receive tailored patient inquiries:
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs">
+                    <div className="p-3 rounded-xl bg-white border border-orange-200/80 space-y-1 shadow-xs">
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-orange-600 shrink-0" />
+                        <span>Advanced Clinical Credentials</span>
+                      </span>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Registered Dietitian (RD), Master's/Ph.D. in Clinical Nutrition, or 3+ years of hospital or clinical practice managing patient care.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-orange-200/80 space-y-1 shadow-xs">
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-orange-600 shrink-0" />
+                        <span>Chronic & Complex Disease Focus</span>
+                      </span>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Dedicated focus in conditions like Diabetes, PCOS/PCOD, Renal/Kidney Health, Thyroid, Gastrointestinal/Gut disorders, or Sports Nutrition.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-orange-200/80 space-y-1 shadow-xs">
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-orange-600 shrink-0" />
+                        <span>Featured Specialist Directory</span>
+                      </span>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Your clinical profile is showcased in the public Specialist Directory where patients search for dedicated condition experts.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-orange-200/80 space-y-1 shadow-xs">
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-orange-600 shrink-0" />
+                        <span>Instant or Case-Based Quoting</span>
+                      </span>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Create instant-booking slots at your fixed rate, or offer variable slots where patients submit health notes so you can quote a tailored consultation fee.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Specializations Badges */}
+              <div className="space-y-3 pt-1">
                 <label className="block text-xs sm:text-sm font-bold text-[var(--color-text-strong)]">
                   Select Your Clinical Specializations <span className="text-rose-500 font-bold">*</span>
                 </label>
@@ -956,69 +1113,91 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-primary)] flex items-center gap-2">
                     <DollarSign size={16} /> Section 2: Consultation Fee Structure (₹)
                   </span>
-                </div>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Define consultation charges per appointment type.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {isOnlineAvailable && (
-                    <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-2">
-                      <label className="block text-xs font-bold text-[var(--color-text-strong)] flex items-center gap-1.5">
-                        <Video size={14} className="text-[var(--color-primary)]" />
-                        <span>Online Price (₹)</span>
-                        <span className="text-rose-500 font-bold ml-0.5">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="e.g. 500"
-                          value={onlinePrice}
-                          onChange={(e) => { setOnlinePrice(e.target.value); clearError("onlinePrice"); }}
-                          className={`w-full pl-9 pr-4 py-2.5 bg-[var(--color-bg-app)] border text-xs text-[var(--color-text-strong)] rounded-xl outline-none transition-all ${
-                            fieldErrors.onlinePrice ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5" : "border-[var(--color-border-default)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-bg-subtle)]"
-                          }`}
-                        />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--color-text-muted)]">₹</span>
-                      </div>
-                      {fieldErrors.onlinePrice && (
-                        <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
-                          <AlertCircle size={14} className="shrink-0 text-rose-500" />
-                          <span>{fieldErrors.onlinePrice}</span>
-                        </p>
-                      )}
-                    </div>
+                  {nutritionistType === "inhouse" && (
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <ShieldCheck size={13} /> Standard Platform Rates
+                    </span>
                   )}
+                </div>
 
-                  {isOfflineAvailable && (
-                    <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-2">
-                      <label className="block text-xs font-bold text-[var(--color-text-strong)] flex items-center gap-1.5">
-                        <MapPin size={14} className="text-[var(--color-primary)]" />
-                        <span>Offline Price (₹)</span>
-                        <span className="text-rose-500 font-bold ml-0.5">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="e.g. 800"
-                          value={offlinePrice}
-                          onChange={(e) => { setOfflinePrice(e.target.value); clearError("offlinePrice"); }}
-                          className={`w-full pl-9 pr-4 py-2.5 bg-[var(--color-bg-app)] border text-xs text-[var(--color-text-strong)] rounded-xl outline-none transition-all ${
-                            fieldErrors.offlinePrice ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5" : "border-[var(--color-border-default)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-bg-subtle)]"
-                          }`}
-                        />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--color-text-muted)]">₹</span>
-                      </div>
-                      {fieldErrors.offlinePrice && (
-                        <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
-                          <AlertCircle size={14} className="shrink-0 text-rose-500" />
-                          <span>{fieldErrors.offlinePrice}</span>
-                        </p>
+                {nutritionistType === "inhouse" ? (
+                  /* In-House Notice: Standard Platform Rates */
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs sm:text-sm">
+                      <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                      <span>Standardized Platform Consultation Pricing</span>
+                    </div>
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      As an In-House Nutritionist, your consultations follow standard platform session pricing and covered patient care plans. Patients can book your available slots immediately without needing custom price quotes or separate invoicing.
+                    </p>
+                  </div>
+                ) : (
+                  /* Expert Practitioner Rates */
+                  <>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Set your standard consultation fee for instant-booking slots. (For variable case slots, you will be able to review patient medical summaries and send tailored fee quotes before booking confirmation).
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {isOnlineAvailable && (
+                        <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-2">
+                          <label className="block text-xs font-bold text-[var(--color-text-strong)] flex items-center gap-1.5">
+                            <Video size={14} className="text-[var(--color-primary)]" />
+                            <span>Online Price (₹)</span>
+                            <span className="text-rose-500 font-bold ml-0.5">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 500"
+                              value={onlinePrice}
+                              onChange={(e) => { setOnlinePrice(e.target.value); clearError("onlinePrice"); }}
+                              className={`w-full pl-9 pr-4 py-2.5 bg-[var(--color-bg-app)] border text-xs text-[var(--color-text-strong)] rounded-xl outline-none transition-all ${
+                                fieldErrors.onlinePrice ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5" : "border-[var(--color-border-default)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-bg-subtle)]"
+                              }`}
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--color-text-muted)]">₹</span>
+                          </div>
+                          {fieldErrors.onlinePrice && (
+                            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                              <AlertCircle size={14} className="shrink-0 text-rose-500" />
+                              <span>{fieldErrors.onlinePrice}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {isOfflineAvailable && (
+                        <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-2">
+                          <label className="block text-xs font-bold text-[var(--color-text-strong)] flex items-center gap-1.5">
+                            <MapPin size={14} className="text-[var(--color-primary)]" />
+                            <span>Offline Price (₹)</span>
+                            <span className="text-rose-500 font-bold ml-0.5">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 800"
+                              value={offlinePrice}
+                              onChange={(e) => { setOfflinePrice(e.target.value); clearError("offlinePrice"); }}
+                              className={`w-full pl-9 pr-4 py-2.5 bg-[var(--color-bg-app)] border text-xs text-[var(--color-text-strong)] rounded-xl outline-none transition-all ${
+                                fieldErrors.offlinePrice ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5" : "border-[var(--color-border-default)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-bg-subtle)]"
+                              }`}
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--color-text-muted)]">₹</span>
+                          </div>
+                          {fieldErrors.offlinePrice && (
+                            <p className="text-xs text-rose-500 font-semibold flex items-center gap-1.5 mt-1.5 animate-pulse bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                              <AlertCircle size={14} className="shrink-0 text-rose-500" />
+                              <span>{fieldErrors.offlinePrice}</span>
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
 
               {/* ── SECTION 3: Practice / Clinic Address Location ── */}

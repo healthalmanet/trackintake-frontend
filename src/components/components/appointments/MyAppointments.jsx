@@ -6,7 +6,7 @@ import {
   Calendar, Clock, User, XCircle, CheckCircle, AlertCircle,
   CalendarDays, Video, Copy, ExternalLink,
   WifiOff, Star, Sparkles, MessageSquarePlus, Building2,
-  MapPin, Search, X, RefreshCw, Filter, Layers, FileText, Info
+  MapPin, Search, X, RefreshCw, Filter, Layers, FileText, Info, ChevronRight
 } from "lucide-react";
 import AppointmentDetailModal from "./AppointmentDetailModal";
 import RescheduleModal from "./RescheduleModal";
@@ -35,9 +35,12 @@ const canCancel = (date, time) => {
 
 /* ─── Status Badge ──────────────────────────────────────────── */
 const STATUS_CONFIG = {
-  CONFIRMED: { color: "#16a34a", bg: "#f0fdf4", border: "#86efac", icon: <CheckCircle size={13} /> },
-  PENDING:   { color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: <AlertCircle  size={13} /> },
-  CANCELLED: { color: "#dc2626", bg: "#fff1f2", border: "#fecdd3", icon: <XCircle      size={13} /> },
+  CONFIRMED:        { color: "#000000", bg: "#dcfce7", border: "#86efac", label: "Confirmed", icon: <CheckCircle size={13} className="text-emerald-700" /> },
+  PENDING:          { color: "#000000", bg: "#ffedd5", border: "#fdba74", label: "Pending", icon: <AlertCircle  size={13} className="text-[#F26722]" /> },
+  PENDING_REVIEW:   { color: "#000000", bg: "#ffedd5", border: "#fdba74", label: "Under Doctor Review", icon: <Clock size={13} className="text-[#F26722]" /> },
+  AWAITING_PAYMENT: { color: "#ffffff", bg: "#F26722", border: "#ea580c", label: "Quote Ready - Pay Now", icon: <AlertCircle size={13} className="text-white" /> },
+  DECLINED:         { color: "#000000", bg: "#f1f5f9", border: "#94a3b8", label: "Declined", icon: <XCircle size={13} className="text-neutral-700" /> },
+  CANCELLED:        { color: "#000000", bg: "#fee2e2", border: "#fca5a5", label: "Cancelled", icon: <XCircle size={13} className="text-rose-700" /> },
 };
 
 const StatusBadge = ({ status }) => {
@@ -47,7 +50,7 @@ const StatusBadge = ({ status }) => {
       className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border"
       style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.border }}
     >
-      {cfg.icon} <span>{status}</span>
+      {cfg.icon} <span>{cfg.label || status}</span>
     </span>
   );
 };
@@ -67,26 +70,26 @@ const ZoomBlock = ({ link }) => {
   };
 
   return (
-    <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 via-blue-50/80 to-indigo-50 border border-blue-200 mb-3.5 relative overflow-hidden">
+    <div className="p-4 rounded-2xl bg-white border-2 border-orange-200 mb-3.5 shadow-xs relative overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-xs">
+          <div className="w-7 h-7 rounded-lg bg-[#F26722] flex items-center justify-center shadow-xs text-white">
             <Video size={14} color="white" />
           </div>
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-700 block">
+            <span className="text-xs font-black uppercase tracking-wider text-black block">
               Zoom Video Consultation
             </span>
           </div>
         </div>
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Session
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" /> Active Session
         </span>
       </div>
 
       {/* Link preview */}
-      <div className="px-3 py-1.5 rounded-xl mb-3 text-xs font-mono break-all bg-white/90 text-blue-800 border border-blue-200 shadow-2xs">
+      <div className="px-3 py-1.5 rounded-xl mb-3 text-xs font-mono break-all bg-neutral-50 text-black border border-neutral-300 shadow-2xs font-semibold">
         {link}
       </div>
 
@@ -96,13 +99,13 @@ const ZoomBlock = ({ link }) => {
           href={link}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs hover:shadow transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#F26722] hover:bg-[#d95616] shadow-xs transition-all cursor-pointer"
         >
           <ExternalLink size={13} /> Join Consultation
         </a>
         <button
           onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-black bg-white border border-neutral-300 hover:border-[#F26722] hover:text-[#F26722] transition-all cursor-pointer"
         >
           <Copy size={13} /> {copied ? "Copied!" : "Copy Link"}
         </button>
@@ -113,26 +116,26 @@ const ZoomBlock = ({ link }) => {
 
 /* ─── In-Clinic Practice Location Block ──────────────────────── */
 const InClinicBlock = ({ location }) => (
-  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-200 mb-3.5">
+  <div className="p-4 rounded-2xl bg-white border-2 border-neutral-200 mb-3.5 shadow-xs">
     <div className="flex items-center gap-2 mb-2">
-      <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-xs text-white">
+      <div className="w-7 h-7 rounded-lg bg-[#F26722] flex items-center justify-center shadow-xs text-white">
         <Building2 size={14} />
       </div>
       <div>
-        <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 block">
+        <span className="text-xs font-black uppercase tracking-wider text-black block">
           In-Clinic Appointment
         </span>
       </div>
     </div>
 
-    <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200 text-xs text-emerald-900 space-y-1">
+    <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-black space-y-1">
       <div className="flex items-start gap-1.5">
-        <MapPin size={14} className="text-emerald-700 shrink-0 mt-0.5" />
-        <span className="font-semibold">
+        <MapPin size={14} className="text-[#F26722] shrink-0 mt-0.5" />
+        <span className="font-bold text-black">
           {location || "Clinic address will be confirmed by your nutritionist before the visit."}
         </span>
       </div>
-      <p className="text-[11px] text-emerald-700 pl-5">
+      <p className="text-[11px] text-neutral-600 pl-5 font-medium">
         Please arrive 5–10 minutes prior to your scheduled consultation.
       </p>
     </div>
@@ -141,13 +144,15 @@ const InClinicBlock = ({ location }) => (
 
 /* ─── No Meeting Placeholder ────────────────────────────────── */
 const NoMeetingPlaceholder = () => (
-  <div className="rounded-2xl p-3.5 mb-3.5 flex items-center gap-3 bg-[var(--color-bg-surface-alt)] border border-dashed border-[var(--color-border-default)]">
-    <WifiOff size={18} className="text-[var(--color-text-muted)] shrink-0" />
+  <div className="rounded-2xl p-3.5 mb-3.5 flex items-center gap-3 bg-white border-2 border-neutral-200 shadow-2xs">
+    <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#F26722] shrink-0 border border-orange-200 flex items-center justify-center">
+      <Video size={16} />
+    </div>
     <div>
-      <p className="text-xs font-bold text-[var(--color-text-strong)]">
+      <p className="text-xs font-black text-black">
         Virtual Consultation Link Generating
       </p>
-      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+      <p className="text-xs text-neutral-800 font-medium mt-0.5">
         Your Zoom video link will appear here prior to your consultation start.
       </p>
     </div>
@@ -168,40 +173,28 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: idx * 0.04, duration: 0.25 }}
-      className="rounded-3xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] flex flex-col justify-between"
+      className="rounded-3xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 bg-white border-2 border-neutral-200 flex flex-col justify-between"
     >
       {/* Top accent bar */}
-      <div
-        className={`h-1.5 w-full ${
-          isVirtual
-            ? "bg-gradient-to-r from-blue-500 via-indigo-500 to-sky-400"
-            : "bg-gradient-to-r from-emerald-500 via-teal-500 to-green-400"
-        }`}
-      />
+      <div className="h-1.5 w-full bg-[#F26722]" />
 
       <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
         <div>
           {/* Nutritionist Header & Status */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg text-white shadow-xs ${
-                  isVirtual
-                    ? "bg-gradient-to-br from-blue-600 to-indigo-600"
-                    : "bg-gradient-to-br from-emerald-600 to-teal-600"
-                }`}
-              >
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-xs bg-[#F26722]">
                 {(a.nutritionist_name || "N").charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#F26722]">
                   {a.appointment_category === "EXPERT" ? "Specialist Expert" : "In-House Nutritionist"}
                 </p>
-                <h3 className="font-extrabold text-base text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                <h3 className="font-black text-base text-black font-[var(--font-primary)]">
                   {a.nutritionist_name || "Nutritionist"}
                 </h3>
                 {a.nutritionist_email && (
-                  <p className="text-[11px] text-[var(--color-text-muted)] truncate max-w-[200px]">
+                  <p className="text-xs text-neutral-800 font-bold truncate max-w-[200px]">
                     {a.nutritionist_email}
                   </p>
                 )}
@@ -210,44 +203,44 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
             <div className="flex flex-col items-end gap-1">
               <StatusBadge status={a.status} />
               {a.payment_status === "PENDING_REFUND" && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full">
                   ⚠️ Pending Refund: ₹{a.refund_amount}
                 </span>
               )}
               {a.payment_status === "REFUNDED" && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-700 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
                   ✓ Refunded: ₹{a.refund_amount}
                 </span>
               )}
               {a.status === "CANCELLED" && a.payment_status === "NO_REFUND" && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
                   No Refund
                 </span>
               )}
               {a.reschedule_count > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-800 bg-neutral-100 border border-neutral-300 px-2 py-0.5 rounded-full">
                   Rescheduled {a.reschedule_count}/2
                 </span>
               )}
               {hasNotes && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] border border-[var(--color-border-hover)] px-2 py-0.5 rounded-full">
-                  <FileText size={10} /> Notes Attached
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#F26722] bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                  <FileText size={10} className="text-[#F26722]" /> Notes Attached
                 </span>
               )}
             </div>
           </div>
 
           {/* Slot Date & Time Banner */}
-          <div className="rounded-2xl p-3.5 mb-3.5 bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] flex items-center justify-between">
+          <div className="rounded-2xl p-3.5 mb-3.5 bg-neutral-50 border border-neutral-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock size={16} className="text-[var(--color-primary)]" />
-              <span className="font-black text-sm text-[var(--color-text-strong)] font-[var(--font-primary)]">
+              <Clock size={16} className="text-[#F26722]" />
+              <span className="font-black text-sm text-black">
                 {a.slot?.start_time} – {a.slot?.end_time}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Calendar size={14} className="text-[var(--color-text-muted)]" />
-              <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+              <Calendar size={14} className="text-black" />
+              <span className="text-xs font-black text-black">
                 {fmtDate(a.slot?.date)}
               </span>
             </div>
@@ -255,26 +248,26 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
 
           {/* Consultation Mode & Booked Date */}
           <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-            <div className="rounded-xl p-2.5 bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+            <div className="rounded-xl p-2.5 bg-neutral-50 border border-neutral-200">
+              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600 mb-1">
                 Mode
               </p>
               {isVirtual ? (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-700">
-                  <Video size={13} className="text-blue-600" /> Virtual Zoom
+                <span className="inline-flex items-center gap-1 text-xs font-black text-black">
+                  <Video size={13} className="text-[#F26722]" /> Virtual Zoom
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
-                  <Building2 size={13} className="text-emerald-600" /> In-Clinic
+                <span className="inline-flex items-center gap-1 text-xs font-black text-black">
+                  <Building2 size={13} className="text-[#F26722]" /> In-Clinic
                 </span>
               )}
             </div>
 
-            <div className="rounded-xl p-2.5 bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+            <div className="rounded-xl p-2.5 bg-neutral-50 border border-neutral-200">
+              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600 mb-1">
                 Booked On
               </p>
-              <p className="text-xs font-semibold text-[var(--color-text-strong)] truncate">
+              <p className="text-xs font-black text-black truncate">
                 {fmtDateTime(a.created_at)}
               </p>
             </div>
@@ -282,30 +275,69 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
 
           {/* Fee & Payment Type */}
           <div className="grid grid-cols-2 gap-2.5 mb-3.5">
-            <div className="rounded-xl p-2.5 bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+            <div className="rounded-xl p-2.5 bg-neutral-50 border border-neutral-200">
+              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600 mb-1">
                 Fee
               </p>
-              <p className="text-xs font-black text-[var(--color-text-strong)]">
-                ₹{a.price || (isVirtual ? a.online_price : a.offline_price) || (a.slot?.price) || 0}
+              <p className="text-xs font-black text-[#F26722]">
+                ₹{a.fee_amount || a.price || (isVirtual ? a.online_price : a.offline_price) || (a.slot?.price) || 0}
               </p>
             </div>
 
-            <div className="rounded-xl p-2.5 bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+            <div className="rounded-xl p-2.5 bg-neutral-50 border border-neutral-200">
+              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600 mb-1">
                 Payment
               </p>
               {!isVirtual && a.offline_payment_required === false ? (
-                <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
-                  {a.payment_status === "PAID" ? "Paid at Clinic" : "Pay at Clinic (Cash)"}
+                <span className="inline-flex items-center text-[10px] font-black text-black bg-neutral-100 border border-neutral-300 px-2 py-0.5 rounded-lg">
+                  {a.payment_status === "PAID" ? "Paid at Clinic" : "Pay at Clinic"}
                 </span>
               ) : (
-                <span className="inline-flex items-center text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">
-                  Paid Online / Quota
+                <span className="inline-flex items-center text-[10px] font-black text-black bg-neutral-100 border border-neutral-300 px-2 py-0.5 rounded-lg">
+                  {a.status === "AWAITING_PAYMENT" ? "Quote Ready (Unpaid)" : a.payment_status === "PAID" ? "Paid Online" : "Online Rate"}
                 </span>
               )}
             </div>
           </div>
+
+          {/* Variable Appointment Status Banners */}
+          {a.status === "AWAITING_PAYMENT" && (
+            <div className="p-4 rounded-2xl bg-white border-2 border-[#F26722] space-y-2.5 mb-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-black uppercase tracking-wider">
+                  Specialist Quoted Fee:
+                </span>
+                <span className="text-base font-black text-[#F26722]">
+                  ₹{a.fee_amount || a.price || 0}
+                </span>
+              </div>
+              {a.nutritionist_quote_note && (
+                <p className="text-xs text-black bg-orange-50/60 p-2.5 rounded-xl border border-orange-200 italic font-semibold leading-relaxed">
+                  "{a.nutritionist_quote_note}"
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => onViewDetails(a.id)}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-black text-white bg-[#F26722] hover:bg-[#d95616] shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <span>Review Case & Pay ₹{a.fee_amount || a.price || 0}</span>
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          )}
+
+          {a.status === "PENDING_REVIEW" && (
+            <div className="p-4 rounded-2xl bg-white border-2 border-orange-300 text-xs text-black mb-3.5 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-1.5 font-black text-black">
+                <Clock size={14} className="text-[#F26722] shrink-0" />
+                <span className="uppercase tracking-wider text-[11px]">Case Under Specialist Review</span>
+              </div>
+              <p className="text-xs text-neutral-800 font-medium leading-relaxed bg-neutral-50 p-2.5 rounded-xl border border-neutral-200">
+                Your medical notes have been sent to Dr. {a.nutritionist_name}. You will be notified as soon as your fee quote is ready.
+              </p>
+            </div>
+          )}
 
           {/* Mode Details Block */}
           {isVirtual ? (
@@ -320,23 +352,23 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
 
           {/* Feedbacks Display */}
           {a.feedbacks?.length > 0 && (
-            <div className="mt-2 rounded-2xl p-3 bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
+            <div className="mt-2 rounded-2xl p-3 bg-neutral-50 border border-neutral-200 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
                 Feedback & Notes
               </p>
               {a.feedbacks.map((fb, i) => (
                 <div key={i} className="text-xs space-y-0.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-[var(--color-text-strong)]">{fb.user_name}</span>
+                    <span className="font-bold text-black">{fb.user_name}</span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((s) => (
-                        <span key={s} className={s <= fb.rating ? "text-amber-400" : "text-gray-300"}>
+                        <span key={s} className={s <= fb.rating ? "text-amber-500" : "text-neutral-300"}>
                           ★
                         </span>
                       ))}
                     </div>
                   </div>
-                  {fb.comment && <p className="text-gray-600 dark:text-gray-400">{fb.comment}</p>}
+                  {fb.comment && <p className="text-neutral-700 italic font-medium">"{fb.comment}"</p>}
                 </div>
               ))}
             </div>
@@ -344,18 +376,18 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
         </div>
 
         {/* Card Actions */}
-        <div className="pt-3 border-t border-[var(--color-border-default)] space-y-2 mt-2">
+        <div className="pt-3 border-t border-neutral-200 space-y-2 mt-2">
           <button
             onClick={() => onViewDetails(a.id)}
-            className="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold text-[var(--color-text-strong)] bg-[var(--color-bg-surface-alt)] hover:bg-[var(--color-primary-bg-subtle)] hover:text-[var(--color-primary)] border border-[var(--color-border-default)] hover:border-[var(--color-border-hover)] transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-black text-black bg-white hover:bg-orange-50 hover:text-[#F26722] border-2 border-neutral-200 hover:border-[#F26722] transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
           >
-            <Info size={14} /> View Details & Clinical Notes
+            <Info size={14} className="text-[#F26722]" /> View Details & Clinical Notes
           </button>
 
           {isConfirmed && !hasGivenFeedback && (
             <button
               onClick={() => onFeedback(a.id)}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-black text-white bg-[#F26722] hover:bg-[#d95616] transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
             >
               <MessageSquarePlus size={14} /> Leave Consultation Feedback
             </button>
@@ -366,7 +398,7 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
               <button
                 disabled={!a.can_reschedule}
                 onClick={() => onReschedule(a)}
-                className="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                className="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-neutral-300 bg-white text-black hover:border-blue-500 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
                 title={
                   !a.can_reschedule
                     ? "Rescheduling requires at least 24h advance notice and maximum 2 attempts per booking."
@@ -382,7 +414,7 @@ const AppointmentCard = ({ a, onCancel, onFeedback, onViewDetails, idx }) => {
               <button
                 disabled={!ablToCancel}
                 onClick={() => onCancel(a)}
-                className="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                className="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
               >
                 <XCircle size={13} />
                 <span>{ablToCancel ? "Cancel" : "Past"}</span>
@@ -405,21 +437,21 @@ const StatsBar = ({ appointments }) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
       {[
-        { label: "Total Booked", val: total, icon: <CalendarDays size={18} />, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20" },
-        { label: "Confirmed", val: confirmed, icon: <CheckCircle size={18} />, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-        { label: "Virtual Zoom", val: virtual, icon: <Video size={18} />, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-900/20" },
-        { label: "In-Clinic Visits", val: inClinic, icon: <Building2 size={18} />, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-900/20" },
-      ].map(({ label, val, icon, color, bg }) => (
+        { label: "Total Booked", val: total, icon: <CalendarDays size={18} /> },
+        { label: "Confirmed", val: confirmed, icon: <CheckCircle size={18} /> },
+        { label: "Virtual Zoom", val: virtual, icon: <Video size={18} /> },
+        { label: "In-Clinic Visits", val: inClinic, icon: <Building2 size={18} /> },
+      ].map(({ label, val, icon }) => (
         <div
           key={label}
-          className="rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-xs"
+          className="rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 bg-white border-2 border-neutral-200 shadow-xs"
         >
-          <div className={`p-2.5 rounded-xl ${bg} ${color}`}>{icon}</div>
+          <div className="p-2.5 rounded-xl bg-orange-50 text-[#F26722] border border-orange-200">{icon}</div>
           <div>
-            <p className="text-xl sm:text-2xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)] leading-none">
+            <p className="text-xl sm:text-2xl font-black text-black font-[var(--font-primary)] leading-none">
               {val}
             </p>
-            <p className="text-[11px] font-semibold text-[var(--color-text-muted)] mt-1">{label}</p>
+            <p className="text-[11px] font-bold text-neutral-600 mt-1 uppercase tracking-wider">{label}</p>
           </div>
         </div>
       ))}
@@ -591,10 +623,12 @@ const MyAppointments = ({ refresh } = {}) => {
             </div>
 
             {/* Status Filter Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto">
               {[
                 { key: "ALL", label: "All Status" },
                 { key: "CONFIRMED", label: "Confirmed" },
+                { key: "PENDING_REVIEW", label: "Under Review" },
+                { key: "AWAITING_PAYMENT", label: "Action Needed" },
                 { key: "CANCELLED", label: "Cancelled" },
               ].map((st) => (
                 <button

@@ -148,11 +148,11 @@ const PlansPage = () => {
         
         {/* Top Warning if forced to buy */}
         {isForced && (
-          <div className="bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded-xl shadow-sm flex items-center gap-3">
-            <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+          <div className="bg-slate-900 border-l-4 border-amber-400 text-slate-100 p-4 rounded-xl shadow-md flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 text-amber-400 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-sm">Action Required</p>
-              <p className="text-xs text-amber-700">Please choose and activate a subscription plan to access all patient dashboard features.</p>
+              <p className="font-bold text-sm text-white">Action Required</p>
+              <p className="text-xs text-slate-300">Please choose and activate a subscription plan to access all patient dashboard features.</p>
             </div>
           </div>
         )}
@@ -496,8 +496,8 @@ const PlansPage = () => {
                                   Paid
                                 </span>
                               ) : isPending ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-900 border border-indigo-200">
+                                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
                                   Pending
                                 </span>
                               ) : (
