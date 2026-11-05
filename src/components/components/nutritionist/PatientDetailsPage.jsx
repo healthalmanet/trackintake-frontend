@@ -4052,12 +4052,12 @@ const PatientDetailsPage = () => {
                           <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300 text-xs flex-wrap"
+                            className="flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/90 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 text-xs flex-wrap font-medium"
                           >
                             <div className="flex items-center gap-3">
-                              <Zap size={16} className="text-amber-500 flex-shrink-0" />
+                              <Zap size={16} className="text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                               <div>
-                                <span className="font-bold">Lab Reports Tip:</span> AI clinical suggestions and diet plans are tailored using the patient's baseline profile. Adding blood lab reports unlocks deeper biomarker precision.
+                                <span className="font-black text-indigo-950 dark:text-indigo-100">Lab Reports Tip:</span> AI clinical suggestions and diet plans are tailored using the patient's baseline profile. Adding blood lab reports unlocks deeper biomarker precision.
                               </div>
                             </div>
                             <button
@@ -4066,7 +4066,7 @@ const PatientDetailsPage = () => {
                                 setActiveTab("reports");
                                 handleOpenAddReportModal();
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-200 font-bold transition-all text-xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all text-xs cursor-pointer shadow-xs"
                             >
                               <Plus size={14} />
                               <span>Upload Lab Report</span>
@@ -4995,6 +4995,30 @@ const PatientDetailsPage = () => {
                                   </div>
                                 </div>
 
+                                {/* Consultation Reason & Focus Areas */}
+                                {(appt.patient_case_summary || (Array.isArray(appt.patient_medical_conditions) && appt.patient_medical_conditions.length > 0)) && (
+                                  <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-200 space-y-1.5 text-xs mb-3">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-orange-950 flex items-center gap-1">
+                                      <FileText size={11} className="text-orange-600" /> Consultation Reason & Focus Areas
+                                    </span>
+                                    {appt.patient_case_summary && (
+                                      <p className="text-xs text-slate-800 italic bg-white p-2 rounded-lg border border-orange-200">
+                                        "{appt.patient_case_summary}"
+                                      </p>
+                                    )}
+                                    {Array.isArray(appt.patient_medical_conditions) && appt.patient_medical_conditions.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                        <span className="text-[10px] font-bold text-slate-600">Focus Areas:</span>
+                                        {appt.patient_medical_conditions.map((c, i) => (
+                                          <span key={i} className="px-1.5 py-0.5 rounded bg-white border border-orange-200 text-[10px] font-bold text-orange-800">
+                                            {c}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
                                 {/* Clinical Notes & Instructions Snippet */}
                                 <div className="p-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] space-y-1.5">
                                   <div className="flex items-center justify-between">
@@ -5029,12 +5053,12 @@ const PatientDetailsPage = () => {
 
                                 {/* Patient Feedback Snippet if Available */}
                                 {appt.feedbacks?.length > 0 && (
-                                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+                                  <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800 space-y-1">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1">
-                                        <Star size={11} className="fill-amber-500 text-amber-500" /> Patient Review
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200 flex items-center gap-1">
+                                        <Star size={11} className="fill-amber-400 text-amber-500" /> Patient Review
                                       </span>
-                                      <div className="flex items-center gap-0.5 text-xs font-black text-amber-800 dark:text-amber-300">
+                                      <div className="flex items-center gap-0.5 text-xs font-black text-indigo-950 dark:text-indigo-200">
                                         ★ {appt.feedbacks[0].rating}.0
                                       </div>
                                     </div>

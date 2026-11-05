@@ -179,10 +179,9 @@ const NutritionistProfile = () => {
           is_online_available: nutri.is_online_available ?? true,
           is_offline_available: nutri.is_offline_available ?? false,
           offline_location: nutri.offline_location || "",
-          online_price: nutri.pending_online_price ?? nutri.online_price ?? 0,
-          offline_price: nutri.pending_offline_price ?? nutri.offline_price ?? 0,
-          offline_payment_required:
-            nutri.pending_offline_payment_required ?? nutri.offline_payment_required ?? true,
+          online_price: nutri.online_price ?? 0,
+          offline_price: nutri.offline_price ?? 0,
+          offline_payment_required: nutri.offline_payment_required ?? true,
         });
       }
     } catch (err) {
@@ -301,14 +300,18 @@ const NutritionistProfile = () => {
     e.preventDefault();
     setSavingAppointment(true);
     try {
-      const res = await updateNutritionistProfile({
+      const payload = {
         is_online_available: appointmentForm.is_online_available,
         is_offline_available: appointmentForm.is_offline_available,
         offline_location: appointmentForm.offline_location,
-        online_price: parseFloat(appointmentForm.online_price || 0),
-        offline_price: parseFloat(appointmentForm.offline_price || 0),
         offline_payment_required: appointmentForm.offline_payment_required,
-      });
+      };
+      // Only Specialist Experts can set custom prices; In-House rates are standardized centrally
+      if (nutriProfile?.nutritionist_type === "expert") {
+        payload.online_price = parseFloat(appointmentForm.online_price || 0);
+        payload.offline_price = parseFloat(appointmentForm.offline_price || 0);
+      }
+      const res = await updateNutritionistProfile(payload);
       toast.success(res.data?.message || "Appointment settings updated!");
       setIsEditingAppointment(false);
       fetchProfile();
@@ -517,12 +520,12 @@ const NutritionistProfile = () => {
                   {nutriProfile.professional_title || "Clinical Nutritionist"}
                 </span>
                 {nutriProfile.is_verified ? (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <BadgeCheck size={13} /> Verified Practitioner
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                    <Clock size={13} /> Pending Verification
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-orange-50 text-orange-800 border-2 border-orange-200 shadow-xs">
+                    <Clock size={13} className="text-orange-600" /> Verification Pending Admin Review
                   </span>
                 )}
               </div>
@@ -635,11 +638,7 @@ const NutritionistProfile = () => {
                 : "Unavailable"}
             </span>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Online: {nutriProfile.price_approval_status === "pending" && nutriProfile.pending_online_price
-                ? `₹${nutriProfile.pending_online_price} (Pending Approval)`
-                : `₹${nutriProfile.online_price || 0}`} | Offline: {nutriProfile.price_approval_status === "pending" && nutriProfile.pending_offline_price
-                ? `₹${nutriProfile.pending_offline_price} (Pending Approval)`
-                : `₹${nutriProfile.offline_price || 0}`}
+              Online: ₹{nutriProfile.online_price || 0} | Offline: ₹{nutriProfile.offline_price || 0}
             </p>
           </div>
         </motion.div>
@@ -1186,19 +1185,13 @@ const NutritionistProfile = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {nutriProfile.price_approval_status === "pending" && (
-                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30 flex items-center gap-1">
-                    <Clock size={12} /> Pending Admin Approval
+                {nutriProfile.nutritionist_type === "inhouse" ? (
+                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-800 border border-slate-200 flex items-center gap-1 shadow-2xs">
+                    🏢 Standard Platform Rates
                   </span>
-                )}
-                {nutriProfile.price_approval_status === "approved" && (
-                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Pricing Approved
-                  </span>
-                )}
-                {nutriProfile.price_approval_status === "rejected" && (
-                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/30 flex items-center gap-1">
-                    <AlertTriangle size={12} /> Pricing Rejected
+                ) : (
+                  <span className="px-3 py-1 text-xs font-bold rounded-full bg-orange-50 text-orange-800 border border-orange-200 flex items-center gap-1">
+                    <CheckCircle2 size={12} className="text-orange-600" /> Active Specialist Rates
                   </span>
                 )}
 
@@ -1213,32 +1206,6 @@ const NutritionistProfile = () => {
               </div>
             </div>
 
-            {/* Status Alert Banner if Pending or Rejected */}
-            {nutriProfile.price_approval_status === "pending" && (
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-800 dark:text-amber-300">
-                <Clock size={16} className="shrink-0 mt-0.5 text-amber-600" />
-                <div>
-                  <p className="font-bold">Requested Pricing Updates Pending Admin Review</p>
-                  <p className="mt-0.5 opacity-90">
-                    Requested Online Price: <strong>₹{nutriProfile.pending_online_price ?? nutriProfile.online_price}</strong> | Requested Offline Price: <strong>₹{nutriProfile.pending_offline_price ?? nutriProfile.offline_price}</strong>.
-                    Your current active pricing will remain live until Admin approves changes.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {nutriProfile.price_approval_status === "rejected" && (
-              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300">
-                <AlertTriangle size={16} className="shrink-0 mt-0.5 text-rose-600" />
-                <div>
-                  <p className="font-bold">Price Request Rejected by Admin</p>
-                  <p className="mt-0.5 opacity-90">
-                    Reason: {nutriProfile.price_rejection_reason || "Not specified."}. Please adjust your rates and resubmit.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Read-Only Display Mode */}
             {!isEditingAppointment ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1251,12 +1218,8 @@ const NutritionistProfile = () => {
                       <span className="text-[var(--color-text-muted)] font-normal">Not Available / Disabled</span>
                     ) : Number(nutriProfile.online_price) > 0 ? (
                       <span>Available (₹{nutriProfile.online_price} / session)</span>
-                    ) : nutriProfile.price_approval_status === "pending" && Number(nutriProfile.pending_online_price) > 0 ? (
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                        Available (₹{nutriProfile.pending_online_price} - Pending Admin Approval)
-                      </span>
                     ) : (
-                      <span className="text-emerald-600 dark:text-emerald-400">
+                      <span className="text-emerald-700">
                         Available (Free / ₹0)
                       </span>
                     )}
@@ -1272,12 +1235,8 @@ const NutritionistProfile = () => {
                       <span className="text-[var(--color-text-muted)] font-normal">Not Available / Disabled</span>
                     ) : Number(nutriProfile.offline_price) > 0 ? (
                       <span>Available (₹{nutriProfile.offline_price} / session)</span>
-                    ) : nutriProfile.price_approval_status === "pending" && Number(nutriProfile.pending_offline_price) > 0 ? (
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                        Available (₹{nutriProfile.pending_offline_price} - Pending Admin Approval)
-                      </span>
                     ) : (
-                      <span className="text-emerald-600 dark:text-emerald-400">
+                      <span className="text-emerald-700">
                         Available (Free / ₹0)
                       </span>
                     )}
@@ -1356,41 +1315,78 @@ const NutritionistProfile = () => {
                   <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary)] flex items-center gap-1.5">
                     <DollarSign size={14} /> Section 2: Consultation Fee Structure (₹)
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    {appointmentForm.is_online_available && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-[var(--color-text-strong)]">
-                          Online Price (₹) *
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={appointmentForm.online_price}
-                          onChange={(e) => setAppointmentForm({ ...appointmentForm, online_price: e.target.value })}
-                          placeholder="e.g. 500"
-                          className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/30 outline-none"
-                        />
-                      </div>
-                    )}
 
-                    {appointmentForm.is_offline_available && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-[var(--color-text-strong)]">
-                          Offline Price (₹) *
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={appointmentForm.offline_price}
-                          onChange={(e) => setAppointmentForm({ ...appointmentForm, offline_price: e.target.value })}
-                          placeholder="e.g. 800"
-                          className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/30 outline-none"
-                        />
+                  {nutriProfile?.nutritionist_type !== "expert" ? (
+                    /* In-House Nutritionist: Fixed platform rate view (Non-editable) */
+                    <div className="p-3.5 rounded-xl bg-orange-50/80 border border-orange-200/80 space-y-3 pt-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 text-[10px] font-black uppercase rounded-md bg-orange-500 text-white tracking-wider">
+                          Standard In-House Platform Rates
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Centrally managed by administration
+                        </span>
                       </div>
-                    )}
-                  </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {appointmentForm.is_online_available && (
+                          <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                            <span className="text-[11px] font-bold text-slate-500 block">Virtual / Online Session</span>
+                            <span className="text-lg font-black text-slate-900">₹{appointmentForm.online_price || nutriProfile?.online_price || 0}</span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">Fixed standard platform rate</span>
+                          </div>
+                        )}
+                        {appointmentForm.is_offline_available && (
+                          <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                            <span className="text-[11px] font-bold text-slate-500 block">In-Clinic / Physical Session</span>
+                            <span className="text-lg font-black text-slate-900">₹{appointmentForm.offline_price || nutriProfile?.offline_price || 0}</span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">Fixed standard platform rate</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 italic">
+                        🔒 In-House consultation rates are standardized platform-wide. Individual fee edits are disabled for In-House practitioners.
+                      </p>
+                    </div>
+                  ) : (
+                    /* Specialist Expert: Custom pricing inputs */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {appointmentForm.is_online_available && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-[var(--color-text-strong)]">
+                            Online Price (₹) *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={appointmentForm.online_price}
+                            onChange={(e) => setAppointmentForm({ ...appointmentForm, online_price: e.target.value })}
+                            placeholder="e.g. 500"
+                            className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/30 outline-none"
+                          />
+                        </div>
+                      )}
+
+                      {appointmentForm.is_offline_available && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-[var(--color-text-strong)]">
+                            Offline Price (₹) *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={appointmentForm.offline_price}
+                            onChange={(e) => setAppointmentForm({ ...appointmentForm, offline_price: e.target.value })}
+                            placeholder="e.g. 800"
+                            className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs text-[var(--color-text-strong)] focus:ring-2 focus:ring-[var(--color-primary)]/30 outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Section 3: Practice / Clinic Location */}
@@ -1443,7 +1439,7 @@ const NutritionistProfile = () => {
                     className="px-5 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-98 disabled:opacity-50"
                   >
                     <Save size={14} />
-                    <span>{savingAppointment ? "Submitting Request..." : "Save & Submit for Approval"}</span>
+                    <span>{savingAppointment ? "Saving Rates..." : "Save Consultation Rates"}</span>
                   </button>
                 </div>
               </form>
@@ -1487,7 +1483,7 @@ const NutritionistProfile = () => {
                     <p className="text-xs font-bold text-[var(--color-text-strong)] truncate">{doc.label}</p>
                     <div className="flex items-center gap-2 text-[11px]">
                       {doc.url ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="text-emerald-700 font-bold flex items-center gap-1">
                           <CheckCircle2 size={12} /> Uploaded
                         </span>
                       ) : (

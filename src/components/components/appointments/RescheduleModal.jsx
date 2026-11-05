@@ -143,27 +143,30 @@ const RescheduleModal = ({
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-lg rounded-3xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] shadow-2xl overflow-hidden font-[var(--font-secondary)]"
+          className="relative w-full max-w-lg rounded-3xl bg-white border-2 border-neutral-200 shadow-2xl overflow-hidden font-[var(--font-secondary)]"
           style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}
         >
+          {/* Top orange accent */}
+          <div className="h-1.5 w-full bg-[#F26722]" />
+
           {/* Header */}
-          <div className="p-5 sm:p-6 border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex items-start justify-between gap-3">
+          <div className="p-5 sm:p-6 border-b-2 border-neutral-200 bg-white flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-orange-50 text-[#F26722] border border-orange-200 flex items-center justify-center shrink-0">
                 <RefreshCw size={22} />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                <h2 className="text-lg sm:text-xl font-black text-black font-[var(--font-primary)]">
                   Reschedule Appointment
                 </h2>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                <p className="text-xs text-neutral-700 font-bold mt-0.5">
                   Choose a new future available slot
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)] hover:bg-[var(--color-bg-interactive-subtle)] transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-black hover:bg-neutral-100 border border-neutral-200 transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -172,24 +175,24 @@ const RescheduleModal = ({
           {/* Modal Content */}
           <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
             {/* Current Appointment Banner */}
-            <div className="p-4 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] space-y-2">
+            <div className="p-4 rounded-2xl bg-neutral-50 border-2 border-neutral-200 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-[var(--color-text-muted)] uppercase tracking-wider text-[10px]">
+                <span className="font-black text-neutral-600 uppercase tracking-wider text-[10px]">
                   Current Schedule
                 </span>
-                <span className="inline-flex items-center gap-1 font-bold text-[var(--color-primary)]">
+                <span className="inline-flex items-center gap-1 font-black text-[#F26722]">
                   {appointment.appointment_type === "VIRTUAL" ? <Video size={12} /> : <Building2 size={12} />}
                   {appointment.appointment_type === "VIRTUAL" ? "Virtual Video" : "In-Clinic"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Calendar size={15} className="text-[var(--color-primary)]" />
-                  <span className="text-xs sm:text-sm font-bold text-[var(--color-text-strong)]">
+                  <Calendar size={15} className="text-[#F26722]" />
+                  <span className="text-xs sm:text-sm font-black text-black">
                     {fmtDate(slotDate)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-800">
                   <Clock size={13} />
                   <span>{slotStartTime} – {slotEndTime}</span>
                 </div>
@@ -198,20 +201,20 @@ const RescheduleModal = ({
 
             {/* Policy & Attempt Status Notice */}
             {!isNutritionist ? (
-              <div className="p-3.5 rounded-2xl border text-xs space-y-1.5 bg-amber-50/70 border-amber-200 text-amber-900 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-200">
-                <div className="flex items-center gap-2 font-bold">
-                  <Info size={15} className="shrink-0 text-amber-600" />
+              <div className="p-4 rounded-2xl border-2 text-xs space-y-1.5 bg-orange-50/70 border-orange-200 text-black">
+                <div className="flex items-center gap-2 font-black text-black">
+                  <Info size={15} className="shrink-0 text-[#F26722]" />
                   <span>Patient Rescheduling Policy:</span>
                 </div>
-                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-800 dark:text-amber-300">
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-neutral-800 font-bold">
                   <li>Rescheduling is allowed up to <strong>2 times maximum</strong> per appointment.</li>
                   <li>Must be requested at least <strong>24 hours prior</strong> to the scheduled time.</li>
                   <li>Reschedules used for this session: <strong>{rescheduleCount} of 2</strong> ({remainingReschedules} remaining).</li>
                 </ul>
               </div>
             ) : (
-              <div className="p-3.5 rounded-2xl border text-xs bg-emerald-50/70 border-emerald-200 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <div className="p-3.5 rounded-2xl border-2 text-xs bg-emerald-50 border-emerald-300 text-emerald-950 flex items-center gap-2 font-bold">
+                <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
                 <span>
                   <strong>Practitioner Access:</strong> You have unlimited rescheduling permissions for this appointment.
                 </span>
@@ -220,12 +223,12 @@ const RescheduleModal = ({
 
             {/* Error banner if patient is blocked */}
             {isPatientBlocked && (
-              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-200 space-y-1">
-                <div className="flex items-center gap-2 font-bold text-xs text-rose-900 dark:text-rose-100">
+              <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 space-y-1 font-medium">
+                <div className="flex items-center gap-2 font-black text-xs text-rose-900">
                   <AlertTriangle size={15} className="text-rose-600 shrink-0" />
                   <span>Rescheduling Unavailable</span>
                 </div>
-                <p className="text-[11px] leading-relaxed">
+                <p className="text-[11px] leading-relaxed font-bold">
                   {hasExceededLimit
                     ? "You have already reached the maximum limit of 2 reschedules for this appointment."
                     : "This appointment is scheduled in less than 24 hours. As per platform policy, rescheduling is only available at least 24 hours before the appointment."}
@@ -236,7 +239,7 @@ const RescheduleModal = ({
             {/* Date Selection */}
             {!isPatientBlocked && (
               <div className="space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <label className="block text-xs font-black uppercase tracking-wider text-black">
                   Select Date for New Slot:
                 </label>
                 <div className="flex items-center gap-2">
@@ -245,28 +248,28 @@ const RescheduleModal = ({
                     min={getTodayStr()}
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] text-xs font-bold text-[var(--color-text-strong)] focus:border-[var(--color-primary)] focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border-2 border-neutral-300 bg-white text-xs font-black text-black focus:border-[#F26722] focus:outline-none"
                   />
                 </div>
 
                 {/* Available Slots List */}
                 <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <label className="block text-xs font-black uppercase tracking-wider text-black">
                     Available Time Slots on {fmtDate(selectedDate)}:
                   </label>
 
                   {loadingSlots ? (
-                    <div className="flex items-center justify-center py-8 gap-2 text-xs text-[var(--color-text-muted)]">
-                      <RefreshCw size={16} className="animate-spin text-[var(--color-primary)]" />
+                    <div className="flex items-center justify-center py-8 gap-2 text-xs text-neutral-700 font-bold">
+                      <RefreshCw size={16} className="animate-spin text-[#F26722]" />
                       <span>Checking availability...</span>
                     </div>
                   ) : availableSlots.length === 0 ? (
-                    <div className="p-6 text-center rounded-2xl border-2 border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)]">
-                      <Clock size={28} className="mx-auto mb-2 text-[var(--color-text-muted)] opacity-60" />
-                      <p className="text-xs font-bold text-[var(--color-text-strong)]">
+                    <div className="p-6 text-center rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50">
+                      <Clock size={28} className="mx-auto mb-2 text-neutral-400" />
+                      <p className="text-xs font-black text-black">
                         No Open Slots Found
                       </p>
-                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                      <p className="text-[11px] text-neutral-700 font-semibold mt-0.5">
                         The practitioner has no open slots on this date. Please pick another date above.
                       </p>
                     </div>
@@ -279,21 +282,21 @@ const RescheduleModal = ({
                             key={s.id}
                             type="button"
                             onClick={() => setSelectedSlotId(s.id)}
-                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
                               isSelected
-                                ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] ring-2 ring-[var(--color-primary)]"
-                                : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-hover)]"
+                                ? "border-[#F26722] bg-orange-50 ring-2 ring-[#F26722]"
+                                : "border-neutral-200 bg-white hover:border-[#F26722]"
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                              <span className="text-xs font-black text-black font-[var(--font-primary)]">
                                 {s.start_time}
                               </span>
                               {isSelected && (
-                                <CheckCircle2 size={14} className="text-[var(--color-primary)]" />
+                                <CheckCircle2 size={14} className="text-[#F26722]" />
                               )}
                             </div>
-                            <span className="text-[10px] text-[var(--color-text-muted)] block mt-0.5">
+                            <span className="text-[10px] text-neutral-700 font-bold block mt-0.5">
                               to {s.end_time}
                             </span>
                           </button>
@@ -307,11 +310,11 @@ const RescheduleModal = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-4 sm:p-5 border-t border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] flex gap-2.5">
+          <div className="p-4 sm:p-5 border-t-2 border-neutral-200 bg-white flex gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] transition-colors cursor-pointer"
+              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black border-2 border-neutral-300 text-black hover:bg-neutral-50 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -319,7 +322,7 @@ const RescheduleModal = ({
               type="button"
               disabled={isPatientBlocked || !selectedSlotId || submitting}
               onClick={handleConfirmReschedule}
-              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-white bg-[#F26722] hover:bg-[#d95616] transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
             >
               {submitting ? (
                 <>

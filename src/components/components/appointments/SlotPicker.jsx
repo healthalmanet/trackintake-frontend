@@ -134,42 +134,49 @@ const SlotPicker = ({ slots, onBook, loading, pendingSlotId, appointmentType = "
 
                   {/* Mode Badge */}
                   {mode === "VIRTUAL" && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                      <Video size={10} /> Online
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-[#F26722] border border-orange-200">
+                      <Video size={10} className="text-[#F26722]" /> Online
                     </span>
                   )}
                   {isInPerson && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-neutral-100 text-black border border-neutral-200">
                       <Building2 size={10} /> In-Clinic
                     </span>
                   )}
                   {isBoth && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
-                      <Layers size={10} /> Online / Clinic
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-black border border-orange-200">
+                      <Layers size={10} className="text-[#F26722]" /> Online / Clinic
                     </span>
                   )}
                 </div>
 
                 {/* Price and Payment terms */}
                 <div className="flex items-center justify-between w-full mt-1 pt-2 border-t border-[var(--color-border-default)]/60 text-[11px]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-[var(--color-text-strong)] text-xs sm:text-sm">
-                      ₹{effectivePrice}
-                    </span>
-                    {isPayAtClinic ? (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-md">
-                        Pay at Clinic
+                  {slot.pricing_mode === "VARIABLE" ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm">
+                        Quote on Review
                       </span>
-                    ) : effectivePrice > 0 ? (
-                      <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
-                        Online / Quota
+                      <span className="text-[10px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded-md">
+                        Variable Fee
                       </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded-md">
-                        Plan Included
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-[var(--color-text-strong)] text-xs sm:text-sm">
+                        ₹{effectivePrice}
                       </span>
-                    )}
-                  </div>
+                      {isPayAtClinic ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-md">
+                          Pay at Clinic
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
+                          Standard Fee
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {isThisSlotBooking ? (
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-[var(--color-primary)]">
@@ -177,8 +184,8 @@ const SlotPicker = ({ slots, onBook, loading, pendingSlotId, appointmentType = "
                       Booking...
                     </span>
                   ) : (
-                    <span className="text-[11px] font-bold text-[var(--color-primary)] group-hover:underline">
-                      Select Slot →
+                    <span className={`text-[11px] font-bold group-hover:underline ${slot.pricing_mode === "VARIABLE" ? "text-indigo-600 dark:text-indigo-400" : "text-[var(--color-primary)]"}`}>
+                      {slot.pricing_mode === "VARIABLE" ? "Submit Case →" : "Select Slot →"}
                     </span>
                   )}
                 </div>

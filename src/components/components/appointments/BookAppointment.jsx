@@ -3,7 +3,7 @@ import { getAvailableSlots, bookAppointment, getMyInHouseNutritionist, getExpert
 import SlotPicker from "./SlotPicker";
 import { useAuth } from "../../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, User, ChevronRight, CalendarDays, Video, Users, Building2, Heart, X, MapPin, Sparkles, CheckCircle2, DollarSign } from "lucide-react";
+import { Calendar, Clock, User, ChevronRight, CalendarDays, Video, Users, Building2, Heart, X, MapPin, Sparkles, CheckCircle2, DollarSign, Award, ShieldCheck, FileText, Check, Star, Info } from "lucide-react";
 import { payConsultationFee, verifyPayment } from "../../../api/subscriptionService";
 import { toast } from "react-toastify";
 // Import advertisement image
@@ -12,6 +12,19 @@ import bpMonitorAd from "../../../assets/download.jpg";
 // In-memory module caches to eliminate repeat network waterfalls
 let inHouseNutritionistCache = null;
 let expertNutritionistsCache = null;
+
+const CLINICAL_CONDITION_OPTIONS = [
+  "Weight Management",
+  "Diabetes / Blood Sugar",
+  "PCOS / PCOD",
+  "Thyroid Disorder",
+  "Hypertension / High BP",
+  "Fatty Liver / Cholesterol",
+  "Renal / Kidney Health",
+  "Gastrointestinal / Gut Health",
+  "Sports Performance",
+  "Post-Surgical / Clinical",
+];
 
 const formatLocalDate = (d) => {
   const year = d.getFullYear();
@@ -75,6 +88,23 @@ const BookAppointment = ({ onBooked }) => {
   const [consultType, setConsultType] = useState(null);
   const [pendingSlotId, setPendingSlotId] = useState(null);
   const [consultPaymentDetails, setConsultPaymentDetails] = useState(null);
+
+  // Variable Case Submission Modal State (Two-step flow for variable slots)
+  const [showCaseModal, setShowCaseModal] = useState(false);
+  const [caseSlot, setCaseSlot] = useState(null);
+  const [caseSummary, setCaseSummary] = useState("");
+  const [caseConditions, setCaseConditions] = useState([]);
+  const [submittingCase, setSubmittingCase] = useState(false);
+
+  // In-House & Fixed slot Instant Confirmation Modal State (Captures reason & details seamlessly)
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmSlot, setConfirmSlot] = useState(null);
+  const [bookingReason, setBookingReason] = useState("");
+  const [bookingConditions, setBookingConditions] = useState([]);
+  const [confirmingBooking, setConfirmingBooking] = useState(false);
+
+  // Profile modal state (for inspecting full practitioner credentials)
+  const [profileModalNutri, setProfileModalNutri] = useState(null);
 
   // Helper to directly load slots for a specific nutritionist without waiting for render cycle
   const loadSlotsFor = useCallback(async (nutriId, targetDate, targetType) => {
@@ -218,27 +248,108 @@ const BookAppointment = ({ onBooked }) => {
   // Re-fetch slots for current selection
   const fetchSlots = () => loadSlotsFor(nutritionistId, date, appointmentType);
 
-  // -------------------------------
-  // Book appointment
-  // -------------------------------
-  const handleBook = async (slotId) => {
-    try {
-      setLoading(true);
-      setPendingSlotId(slotId);
+  const toggleCaseCondition = (cond) => {
+    setCaseConditions((prev) =>
+      prev.includes(cond) ? prev.filter((c) => c !== cond) : [...prev, cond]
+    );
+  };
 
-      const activeSlot = slots.find((s) => s.id === slotId);
-      const resolvedAppointmentType = (activeSlot?.slot_type && activeSlot.slot_type !== "BOTH")
-        ? activeSlot.slot_type
+  const handleCaseSubmit = async (e) => {
+    e?.preventDefault();
+    if (!caseSummary.trim()) {
+      toast.warn("Please briefly describe your primary health concern or goal.");
+      return;
+    }
+    if (!caseSlot) return;
+
+    setSubmittingCase(true);
+    try {
+      const resolvedAppointmentType = (caseSlot.slot_type && caseSlot.slot_type !== "BOTH")
+        ? caseSlot.slot_type
         : appointmentType;
 
       await bookAppointment({
-        slot_id: slotId,
+        slot_id: caseSlot.id,
+        appointment_category: "EXPERT",
+        appointment_type: resolvedAppointmentType,
+        expert_id: expertId,
+        patient_case_summary: caseSummary.trim(),
+        patient_medical_conditions: caseConditions,
+      });
+
+      const expertName = nutritionistInfo?.name || "The Specialist";
+      toast.success(`🎉 Case submitted! ${expertName} will review your details and set the consultation fee. You'll be notified when your quote is ready.`);
+      setShowCaseModal(false);
+      setCaseSummary("");
+      setCaseConditions([]);
+      setCaseSlot(null);
+      await fetchSlots();
+      onBooked?.();
+    } catch (err) {
+      const msg = extractErrorMessage(err, "Failed to submit case request. Please try again.");
+      toast.error(msg);
+    } finally {
+      setSubmittingCase(false);
+    }
+  };
+
+  const toggleBookingCondition = (cond) => {
+    setBookingConditions((prev) =>
+      prev.includes(cond) ? prev.filter((c) => c !== cond) : [...prev, cond]
+    );
+  };
+
+  // -------------------------------
+  // Book appointment handler (Opens Reason & Details confirmation modal for In-House & Fixed slots)
+  // -------------------------------
+  const handleBook = (slotId) => {
+    const activeSlot = slots.find((s) => s.id === slotId);
+    if (!activeSlot) return;
+
+    // If this is a variable slot on an Expert, open the 2-step Case Intake Modal
+    if (activeSlot.pricing_mode === "VARIABLE" && appointmentCategory === "EXPERT") {
+      setCaseSlot(activeSlot);
+      setShowCaseModal(true);
+      return;
+    }
+
+    // For In-House consultation and Fixed slots, open the Instant Booking Confirmation Modal with Reason & Details
+    setConfirmSlot(activeSlot);
+    setBookingReason("");
+    setBookingConditions([]);
+    setShowConfirmModal(true);
+  };
+
+  // -------------------------------
+  // Instant Confirmation with Consultation Reason & Health Details
+  // -------------------------------
+  const handleConfirmBooking = async (e) => {
+    e?.preventDefault();
+    if (!confirmSlot) return;
+
+    try {
+      setConfirmingBooking(true);
+      setPendingSlotId(confirmSlot.id);
+
+      const resolvedAppointmentType = (confirmSlot.slot_type && confirmSlot.slot_type !== "BOTH")
+        ? confirmSlot.slot_type
+        : appointmentType;
+
+      await bookAppointment({
+        slot_id: confirmSlot.id,
         appointment_category: appointmentCategory,
         appointment_type: resolvedAppointmentType,
         expert_id: appointmentCategory === "EXPERT" ? expertId : null,
+        patient_case_summary: bookingReason.trim(),
+        patient_medical_conditions: bookingConditions,
       });
 
-      toast.success("Appointment booked successfully!");
+      const nutriTitle = nutritionistInfo?.nutritionist_name || nutritionistInfo?.name || "your nutritionist";
+      toast.success(`🎉 Appointment booked and confirmed with ${nutriTitle}!`);
+      setShowConfirmModal(false);
+      setConfirmSlot(null);
+      setBookingReason("");
+      setBookingConditions([]);
       await fetchSlots();
       onBooked?.();
 
@@ -246,16 +357,18 @@ const BookAppointment = ({ onBooked }) => {
       const errData = error.response?.data;
 
       if (errData?.consultation_required) {
-        const activeSlot = slots.find((s) => s.id === slotId);
-        const resolvedPrice = errData.price ?? (appointmentType === "IN_PERSON" ? activeSlot?.offline_price : activeSlot?.online_price) ?? 0;
+        setShowConfirmModal(false);
+        const resolvedPrice = errData.price ?? (appointmentType === "IN_PERSON" ? confirmSlot?.offline_price : confirmSlot?.online_price) ?? 0;
 
         setConsultPaymentDetails({
           consultType: errData.consult_type || (appointmentCategory === "EXPERT" ? "expert" : "inhouse"),
           price: resolvedPrice,
           appointmentType: errData.appointment_type || appointmentType,
-          slotId: slotId,
+          slotId: confirmSlot.id,
           nutritionistName: nutritionistInfo?.nutritionist_name || nutritionistInfo?.name || "Assigned Nutritionist",
           message: errData.message,
+          reason: bookingReason,
+          conditions: bookingConditions,
         });
         setConsultType(errData.consult_type);
         setShowConsultPayment(true);
@@ -264,7 +377,7 @@ const BookAppointment = ({ onBooked }) => {
         toast.error(friendlyError);
       }
     } finally {
-      setLoading(false);
+      setConfirmingBooking(false);
       setPendingSlotId(null);
     }
   };
@@ -308,6 +421,8 @@ const BookAppointment = ({ onBooked }) => {
               appointment_category: appointmentCategory,
               appointment_type: resolvedBookingType,
               expert_id: appointmentCategory === "EXPERT" ? expertId : null,
+              patient_case_summary: consultPaymentDetails?.reason || "",
+              patient_medical_conditions: consultPaymentDetails?.conditions || [],
             });
 
             toast.success("Payment successful! Appointment confirmed.");
@@ -413,13 +528,330 @@ const BookAppointment = ({ onBooked }) => {
 
   return (
     <div className="w-full max-w-7xl mx-auto">
+      {/* Variable Case Submission Modal */}
+      {showCaseModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-[var(--font-secondary)]">
+          <div className="bg-white text-black rounded-3xl p-6 max-w-lg w-full shadow-2xl border-2 border-neutral-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-orange-50 border border-orange-200 text-[#F26722] shrink-0">
+                  <Sparkles size={20} className="text-[#F26722]" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-black font-[var(--font-primary)]">
+                    Case Details & Appointment Request
+                  </h2>
+                  <p className="text-xs text-neutral-600 font-medium">
+                    Step 1 of 2: Submit case for practitioner fee quote
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCaseModal(false);
+                  setCaseSlot(null);
+                }}
+                className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 hover:text-black transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-orange-50/70 border-2 border-orange-200 text-xs text-black mb-4 space-y-2.5 shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#F26722] text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden shadow-xs">
+                    {nutritionistInfo?.profile_photo ? (
+                      <img src={nutritionistInfo.profile_photo} alt={nutritionistInfo.name} className="w-full h-full object-cover" />
+                    ) : (
+                      (nutritionistInfo?.name || "S").charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-black text-sm">
+                      Dr. {nutritionistInfo?.name || "Specialist Nutritionist"}
+                    </h3>
+                    <p className="text-xs text-[#F26722] font-semibold">
+                      {nutritionistInfo?.professional_title || "Clinical Specialist"} {nutritionistInfo?.qualification ? `• ${nutritionistInfo.qualification}` : ""}
+                    </p>
+                  </div>
+                </div>
+                {nutritionistInfo && (
+                  <button
+                    type="button"
+                    onClick={() => setProfileModalNutri(nutritionistInfo)}
+                    className="px-3 py-1.5 rounded-xl bg-white text-black text-xs font-bold border border-neutral-300 hover:border-[#F26722] hover:text-[#F26722] hover:bg-white transition-all cursor-pointer shrink-0 shadow-xs"
+                  >
+                    View Profile
+                  </button>
+                )}
+              </div>
+              <p className="text-xs leading-relaxed text-neutral-700 pt-2 border-t border-orange-200 font-medium">
+                <strong className="text-black">Variable Case-Based Slot:</strong> Dr. {nutritionistInfo?.name || "Specialist"} reviews your medical background and health concerns first, then sets an exact tailored consultation fee. You will review and pay the quoted fee before the session is confirmed.
+              </p>
+            </div>
+
+            <form onSubmit={handleCaseSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-black mb-1.5">
+                  Selected Slot Timing
+                </label>
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-black font-semibold">
+                  <Calendar size={14} className="text-[#F26722]" />
+                  <span>{date}</span>
+                  <span className="text-neutral-300">|</span>
+                  <Clock size={14} className="text-[#F26722]" />
+                  <span>{caseSlot?.start_time} – {caseSlot?.end_time}</span>
+                  <span className="text-neutral-300">|</span>
+                  <span>{appointmentType === "IN_PERSON" ? "In-Clinic Visit" : "Virtual Zoom"}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-black mb-1.5">
+                  Primary Health Concern / Consultation Goal <span className="text-[#F26722] font-bold">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Describe your current symptoms, dietary habits, or health goals..."
+                  value={caseSummary}
+                  onChange={(e) => setCaseSummary(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-white border border-neutral-300 text-xs sm:text-sm text-black placeholder-neutral-400 outline-none focus:border-[#F26722] focus:ring-1 focus:ring-[#F26722] transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-black mb-1.5">
+                  Diagnosed Medical Conditions <span className="text-xs text-neutral-500 font-normal">(Select all that apply)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CLINICAL_CONDITION_OPTIONS.map((cond) => {
+                    const isSel = caseConditions.includes(cond);
+                    return (
+                      <button
+                        type="button"
+                        key={cond}
+                        onClick={() => toggleCaseCondition(cond)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                          isSel
+                            ? "bg-[#F26722] text-white border-[#F26722] shadow-xs"
+                            : "bg-white text-black border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {cond}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCaseModal(false);
+                    setCaseSlot(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingCase}
+                  className="px-5 py-2.5 rounded-xl bg-[#F26722] hover:bg-[#d95616] text-white text-xs font-black transition shadow-md disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  {submittingCase ? (
+                    "Submitting..."
+                  ) : (
+                    <>
+                      <span>Submit Case for Review</span>
+                      <ChevronRight size={15} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* In-House & Fixed Slot Instant Confirmation Modal with Reason & Details */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-[var(--font-secondary)]">
+          <div className="bg-white text-black rounded-3xl p-6 max-w-lg w-full shadow-2xl border-2 border-neutral-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-orange-50 border border-orange-200 text-[#F26722] shrink-0">
+                  <CalendarDays size={20} className="text-[#F26722]" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-black font-[var(--font-primary)]">
+                    {appointmentCategory === "IN_HOUSE" ? "Confirm In-House Consultation" : "Confirm Appointment Booking"}
+                  </h2>
+                  <p className="text-xs text-neutral-600 font-medium">
+                    {appointmentCategory === "IN_HOUSE" ? "Instant confirmation with your dedicated wellness practitioner" : "Review details and confirm appointment"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setConfirmSlot(null);
+                }}
+                className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 hover:text-black transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Practitioner Summary Banner */}
+            <div className="p-3.5 rounded-2xl border-2 border-orange-200 bg-orange-50/70 text-black text-xs mb-4 flex items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0 overflow-hidden bg-[#F26722] shadow-xs">
+                  {nutritionistInfo?.profile_photo ? (
+                    <img src={nutritionistInfo.profile_photo} alt={nutritionistInfo.nutritionist_name || nutritionistInfo.name} className="w-full h-full object-cover" />
+                  ) : (
+                    (nutritionistInfo?.nutritionist_name || nutritionistInfo?.name || "N").charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-black text-sm">
+                    {nutritionistInfo?.nutritionist_name || nutritionistInfo?.name || "Assigned Nutritionist"}
+                  </h4>
+                  <p className="text-xs text-neutral-600 font-semibold">
+                    {nutritionistInfo?.professional_title || "Clinical Nutritionist"}
+                  </p>
+                </div>
+              </div>
+
+              {nutritionistInfo && (
+                <button
+                  type="button"
+                  onClick={() => setProfileModalNutri(nutritionistInfo)}
+                  className="px-3 py-1.5 rounded-xl bg-white text-black text-xs font-bold border border-neutral-300 hover:border-[#F26722] hover:text-[#F26722] hover:bg-white transition-all cursor-pointer shrink-0 shadow-xs"
+                >
+                  View Profile
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleConfirmBooking} className="space-y-4">
+              {/* Scheduled Timing & Mode */}
+              <div>
+                <label className="block text-xs font-bold text-black mb-1.5">
+                  Session Date & Time
+                </label>
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-black font-semibold">
+                  <Calendar size={14} className="text-[#F26722]" />
+                  <span>{date}</span>
+                  <span className="text-neutral-300">|</span>
+                  <Clock size={14} className="text-[#F26722]" />
+                  <span>{confirmSlot?.start_time} – {confirmSlot?.end_time}</span>
+                  <span className="text-neutral-300">|</span>
+                  <span>{appointmentType === "IN_PERSON" ? "In-Clinic Visit" : "Virtual Zoom"}</span>
+                </div>
+              </div>
+
+              {/* Consultation Fee Status */}
+              <div className="p-3.5 rounded-xl bg-orange-50/50 border border-orange-200 flex items-center justify-between text-xs">
+                <span className="text-neutral-700 font-bold">Consultation Rate:</span>
+                <span className="font-black text-sm text-[#F26722] bg-white px-2.5 py-1 rounded-lg border border-orange-200 shadow-xs">
+                  ₹{appointmentType === "IN_PERSON" 
+                    ? (confirmSlot?.offline_price ?? confirmSlot?.price ?? nutritionistInfo?.offline_price ?? 0) 
+                    : (confirmSlot?.online_price ?? confirmSlot?.price ?? nutritionistInfo?.online_price ?? 0)}
+                </span>
+              </div>
+
+              {/* Reason for Consultation */}
+              <div>
+                <label className="block text-xs font-bold text-black mb-1.5">
+                  Reason for Consultation / Health Notes <span className="text-xs text-neutral-500 font-normal">(Optional context for your coach)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Share your current questions, dietary concerns, or what you would like to discuss..."
+                  value={bookingReason}
+                  onChange={(e) => setBookingReason(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-white border border-neutral-300 text-xs sm:text-sm text-black placeholder-neutral-400 outline-none focus:border-[#F26722] focus:ring-1 focus:ring-[#F26722] transition-colors"
+                />
+              </div>
+
+              {/* Health Focus Area Chips */}
+              <div>
+                <label className="block text-xs font-bold text-black mb-1.5">
+                  Primary Focus Areas <span className="text-xs text-neutral-500 font-normal">(Select all that apply)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CLINICAL_CONDITION_OPTIONS.map((cond) => {
+                    const isSel = bookingConditions.includes(cond);
+                    return (
+                      <button
+                        type="button"
+                        key={cond}
+                        onClick={() => toggleBookingCondition(cond)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                          isSel
+                            ? "bg-[#F26722] text-white border-[#F26722] shadow-xs"
+                            : "bg-white text-black border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {cond}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setConfirmSlot(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={confirmingBooking}
+                  className="px-6 py-2.5 rounded-xl text-white text-xs font-black transition shadow-md disabled:opacity-50 cursor-pointer flex items-center gap-1.5 bg-[#F26722] hover:bg-[#d95616] active:scale-95"
+                >
+                  {confirmingBooking ? (
+                    "Confirming Booking..."
+                  ) : (
+                    <>
+                      <span>Confirm Booking</span>
+                      <CheckCircle2 size={15} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Practitioner Profile Modal */}
+      {profileModalNutri && (
+        <ExpertProfileModal
+          nutritionist={profileModalNutri}
+          onClose={() => setProfileModalNutri(null)}
+          onSelect={appointmentCategory === "EXPERT" ? handleSelectExpert : null}
+        />
+      )}
+
       {/* Consultation Payment Popup */}
       {showConsultPayment && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--color-bg-surface)] rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-[var(--color-border-default)]">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
                   <DollarSign size={20} />
                 </div>
                 <h2 className="text-lg font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
@@ -517,6 +949,7 @@ const BookAppointment = ({ onBooked }) => {
             handleBook={handleBook}
             loading={loading}
             pendingSlotId={pendingSlotId}
+            onViewProfile={(nutri) => setProfileModalNutri(nutri)}
           />
         </div>
 
@@ -554,11 +987,13 @@ const BookingForm = ({
   handleBook,
   loading,
   pendingSlotId,
+  onViewProfile,
 }) => {
   const isOnline = appointmentType === "VIRTUAL";
   const onlinePrice = nutritionistInfo?.online_price;
   const offlinePrice = nutritionistInfo?.offline_price;
   const offlineLocation = nutritionistInfo?.offline_location;
+  const selectedExpert = experts.find((e) => String(e.id) === String(expertId));
 
   return (
     <motion.div 
@@ -569,28 +1004,28 @@ const BookingForm = ({
     >
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-3 bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] rounded-2xl border border-[var(--color-border-hover)] shadow-xs">
+        <div className="p-3 bg-orange-50 text-[#F26722] rounded-2xl border border-orange-200 shadow-xs">
           <CalendarDays className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-[var(--color-text-strong)] font-[var(--font-primary)]">
+          <h2 className="text-xl font-black text-black font-[var(--font-primary)]">
             Book Appointment
           </h2>
-          <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">
+          <p className="text-xs sm:text-sm text-neutral-600 font-medium">
             Schedule a 1-on-1 virtual Zoom or in-clinic consultation
           </p>
         </div>
       </div>
 
       {/* Appointment Category Tabs (In-House vs Expert) */}
-      <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 bg-[var(--color-bg-surface-alt)] p-1.5 rounded-2xl border border-[var(--color-border-default)]">
+      <div className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 bg-neutral-100 p-1.5 rounded-2xl border border-neutral-200">
         <button
           type="button"
           onClick={() => setAppointmentCategory("IN_HOUSE")}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             appointmentCategory === "IN_HOUSE" 
-              ? "bg-[var(--color-primary)] text-white shadow-md" 
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+              ? "bg-[#F26722] text-white shadow-md" 
+              : "text-neutral-600 hover:text-black"
           }`}
         >
           <Building2 size={16} />
@@ -601,8 +1036,8 @@ const BookingForm = ({
           onClick={() => setAppointmentCategory("EXPERT")}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             appointmentCategory === "EXPERT" 
-              ? "bg-[var(--color-primary)] text-white shadow-md" 
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
+              ? "bg-[#F26722] text-white shadow-md" 
+              : "text-neutral-600 hover:text-black"
           }`}
         >
           <Users size={16} />
@@ -619,9 +1054,51 @@ const BookingForm = ({
           transition={{ duration: 0.2 }}
           className="space-y-4"
         >
-          {/* Expert Selector */}
+          {/* In-House Assigned Practitioner Card */}
+          {appointmentCategory === "IN_HOUSE" && (
+            <div className="p-4 rounded-2xl bg-white border-2 border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-2xl bg-[#F26722] text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0 overflow-hidden">
+                  {nutritionistInfo?.profile_photo ? (
+                    <img src={nutritionistInfo.profile_photo} alt={nutritionistInfo.nutritionist_name || nutritionistInfo.name} className="w-full h-full object-cover" />
+                  ) : (
+                    (nutritionistInfo?.nutritionist_name || nutritionistInfo?.name || "V").charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-sm font-black text-black truncate">
+                      {nutritionistInfo?.nutritionist_name || nutritionistInfo?.name || "Assigned In-House Nutritionist"}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-50 text-[#F26722] border border-orange-200">
+                      <Building2 size={10} className="text-[#F26722]" /> In-House Care Team
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-600 font-semibold truncate mt-0.5">
+                    {nutritionistInfo?.professional_title || "Clinical Nutritionist"} {nutritionistInfo?.qualification ? `• ${nutritionistInfo.qualification}` : ""}
+                  </p>
+                  <p className="text-[11px] text-black font-semibold mt-1 flex items-center gap-1">
+                    <CheckCircle2 size={12} className="text-[#F26722]" /> Rate: <span className="font-black text-[#F26722]">₹{appointmentType === "IN_PERSON" ? (nutritionistInfo?.offline_price ?? 0) : (nutritionistInfo?.online_price ?? 0)}</span> • Dedicated platform care
+                  </p>
+                </div>
+              </div>
+
+              {nutritionistInfo && (
+                <button
+                  type="button"
+                  onClick={() => onViewProfile?.(nutritionistInfo)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-neutral-300 hover:border-[#F26722] text-black hover:text-[#F26722] text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0"
+                >
+                  <User size={13} />
+                  <span>View Full Profile</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Expert Selector & Profile Preview Card */}
           {appointmentCategory === "EXPERT" && (
-            <div className="space-y-1.5">
+            <div className="space-y-3">
               <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Select Specialist
               </label>
@@ -640,6 +1117,62 @@ const BookingForm = ({
                   ))}
                 </select>
               </div>
+
+              {/* Selected Expert Profile Preview Card */}
+              {selectedExpert && (
+                <div className="p-4 rounded-2xl bg-white border-2 border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-[#F26722] text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0 overflow-hidden">
+                      {selectedExpert.profile_photo ? (
+                        <img src={selectedExpert.profile_photo} alt={selectedExpert.name} className="w-full h-full object-cover" />
+                      ) : (
+                        (selectedExpert.name || "E").charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-sm font-black text-black truncate">
+                          {selectedExpert.name}
+                        </h3>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-50 text-[#F26722] border border-orange-200">
+                          <Sparkles size={10} className="text-[#F26722]" /> Specialist Expert
+                        </span>
+                        {selectedExpert.years_of_experience > 0 && (
+                          <span className="text-[10px] font-bold text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-md">
+                            {selectedExpert.years_of_experience}+ yrs exp
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-600 font-semibold truncate mt-0.5">
+                        {selectedExpert.professional_title || "Clinical Specialist"} {selectedExpert.qualification ? `• ${selectedExpert.qualification}` : ""}
+                      </p>
+                      {selectedExpert.specializations?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {selectedExpert.specializations.slice(0, 3).map((spec, i) => (
+                            <span key={i} className="text-[10px] font-bold bg-orange-50 text-[#F26722] border border-orange-200 px-2 py-0.5 rounded-md">
+                              {spec}
+                            </span>
+                          ))}
+                          {selectedExpert.specializations.length > 3 && (
+                            <span className="text-[10px] font-bold text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-md">
+                              +{selectedExpert.specializations.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onViewProfile?.(selectedExpert)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-neutral-300 hover:border-[#F26722] text-black hover:text-[#F26722] text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0"
+                  >
+                    <User size={13} />
+                    <span>View Complete Profile & Credentials</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -653,24 +1186,24 @@ const BookingForm = ({
               <button
                 type="button"
                 onClick={() => setAppointmentType("VIRTUAL")}
-                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
                   isOnline
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-xs ring-2 ring-[var(--color-primary)]/20"
-                    : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] hover:border-[var(--color-border-hover)]"
+                    ? "border-[#F26722] bg-orange-50/60 shadow-xs ring-1 ring-[#F26722]"
+                    : "border-neutral-200 bg-white hover:border-neutral-300"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`p-1.5 rounded-xl ${isOnline ? "bg-[var(--color-primary)] text-white" : "bg-blue-100 text-blue-700"}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`p-2 rounded-xl ${isOnline ? "bg-[#F26722] text-white" : "bg-neutral-100 text-neutral-700"}`}>
                     <Video size={15} />
                   </span>
-                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${isOnline ? "text-[#F26722] bg-white border border-orange-200" : "text-neutral-600 bg-neutral-100"}`}>
                     Online Zoom
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-xs font-extrabold text-[var(--color-text-strong)]">Virtual Video Consultation</h4>
-                  <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                    {onlinePrice !== undefined && Number(onlinePrice) > 0 ? `Rate: ₹${onlinePrice}` : "Included in plan / Quota"}
+                  <h4 className="text-xs font-black text-black">Virtual Video Consultation</h4>
+                  <p className="text-[11px] text-neutral-600 font-semibold mt-0.5">
+                    Rate: <span className="font-black text-[#F26722]">₹{onlinePrice ?? 0}</span>
                   </p>
                 </div>
               </button>
@@ -679,24 +1212,24 @@ const BookingForm = ({
               <button
                 type="button"
                 onClick={() => setAppointmentType("IN_PERSON")}
-                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
                   !isOnline
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-bg-subtle)] shadow-xs ring-2 ring-[var(--color-primary)]/20"
-                    : "border-[var(--color-border-default)] bg-[var(--color-bg-surface-alt)] hover:border-[var(--color-border-hover)]"
+                    ? "border-[#F26722] bg-orange-50/60 shadow-xs ring-1 ring-[#F26722]"
+                    : "border-neutral-200 bg-white hover:border-neutral-300"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`p-1.5 rounded-xl ${!isOnline ? "bg-[var(--color-primary)] text-white" : "bg-emerald-100 text-emerald-700"}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`p-2 rounded-xl ${!isOnline ? "bg-[#F26722] text-white" : "bg-neutral-100 text-neutral-700"}`}>
                     <Building2 size={15} />
                   </span>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${!isOnline ? "text-[#F26722] bg-white border border-orange-200" : "text-neutral-600 bg-neutral-100"}`}>
                     Clinic Visit
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-xs font-extrabold text-[var(--color-text-strong)]">In-Clinic Consultation</h4>
-                  <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                    {offlinePrice !== undefined && Number(offlinePrice) > 0 ? `Rate: ₹${offlinePrice}` : "Included in plan / Quota"}
+                  <h4 className="text-xs font-black text-black">In-Clinic Consultation</h4>
+                  <p className="text-[11px] text-neutral-600 font-semibold mt-0.5">
+                    Rate: <span className="font-black text-[#F26722]">₹{offlinePrice ?? 0}</span>
                   </p>
                 </div>
               </button>
@@ -705,11 +1238,11 @@ const BookingForm = ({
 
           {/* In-Clinic Location Banner (if selected & available) */}
           {!isOnline && offlineLocation && (
-            <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
-              <MapPin size={16} className="text-emerald-700 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-orange-50/60 border border-orange-200 text-black text-xs">
+              <MapPin size={16} className="text-[#F26722] shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold">Clinic Practice Location:</p>
-                <p className="text-emerald-800">{offlineLocation}</p>
+                <p className="font-bold text-black">Clinic Practice Location:</p>
+                <p className="text-neutral-700">{offlineLocation}</p>
               </div>
             </div>
           )}
@@ -750,19 +1283,15 @@ const BookingForm = ({
           </div>
 
           {/* Active Mode Notice */}
-          <div className={`flex items-center gap-2.5 p-3 rounded-2xl border text-xs ${
-            isOnline
-              ? "bg-blue-50/90 border-blue-200 text-blue-900"
-              : "bg-emerald-50/90 border-emerald-200 text-emerald-900"
-          }`}>
-            <div className={`p-1.5 rounded-xl text-white ${isOnline ? "bg-blue-600" : "bg-emerald-600"}`}>
+          <div className="flex items-center gap-2.5 p-3 rounded-2xl border border-orange-200 bg-orange-50/60 text-black text-xs">
+            <div className="p-1.5 rounded-xl text-white bg-[#F26722]">
               {isOnline ? <Video size={14} /> : <Building2 size={14} />}
             </div>
             <div>
-              <p className="font-bold">
+              <p className="font-bold text-black">
                 {isOnline ? "Virtual Zoom Video Consultation" : "In-Person Clinic Appointment"}
               </p>
-              <p className="text-[11px] opacity-90">
+              <p className="text-[11px] text-neutral-600">
                 {isOnline
                   ? "Conducted online. Instant Zoom link generated upon confirmation."
                   : "Visit the clinic at the scheduled time. Address details sent to your account."}
@@ -796,6 +1325,154 @@ const BookingForm = ({
         />
       </div>
     </motion.div>
+  );
+};
+
+// ===============================
+// Complete Practitioner Profile Modal
+// ===============================
+const ExpertProfileModal = ({ nutritionist, onClose, onSelect }) => {
+  if (!nutritionist) return null;
+  const isExpert = nutritionist.nutritionist_type === "expert" || !nutritionist.nutritionist_name;
+  const name = nutritionist.name || nutritionist.nutritionist_name || "Nutritionist";
+  const title = nutritionist.professional_title || "Clinical Nutritionist & Dietitian";
+  const qual = nutritionist.qualification || "";
+  const exp = nutritionist.years_of_experience || 0;
+  const org = nutritionist.current_organization || "";
+  const bio = nutritionist.professional_bio || "";
+  const specs = nutritionist.specializations || [];
+  const langs = nutritionist.languages_spoken || [];
+  const loc = nutritionist.offline_location || "";
+  const photo = nutritionist.profile_photo;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-[var(--font-secondary)]">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white text-black rounded-3xl max-w-xl w-full shadow-2xl border-2 border-neutral-200 overflow-hidden max-h-[90vh] flex flex-col"
+      >
+        {/* Header Ribbon */}
+        <div className="p-5 text-white relative bg-gradient-to-r from-orange-500 via-[#F26722] to-amber-600">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center text-xl font-black border border-white/30 overflow-hidden shrink-0">
+              {photo ? (
+                <img src={photo} alt={name} className="w-full h-full object-cover" />
+              ) : (
+                name.charAt(0).toUpperCase()
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/25">
+                  {isExpert ? "Specialist Expert" : "In-House Nutritionist"}
+                </span>
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-white bg-black/20 px-2 py-0.5 rounded-full">
+                  <CheckCircle2 size={11} className="text-white" /> Verified Practitioner
+                </span>
+              </div>
+              <h3 className="text-lg font-black font-[var(--font-primary)] text-white">{name}</h3>
+              <p className="text-xs text-white/90 font-medium">{title} {qual ? `• ${qual}` : ""}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="p-5 overflow-y-auto space-y-4 text-xs bg-white text-black">
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+              <span className="text-[10px] font-bold text-neutral-500 block uppercase">Experience</span>
+              <span className="font-extrabold text-black text-sm">{exp > 0 ? `${exp}+ Years` : "Clinical Practice"}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+              <span className="text-[10px] font-bold text-neutral-500 block uppercase">Hospital / Clinic</span>
+              <span className="font-extrabold text-black text-xs truncate block">{org || "TrackIntake Clinical Network"}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 col-span-2 sm:col-span-1">
+              <span className="text-[10px] font-bold text-neutral-500 block uppercase">Consultation Modes</span>
+              <span className="font-extrabold text-black text-xs">Virtual & Clinic</span>
+            </div>
+          </div>
+
+          {/* Bio */}
+          {bio && (
+            <div>
+              <h4 className="font-bold text-black mb-1 uppercase tracking-wider text-[11px]">About Practitioner</h4>
+              <p className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-black leading-relaxed italic">
+                "{bio}"
+              </p>
+            </div>
+          )}
+
+          {/* Specializations */}
+          {specs.length > 0 && (
+            <div>
+              <h4 className="font-bold text-black mb-1.5 uppercase tracking-wider text-[11px]">Clinical Specializations</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {specs.map((s, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-lg bg-orange-50 text-[#F26722] border border-orange-200 text-xs font-semibold">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Languages */}
+          {langs.length > 0 && (
+            <div>
+              <h4 className="font-bold text-black mb-1 uppercase tracking-wider text-[11px]">Languages Spoken</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {langs.map((l, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-md bg-neutral-100 text-black border border-neutral-200 text-xs font-medium">
+                    {l}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Clinic Address */}
+          {loc && (
+            <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-200 text-black text-xs">
+              <span className="font-bold block mb-0.5 flex items-center gap-1 text-black">
+                <MapPin size={12} className="text-[#F26722]" /> Clinic Address:
+              </span>
+              <span>{loc}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-neutral-200 flex items-center justify-end gap-2 bg-neutral-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-700 hover:text-black hover:bg-neutral-100 transition cursor-pointer"
+          >
+            Close
+          </button>
+          {onSelect && (
+            <button
+              onClick={() => {
+                onSelect(nutritionist.id);
+                onClose();
+              }}
+              className="px-5 py-2 rounded-xl bg-[#F26722] hover:bg-[#d95616] text-white text-xs font-black shadow-md cursor-pointer transition active:scale-95"
+            >
+              Select & View Slots
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
