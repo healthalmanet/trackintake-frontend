@@ -6,7 +6,8 @@ import {
   Calendar, Clock, User, XCircle, CheckCircle, AlertCircle,
   CalendarDays, Video, Copy, ExternalLink,
   WifiOff, Star, Sparkles, MessageSquarePlus, Building2,
-  MapPin, Search, X, RefreshCw, Filter, Layers, FileText, Info, ChevronRight
+  MapPin, Search, X, RefreshCw, Filter, Layers, FileText, Info, ChevronRight,
+  CalendarClock, History, CheckCircle2
 } from "lucide-react";
 import AppointmentDetailModal from "./AppointmentDetailModal";
 import RescheduleModal from "./RescheduleModal";
@@ -582,20 +583,21 @@ const MyAppointments = ({ refresh } = {}) => {
             {/* Horizon Filter Tabs */}
             <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
               {[
-                { key: "upcoming", label: "Upcoming" },
-                { key: "past", label: "Past" },
-                { key: "all", label: "All Appointments" },
+                { key: "upcoming", label: "Upcoming", icon: <CalendarClock size={12} /> },
+                { key: "past", label: "Past", icon: <History size={12} /> },
+                { key: "all", label: "All Appointments", icon: <CalendarDays size={12} /> },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setTimeHorizon(tab.key)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     timeHorizon === tab.key
                       ? "bg-[var(--color-primary)] text-white shadow-xs"
                       : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
                   }`}
                 >
-                  {tab.label}
+                  {tab.icon}
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -603,7 +605,7 @@ const MyAppointments = ({ refresh } = {}) => {
             {/* Mode Filter Tabs */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)]">
               {[
-                { key: "ALL", label: "All Modes" },
+                { key: "ALL", label: "All Modes", icon: <Layers size={11} /> },
                 { key: "VIRTUAL", label: "Virtual (Zoom)", icon: <Video size={11} /> },
                 { key: "IN_PERSON", label: "In-Clinic", icon: <Building2 size={11} /> },
               ].map((m) => (
@@ -625,22 +627,23 @@ const MyAppointments = ({ refresh } = {}) => {
             {/* Status Filter Tabs */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border-default)] overflow-x-auto">
               {[
-                { key: "ALL", label: "All Status" },
-                { key: "CONFIRMED", label: "Confirmed" },
-                { key: "PENDING_REVIEW", label: "Under Review" },
-                { key: "AWAITING_PAYMENT", label: "Action Needed" },
-                { key: "CANCELLED", label: "Cancelled" },
+                { key: "ALL", label: "All Status", icon: <Layers size={11} /> },
+                { key: "CONFIRMED", label: "Confirmed", icon: <CheckCircle2 size={11} className="text-emerald-500" /> },
+                { key: "PENDING_REVIEW", label: "Under Review", icon: <Clock size={11} className="text-[#F26722]" /> },
+                { key: "AWAITING_PAYMENT", label: "Action Needed", icon: <AlertCircle size={11} className="text-[#F26722] animate-pulse" /> },
+                { key: "CANCELLED", label: "Cancelled", icon: <XCircle size={11} className="text-rose-500" /> },
               ].map((st) => (
                 <button
                   key={st.key}
                   onClick={() => setStatusFilter(st.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                     statusFilter === st.key
-                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black"
+                      ? "bg-[var(--color-bg-surface)] text-[var(--color-primary)] shadow-xs font-black border border-[var(--color-border-hover)]"
                       : "text-[var(--color-text-muted)] hover:text-[var(--color-text-strong)]"
                   }`}
                 >
-                  {st.label}
+                  {st.icon}
+                  <span>{st.label}</span>
                 </button>
               ))}
             </div>

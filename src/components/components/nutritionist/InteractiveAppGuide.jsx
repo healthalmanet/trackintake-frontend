@@ -654,14 +654,14 @@ export const NUTRITIONIST_GUIDE = [
         question: "How do I configure my available consultation hours?",
         summary: "Set weekly consultation schedule so patients can only book when you are free.",
         steps: [
-          "Click **Availability** in the top navigation bar (`/nutritionist/availability`).",
+          "Click **Appointments** in the top navigation bar (`/nutritionist/availability`).",
           "Toggle working days (e.g., Monday to Saturday).",
           "Set daily start time (e.g., 09:00 AM) and end time (e.g., 06:00 PM).",
           "Specify slot duration (30 mins or 45 mins) and buffer intervals between sessions.",
           "Enable or disable **'Pay at Clinic'** so patients can book cash offline slots without online payment.",
           "Click **'Save Availability'**."
         ],
-        actionLabel: "Set Availability",
+        actionLabel: "Manage Appointments",
         actionRoute: "/nutritionist/availability"
       }
     ]

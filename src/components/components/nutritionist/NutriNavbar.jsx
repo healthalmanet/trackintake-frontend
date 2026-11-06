@@ -221,7 +221,7 @@ const NutriNavbar = () => {
         { to: "/nutritionist", label: "Home" },
         { to: "/nutritionist/search", label: "Nutrition Search" },
         { to: "/nutritionist/chat", label: "Chat" },
-        { to: "/nutritionist/availability", label: "Availability" },
+        { to: "/nutritionist/availability", label: "Appointments" },
         { to: "/nutritionist/payouts", label: "Payments" },
         { to: "/nutritionist/subscription", label: "Subscription" },
         { to: "/nutritionist/profile", label: "Profile" }

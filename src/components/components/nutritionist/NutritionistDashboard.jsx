@@ -656,7 +656,7 @@ const NutritionistDashboard = () => {
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              {/* Manage Availability */}
+              {/* Manage Appointments */}
               <button
                 onClick={() => navigate("/nutritionist/availability")}
                 className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 rounded-2xl sm:rounded-full font-bold text-sm sm:text-base
@@ -669,7 +669,7 @@ const NutritionistDashboard = () => {
                   transition-all duration-300 w-full sm:w-auto"
               >
                 <CalendarDays size={19} />
-                <span>Manage Availability</span>
+                <span>Manage Appointments</span>
               </button>
 
               {/* Add New Patient */}
