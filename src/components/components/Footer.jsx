@@ -43,7 +43,7 @@ const nutritionistQuickLinks = [
   { label: "Home", path: "/nutritionist" },
   { label: "Nutrition Search", path: "/nutritionist/search" },
   { label: "Patient Chat", path: "/nutritionist/chat" },
-  { label: "Manage Availability", path: "/nutritionist/availability" },
+  { label: "Manage Appointments", path: "/nutritionist/availability" },
   { label: "Earnings & Payouts", path: "/nutritionist/payouts" },
   { label: "Subscription", path: "/nutritionist/subscription" },
 ];

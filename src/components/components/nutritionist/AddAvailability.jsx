@@ -7,7 +7,7 @@ import {
   RefreshCw, ShieldCheck, Sun, Sunrise, Sunset,
   SlidersHorizontal, CheckCircle2, ChevronLeft,
   Building2, MapPin, Layers, Info, CheckSquare, Square, DollarSign, FileText,
-  Loader2
+  Loader2, CalendarClock, History, AlertCircle
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getMySlots, addAvailability, deleteAvailability } from "../../../api/availabilityApi";
@@ -1248,13 +1248,13 @@ const AddAvailability = () => {
               <BackButton label="Back to Dashboard" to="/nutritionist" />
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[11px] font-bold tracking-wider uppercase mb-1.5 border border-orange-200">
-              <CalendarDays size={12} /> Flexible Virtual & In-Clinic Availability
+              <CalendarDays size={12} /> Appointments & Consultation Schedule
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
-              Consultation Schedule
+              Appointments & Availability
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-              Manage online Zoom & clinic appointment slots, select custom date ranges, and review booked sessions.
+              Manage appointments, consultation slots, patient requests, and review booked sessions.
             </p>
           </div>
 
@@ -1355,9 +1355,9 @@ const AddAvailability = () => {
             {/* Horizon Filter Tabs (Upcoming / Past / All) */}
             <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
               {[
-                { key: "upcoming", label: "Upcoming", count: summary.upcoming_count },
-                { key: "past", label: "Past", count: summary.past_count },
-                { key: "all", label: "All Slots", count: summary.total_count },
+                { key: "upcoming", label: "Upcoming", count: summary.upcoming_count, icon: <CalendarClock size={12} /> },
+                { key: "past", label: "Past", count: summary.past_count, icon: <History size={12} /> },
+                { key: "all", label: "All Slots", count: summary.total_count, icon: <CalendarDays size={12} /> },
               ].map((tab) => {
                 const isActive = timeHorizon === tab.key;
                 return (
@@ -1370,8 +1370,10 @@ const AddAvailability = () => {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    {isActive && fetching && (
+                    {isActive && fetching ? (
                       <Loader2 size={12} className="animate-spin text-white shrink-0" />
+                    ) : (
+                      tab.icon
                     )}
                     <span>{tab.label}</span>
                     {tab.count !== undefined && (
@@ -1391,7 +1393,7 @@ const AddAvailability = () => {
             {/* Mode Filter Tabs (All / Virtual / In-Clinic / Both) */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
               {[
-                { key: "ALL", label: "All Modes" },
+                { key: "ALL", label: "All Modes", icon: <Layers size={11} /> },
                 { key: "VIRTUAL", label: "Virtual", icon: <Video size={11} /> },
                 { key: "IN_PERSON", label: "In-Clinic", icon: <Building2 size={11} /> },
                 { key: "BOTH", label: "Both", icon: <Layers size={11} /> },
@@ -1421,11 +1423,11 @@ const AddAvailability = () => {
             {/* Status Tabs (All / Open / Booked / Case Requests) */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
               {[
-                { key: "ALL", label: "All", count: totalCount },
-                { key: "AVAILABLE", label: "Open", count: availableCount },
-                { key: "BOOKED", label: "Booked", count: bookedCount },
+                { key: "ALL", label: "All", count: totalCount, icon: <Layers size={11} /> },
+                { key: "AVAILABLE", label: "Open", count: availableCount, icon: <CheckCircle2 size={11} className="text-emerald-500" /> },
+                { key: "BOOKED", label: "Booked", count: bookedCount, icon: <Lock size={11} className="text-orange-500" /> },
                 ...(pendingReviewCount > 0
-                  ? [{ key: "PENDING_REVIEW", label: "Case Requests ⚡", count: pendingReviewCount }]
+                  ? [{ key: "PENDING_REVIEW", label: "Case Requests ⚡", count: pendingReviewCount, icon: <Sparkles size={11} className="text-orange-600 animate-pulse" /> }]
                   : []),
               ].map((st) => {
                 const isActive = statusFilter === st.key;
@@ -1439,8 +1441,10 @@ const AddAvailability = () => {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    {isActive && fetching && (
+                    {isActive && fetching ? (
                       <Loader2 size={11} className="animate-spin text-orange-600 shrink-0" />
+                    ) : (
+                      st.icon
                     )}
                     <span>{st.label}</span>
                     <span className="text-[10px] opacity-75 font-normal">({st.count})</span>
