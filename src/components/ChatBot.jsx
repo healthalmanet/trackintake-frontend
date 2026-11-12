@@ -53,11 +53,6 @@ const userFAQs = {
         { q: "How do I set and track my target goal weight?" },
         { q: "When is the best time of day to record my weight?" }
     ],
-    "Custom Reminders": [
-        { q: "How do I set up custom reminders for meals, water, and supplements?" },
-        { q: "Can I set medication and vitamin alarm alerts?" },
-        { q: "How do I edit or turn off scheduled reminders?" }
-    ],
     "Health & Vitals": [
         { q: "How do I log and monitor my blood sugar (Fasting & Post-Prandial)?" },
         { q: "Can I track my blood pressure and resting heart rate?" },

@@ -12,7 +12,7 @@ import MealLogger from "./dashboard/Tools/MealLogger";
 import NutritionSearch from "./dashboard/Tools/NutritionSearch";
 import WeightTracker from "./dashboard/Tools/WeightTracker";
 import WaterTracker from "./dashboard/Tools/WaterTracker";
-import CustomReminder from "./dashboard/Tools/CustomReminder";
+// import CustomReminder from "./dashboard/Tools/CustomReminder"; // Hidden for now
 import HealthSection from "./dashboard/Tools/HealthSection";
 import Meals from "./dashboard/Meals";
 import Reports from "./Reports";
@@ -101,7 +101,7 @@ function Dashboard() {
                 <Route path="tools/nutrition-search" element={<NutritionSearch />} />
                 <Route path="tools/weight-tracker" element={<WeightTracker />} />
                 <Route path="tools/water-tracker" element={<WaterTracker />} />
-                <Route path="tools/custom-reminder" element={<CustomReminder />} />
+                <Route path="tools/custom-reminder" element={<Navigate to="/dashboard/tools" replace />} />
                 <Route path="health-section" element={<HealthSection />} />
                 <Route path="health-dashboard" element={<HealthDashboard />} />
                 <Route path="lab-reports" element={<LabReports />} />
