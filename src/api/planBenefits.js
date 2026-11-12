@@ -26,7 +26,8 @@ export function getPlanBenefits(plan) {
   if (plan.meal_log_allowed) benefits.push("Meal Logging & Macro Breakdown");
   if (plan.water_intake_allowed) benefits.push("Daily Water Intake Tracking");
   if (plan.weight_tracker_allowed) benefits.push("Weight & Body Metric Tracker");
-  if (plan.custom_reminder_allowed) benefits.push("Custom Reminders & Push Alerts");
+  // Custom reminders hidden for now
+  // if (plan.custom_reminder_allowed) benefits.push("Custom Reminders & Push Alerts");
   if (plan.chat_allowed) benefits.push("Chat with Verified Nutritionists");
   if (plan.nutrition_search_allowed) benefits.push("AI Nutrition Database Search");
   if (plan.ai_diet_allowed) benefits.push("Personalized AI Diet Plans");

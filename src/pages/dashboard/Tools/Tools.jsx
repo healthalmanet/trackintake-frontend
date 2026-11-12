@@ -10,7 +10,6 @@ import {
     FiSearch,
     FiBarChart2,
     FiDroplet,
-    FiBell,
     FiArrowRight,
     FiHeart,
   } from "react-icons/fi";
@@ -29,8 +28,6 @@ const Tools = () => {
     { id: "nutrition-search", title: "Nutrition Search", description: "Find detailed nutritional information for any food.", icon: <FiSearch className="h-6 w-6" />, route: "/dashboard/tools/nutrition-search", bg: 'bg-[var(--color-success-bg-subtle)]', text: 'text-[var(--color-success-text)]' },
     { id: "fat-calculator", title: "Body Fat Calculator", description: "Analyze your body composition and fat percentage.", icon: <FiTarget className="h-6 w-6" />, route: "/dashboard/tools/fat-calculator", bg: 'bg-[var(--color-accent-1-bg-subtle)]', text: 'text-[var(--color-accent-1-text)]' },
     { id: "water-tracker", title: "Water Tracker", description: "Stay hydrated with daily water intake tracking.", icon: <FiDroplet className="h-6 w-6" />, route: "/dashboard/tools/water-tracker", bg: 'bg-[var(--color-info-bg-subtle)]', text: 'text-[var(--color-info-text)]' },
-    { id: "health-reminders", title: "Custom Reminders", description: "Set personalized alerts for health activities.", icon: <FiBell className="h-6 w-6" />, route: "/dashboard/tools/custom-reminder", bg: 'bg-[var(--color-accent-3-bg-subtle)]', text: 'text-[var(--color-accent-3-text)]' },
-    
   ];
 
   const containerVariants = {

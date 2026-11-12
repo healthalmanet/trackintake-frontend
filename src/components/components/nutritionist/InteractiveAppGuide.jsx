@@ -256,29 +256,6 @@ export const PATIENT_GUIDE = [
     ]
   },
   {
-    id: "custom_reminders",
-    title: "Custom Reminders & Notification Alarms",
-    icon: "Bell",
-    color: "purple",
-    description: "Set personalized notification alarms for meals, water, supplements, and weigh-ins.",
-    topics: [
-      {
-        id: "setup_custom_reminders",
-        question: "How do I set up custom reminders for meals, water, and supplements?",
-        summary: "Never miss breakfast, lunch, or evening supplements with automated reminders.",
-        steps: [
-          "Go to **Custom Reminders** under Dashboard Tools (`/dashboard/tools/custom-reminder`).",
-          "Click **'Add New Reminder'**.",
-          "Choose your reminder category: **Meal Timing**, **Water Intake**, **Supplements / Medications**, or **Weigh-In**.",
-          "Set the time of day and repeating days (Daily, Weekdays, Weekends).",
-          "Save the reminder. You will receive in-app and browser notifications right on schedule."
-        ],
-        actionLabel: "Open Reminders",
-        actionRoute: "/dashboard/tools/custom-reminder"
-      }
-    ]
-  },
-  {
     id: "health_vitals",
     title: "Health Dashboard & Diabetes Vitals",
     icon: "HeartPulse",

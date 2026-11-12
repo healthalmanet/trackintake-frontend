@@ -245,7 +245,7 @@ const NotificationDropdown = () => {
       }
       navigate('/dashboard/appointments');
     } else if (note.type === 'reminder') {
-      navigate('/dashboard/tools/custom-reminder'); 
+      navigate('/dashboard/tools'); 
     } else if (note.type === 'water') {
       navigate('/dashboard/tools/water-tracker');
     } else if (note.type === 'meal_alert') {
