@@ -386,14 +386,34 @@ const MealPhotoScannerModal = ({ isOpen, onClose, onMealLogged, onApplyToInputs 
         };
       });
 
-      await createMeal(payloads.length === 1 ? payloads[0] : payloads, token);
+      const res = await createMeal(payloads.length === 1 ? payloads[0] : payloads, token);
       toast.success(
         `Successfully logged ${payloads.length} item(s) for ${suggestedMealType}!`,
         { icon: <CheckCircle2 className="text-[var(--color-success-text)]" /> }
       );
 
+      const loggedItems = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data ? [res.data] : payloads.map(p => ({
+            food_name: p.food_name,
+            quantity: p.quantity,
+            unit: p.unit,
+            portion_size: p.portion_size,
+            meal_type: p.meal_type,
+            date: p.date,
+          })));
+
+      const modalInfo = {
+        items: loggedItems,
+        totals: res?.totals || null,
+        notifications: res?.notifications || [],
+        date: logDate,
+        count: payloads.length,
+        isEdit: false,
+      };
+
       if (onMealLogged) {
-        onMealLogged(logDate);
+        onMealLogged(logDate, modalInfo);
       }
       onClose();
     } catch (err) {
