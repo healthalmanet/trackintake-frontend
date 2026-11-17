@@ -210,7 +210,6 @@ function App() {
     <>
       {isAuthenticated && user?.role === "user" && (
         <Navbar
-          logo={<img src={logo} alt="logo" className="h-10 w-auto" />}
           align="center"
           links={[
             { label: "Home", to: "/dashboard" },

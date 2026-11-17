@@ -5,7 +5,6 @@ import {
   GraduationCap,
   Globe,
   Quote,
-  Sparkles,
   ArrowLeft,
   Briefcase,
   Cpu,
@@ -111,15 +110,6 @@ const Founder = () => {
 
         {/* Page Hero Header */}
         <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-primary-bg-subtle)] border border-[var(--color-primary)]/20 text-[var(--color-primary)] text-xs sm:text-sm font-semibold uppercase tracking-wider mb-4 shadow-xs"
-          >
-            <Sparkles className="w-4 h-4" />
-            Leadership & Vision
-          </motion.div>
-
           <motion.h1
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -201,7 +191,7 @@ const Founder = () => {
               </h2>
 
               <p className="text-base sm:text-lg leading-relaxed text-[var(--color-text-default)]">
-                What began as an early passion for electronics in the backyard of <strong className="text-[var(--color-text-strong)] font-semibold">Yeshwant Maheshram’s parental home in the 1980s</strong> evolved into a lifelong journey of technology innovation and entrepreneurship.
+                What began as an early passion for electronics in the backyard of Yeshwant Maheshram’s parental home in the early college days evolved into a lifelong journey of technology innovation and entrepreneurship.
               </p>
 
               <p className="text-base sm:text-lg leading-relaxed text-[var(--color-text-default)]">
