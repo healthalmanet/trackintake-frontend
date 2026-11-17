@@ -43,6 +43,7 @@ import useWebSockets from "./api/useWebSockets";
 import { FoodSuggestionToast } from "./components/FoodSuggestionToast";
 import { FoodSuggestionsDrawer } from "./components/components/FoodSuggestionsDrawer";
 import Career from "./pages/Career";
+import Founder from "./pages/Founder";
 import axiosInstance from "./api/axiosInstance";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -259,6 +260,8 @@ function App() {
         <Route path="/Contact" element={<ContactPage />} />
         <Route path="/career" element={<Career />} />
         <Route path="/pages/Career" element={<Career />} />
+        <Route path="/founder" element={<Founder />} />
+        <Route path="/about-founder" element={<Founder />} />
       </Routes>
 
 

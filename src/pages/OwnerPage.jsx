@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, UserPlus, Activity, DollarSign, Calendar, Star, MoreVertical, ArrowUpRight, ArrowDownRight, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -229,11 +230,17 @@ const Dashboard = () => {
                 {new Date(data.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input type="text" placeholder="Search..." className="bg-slate-800 border border-slate-700 rounded-full w-full sm:w-64 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+              <Link
+                to="/founder"
+                className="hidden sm:inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 hover:text-white hover:border-orange-500 transition-colors"
+              >
+                Founder Profile
+              </Link>
               {/* 2. Add the imported LogoutButton component here */}
               <LogoutButton />
             </div>

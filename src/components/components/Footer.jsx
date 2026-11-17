@@ -49,6 +49,7 @@ const nutritionistQuickLinks = [
 ];
 
 const legalLinks = [
+  { label: "About Founder", path: "/founder" },
   { label: "Privacy Policy", path: "/privacy-policy" },
   { label: "Terms & Conditions", path: "/terms-conditions" },
   { label: "Refund & Return Policy", path: "/refund-policy" },

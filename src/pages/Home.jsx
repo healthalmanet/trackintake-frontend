@@ -72,7 +72,6 @@ const links = [
   { label: "Career", to: "/pages/Career" },
   { label: "Blogs", to: "#blogs" },
   { label: "Contact", to: "/contact" },
-
 ];
 
 const itemFadeUp = {
@@ -161,6 +160,23 @@ const Home = () => {
     // The dependency array is updated to only run once on mount, since we no longer need to re-fetch for pagination on this page.
   }, []);
 
+  // Handle hash scrolling on direct navigation or hash change (e.g. /#founder)
+  useEffect(() => {
+    const scrollToHash = () => {
+      if (window.location.hash) {
+        const el = document.getElementById(window.location.hash.replace('#', ''));
+        if (el) {
+          setTimeout(() => {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
+      }
+    };
+    scrollToHash();
+    window.addEventListener('hashchange', scrollToHash);
+    return () => window.removeEventListener('hashchange', scrollToHash);
+  }, []);
+
 
   const totalPages = Math.ceil(total / perPage);
 
@@ -176,7 +192,7 @@ const Home = () => {
           <>
             <button
               onClick={openRegister}
-              className="ml-5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold px-4 py-2 rounded-full shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-primary-glow"
+              className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-on-primary)] text-sm font-semibold px-4 py-2 rounded-full shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-primary-glow"
             >
               Register
             </button>
