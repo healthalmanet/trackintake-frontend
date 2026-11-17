@@ -65,6 +65,8 @@ const useMealLogger = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [editingMeal, setEditingMeal] = useState(null);
+  const [successModalData, setSuccessModalData] = useState(null);
+  const closeSuccessModal = () => setSuccessModalData(null);
 
   // Search/autocomplete state (keep these near the top so callbacks can reference them)
   const [foodSearchResults, setFoodSearchResults] = useState({}); // { [index]: [{id,name,has_attributes}] }
@@ -242,17 +244,53 @@ const useMealLogger = () => {
       if (editingMeal) {
         const input = allInputs[0];
         const consumedAt = new Date(`${input.logDate}T${input.logTime}:00`).toISOString();
-        await patchMeal(editingMeal.id, getMealPayload(input, consumedAt), token);
+        const res = await patchMeal(editingMeal.id, getMealPayload(input, consumedAt), token);
         toast.success("Meal updated successfully!", { icon: <CheckCircle className="text-[var(--color-success-text)]" /> });
         setEditingMeal(null);
+
+        setSuccessModalData({
+          items: [res || {
+            food_name: input.name,
+            quantity: input.exact_grams || input.exact_ml || input.quantity,
+            unit: input.exact_grams ? "Gram" : (input.exact_ml ? "Milliliters" : input.unit),
+            portion_size: input.portionSize,
+            meal_type: input.mealType,
+            date: input.logDate,
+          }],
+          totals: null,
+          notifications: [],
+          date: input.logDate,
+          count: 1,
+          isEdit: true,
+        });
       } else {
         const payloads = allInputs.map((input) => {
           const consumedAt = new Date(`${input.logDate}T${input.logTime}:00`).toISOString();
           return getMealPayload(input, consumedAt);
         });
 
-        await createMeal(payloads.length === 1 ? payloads[0] : payloads, token);
+        const res = await createMeal(payloads.length === 1 ? payloads[0] : payloads, token);
         toast.success(`${allInputs.length} Meal(s) logged successfully!`, { icon: <CheckCircle className="text-[var(--color-success-text)]" /> });
+
+        const loggedItems = Array.isArray(res?.data)
+          ? res.data
+          : (res?.data ? [res.data] : allInputs.map(i => ({
+              food_name: i.name,
+              quantity: i.exact_grams || i.exact_ml || i.quantity,
+              unit: i.exact_grams ? "Gram" : (i.exact_ml ? "Milliliters" : i.unit),
+              portion_size: i.portionSize,
+              meal_type: i.mealType,
+              date: i.logDate,
+            })));
+
+        setSuccessModalData({
+          items: loggedItems,
+          totals: res?.totals || null,
+          notifications: res?.notifications || [],
+          date: allInputs?.[0]?.logDate || searchDate,
+          count: allInputs.length,
+          isEdit: false,
+        });
       }
 
       // Refresh using the date that was actually logged (not necessarily the current searchDate UI value).
@@ -489,6 +527,9 @@ const useMealLogger = () => {
     getMealTypeByTime,
     setFoodInputs,
     fetchMeals,
+    successModalData,
+    setSuccessModalData,
+    closeSuccessModal,
   };
 };
 

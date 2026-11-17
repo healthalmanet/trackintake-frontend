@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import MealPhotoScannerModal from "../../../components/components/MealLogger/MealPhotoScannerModal";
+import MealSuccessModal from "../../../components/components/MealLogger/MealSuccessModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 // Import the water API
@@ -164,6 +165,9 @@ const MealLogger = () => {
     handleQuickReLog,
     setFoodInputs,
     fetchMeals,
+    successModalData,
+    setSuccessModalData,
+    closeSuccessModal,
   } = useMealLogger();
 
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -1297,11 +1301,22 @@ const MealLogger = () => {
       <MealPhotoScannerModal
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
-        onMealLogged={async (loggedDate) => {
+        onMealLogged={async (loggedDate, resData) => {
           if (loggedDate) setSearchDate(loggedDate);
           if (fetchMeals) await fetchMeals(loggedDate || searchDate);
+          if (resData) setSuccessModalData(resData);
         }}
         onApplyToInputs={handleApplyPhotoToInputs}
+      />
+
+      <MealSuccessModal
+        isOpen={Boolean(successModalData)}
+        onClose={closeSuccessModal}
+        data={successModalData}
+        onLogAnother={() => {
+          closeSuccessModal();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
       />
     </div>
   );

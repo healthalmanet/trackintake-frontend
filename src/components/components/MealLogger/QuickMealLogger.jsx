@@ -30,6 +30,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import FoodAutocompleteInput from "./FoodAutocompleteInput";
 import MealPhotoScannerModal from "./MealPhotoScannerModal";
+import MealSuccessModal from "./MealSuccessModal";
 
 import {
   UNIT_GROUPS,
@@ -173,6 +174,9 @@ const QuickMealLogger = ({ onMealLogged }) => {
     handleQuickReLog,
     setFoodInputs,
     fetchMeals,
+    successModalData,
+    setSuccessModalData,
+    closeSuccessModal,
   } = useMealLogger();
 
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -805,12 +809,22 @@ const QuickMealLogger = ({ onMealLogged }) => {
       <MealPhotoScannerModal
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
-        onMealLogged={async (loggedDate) => {
+        onMealLogged={async (loggedDate, resData) => {
           if (loggedDate) setSearchDate(loggedDate);
           if (fetchMeals) await fetchMeals(loggedDate || searchDate);
           if (onMealLogged) onMealLogged();
+          if (resData) setSuccessModalData(resData);
         }}
         onApplyToInputs={handleApplyPhotoToInputs}
+      />
+
+      <MealSuccessModal
+        isOpen={Boolean(successModalData)}
+        onClose={closeSuccessModal}
+        data={successModalData}
+        onLogAnother={() => {
+          closeSuccessModal();
+        }}
       />
     </section>
   );
