@@ -50,7 +50,7 @@ const DropdownLink = ({ label, items, onClose, isMobile = false }) => {
   );
 };
 
-const Navbar = ({ links = [], rightContent, align = "right" }) => {
+const Navbar = ({ links = [], rightContent, align = "right", logo }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('');
@@ -104,7 +104,7 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
   };
 
   const navLinkStyle =
-    "relative font-medium text-[var(--color-text-default)] transition-colors duration-300 focus:outline-none focus:text-[var(--color-primary)]";
+    "relative font-medium text-[var(--color-text-default)] transition-colors duration-300 focus:outline-none focus:text-[var(--color-primary)] whitespace-nowrap px-1";
   const activeLinkStyle = "text-[var(--color-primary)]";
 
   const renderNavLink = ({ to, label, children }, isMobile = false) => {
@@ -145,27 +145,35 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
   };
 
   const alignmentClasses = {
-    center: "absolute left-1/2 transform -translate-x-1/2",
-    right: "ml-auto",
+    center: "flex-1 justify-center mx-4 gap-3 lg:gap-5 xl:gap-7",
+    right: "ml-auto mr-4 lg:mr-8 gap-4 lg:gap-6 xl:gap-8",
   };
+
+  const hasSolidBg = isScrolled || !isHomepage;
 
   return (
     <nav
-      className={`sticky top-0 z-50 h-16 px-4 sm:px-6 flex items-center justify-between font-[var(--font-secondary)] text-sm md:text-base transition-all duration-300 ${ // MODIFIED: Padding is now responsive
-        isScrolled
-          ? "bg-[var(--color-bg-surface)]/80 backdrop-blur-lg shadow-lg border-b border-[var(--color-border-default)]"
+      className={`sticky top-0 z-50 h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between font-[var(--font-secondary)] text-sm md:text-base transition-all duration-300 ${
+        hasSolidBg
+          ? "bg-[var(--color-bg-surface)]/95 backdrop-blur-lg shadow-sm border-b border-[var(--color-border-default)]"
           : "bg-transparent"
         }`}
     >
       <NavLink to="/" className="flex items-center shrink-0">
-        {/* MODIFIED: Logo text is now responsive */}
-        <span className="text-xl sm:text-2xl lg:text-3xl tracking-wide font-[var(--font-primary)]">
-          <span className="font-extrabold tracking-wide font-[var(--font-primary)]"><span className="text-[var(--color-primary)]">Track</span><span className="text-[var(--color-text-strong)]">Intake</span></span>
-        </span>
+        {logo ? (
+          logo
+        ) : (
+          <span className="text-xl sm:text-2xl lg:text-3xl tracking-wide font-[var(--font-primary)]">
+            <span className="font-extrabold tracking-wide font-[var(--font-primary)]">
+              <span className="text-[var(--color-primary)]">Track</span>
+              <span className="text-[var(--color-text-strong)]">Intake</span>
+            </span>
+          </span>
+        )}
       </NavLink>
 
-      {/* MODIFIED: Links now appear only on large screens ('lg') to prevent overlap */}
-      <div className={`hidden lg:flex items-center gap-8 ${alignmentClasses[align] || ""}`}>
+      {/* Navigation Links */}
+      <div className={`hidden lg:flex items-center ${alignmentClasses[align] || "ml-auto mr-4 lg:mr-8 gap-6"}`}>
         {links.map((link) => renderNavLink({ ...link }))}
       </div>
 
@@ -173,7 +181,7 @@ const Navbar = ({ links = [], rightContent, align = "right" }) => {
         <div className="flex items-center gap-2 sm:gap-4 text-sm font-medium">
           {rightContent}
         </div>
-        {/* MODIFIED: Hamburger menu is now hidden on large screens ('lg') */}
+        {/* Hamburger menu */}
         <div className="lg:hidden text-[var(--color-primary)]">
           <button onClick={toggleMenu} aria-label="Toggle menu" className="p-1 cursor-pointer">
             {isOpen ? <X size={24} /> : <Menu size={24} />}
