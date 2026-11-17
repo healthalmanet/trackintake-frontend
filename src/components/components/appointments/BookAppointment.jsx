@@ -3,11 +3,9 @@ import { getAvailableSlots, bookAppointment, getMyInHouseNutritionist, getExpert
 import SlotPicker from "./SlotPicker";
 import { useAuth } from "../../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, User, ChevronRight, CalendarDays, Video, Users, Building2, Heart, X, MapPin, Sparkles, CheckCircle2, DollarSign, Award, ShieldCheck, FileText, Check, Star, Info } from "lucide-react";
+import { Calendar, Clock, User, ChevronRight, CalendarDays, Video, Users, Building2, X, MapPin, Sparkles, CheckCircle2, DollarSign, Award, ShieldCheck, FileText, Check, Star, Info } from "lucide-react";
 import { payConsultationFee, verifyPayment } from "../../../api/subscriptionService";
 import { toast } from "react-toastify";
-// Import advertisement image
-import bpMonitorAd from "../../../assets/download.jpg";
 
 // In-memory module caches to eliminate repeat network waterfalls
 let inHouseNutritionistCache = null;
@@ -83,7 +81,6 @@ const BookAppointment = ({ onBooked }) => {
 
   const [loading, setLoading] = useState(false);
   const [fetchingSlots, setFetchingSlots] = useState(false);
-  const [showAd, setShowAd] = useState(true);
   const [showConsultPayment, setShowConsultPayment] = useState(false);
   const [consultType, setConsultType] = useState(null);
   const [pendingSlotId, setPendingSlotId] = useState(null);
@@ -465,66 +462,6 @@ const BookAppointment = ({ onBooked }) => {
       setPendingSlotId(null);
     }
   };
-
-  // ===============================
-  // Ad Component - Simple with content only
-  // ===============================
-  const AdvertisementCard = () => (
-    <motion.div 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, delay: 0.3 }}
-      className="relative rounded-3xl overflow-hidden shadow-xl sticky top-24 bg-white border border-[var(--color-border-default)]"
-    >
-      {/* Close button for mobile */}
-      <button 
-        onClick={() => setShowAd(false)}
-        className="lg:hidden absolute top-3 right-3 z-10 p-1.5 bg-gray-200 rounded-full text-gray-600 hover:bg-gray-300 transition-colors"
-      >
-        <X size={16} />
-      </button>
-
-      {/* Image */}
-      <img 
-        src={bpMonitorAd} 
-        alt="BP Monitor" 
-        className="w-full h-auto object-cover"
-      />
-
-      {/* Content */}
-      <div className="p-4">
-        <div className="flex items-center gap-1 mb-2">
-          <Heart className="w-4 h-4 text-red-500 fill-red-500" />
-          <span className="text-xs font-semibold text-gray-500 uppercase">Sponsored Health Device</span>
-        </div>
-
-        <h3 className="text-lg font-bold text-gray-800 mb-1">
-          Smart BP & Vitals Monitor
-        </h3>
-
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-gray-400 line-through text-sm">₹3,999</span>
-          <span className="text-xl font-bold text-gray-900">₹2,799</span>
-          <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">30% OFF</span>
-        </div>
-
-        <div className="flex gap-2 mb-3">
-          <span className="text-xs bg-gray-100 px-2 py-1 rounded">±2 mmHg Accuracy</span>
-          <span className="text-xs bg-gray-100 px-2 py-1 rounded">Bluetooth Sync</span>
-        </div>
-
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full bg-[var(--color-primary)] text-white px-4 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md"
-          onClick={() => window.open("https://example.com/bp-monitor", "_blank")}
-        >
-          <span>Explore Now</span>
-          <ChevronRight size={18} />
-        </motion.button>
-      </div>
-    </motion.div>
-  );
 
   return (
     <div className="w-full max-w-7xl mx-auto">
@@ -927,40 +864,28 @@ const BookAppointment = ({ onBooked }) => {
         </div>
       )}
 
-      {/* Responsive Unified Layout (Single BookingForm in DOM to avoid duplicate input IDs) */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left / Main Column - Booking Form */}
-        <div className="w-full lg:w-[70%] order-2 lg:order-1">
-          <BookingForm 
-            appointmentCategory={appointmentCategory}
-            setAppointmentCategory={handleCategoryChange}
-            appointmentType={appointmentType}
-            setAppointmentType={handleTypeChange}
-            experts={experts}
-            expertId={expertId}
-            handleSelectExpert={handleSelectExpert}
-            date={date}
-            setDate={handleDateChange}
-            nutritionistId={nutritionistId}
-            nutritionistInfo={nutritionistInfo}
-            fetchSlots={fetchSlots}
-            fetchingSlots={fetchingSlots}
-            slots={slots}
-            handleBook={handleBook}
-            loading={loading}
-            pendingSlotId={pendingSlotId}
-            onViewProfile={(nutri) => setProfileModalNutri(nutri)}
-          />
-        </div>
-
-        {/* Right / Top Column - Advertisement */}
-        {showAd && (
-          <div className="w-full lg:w-[30%] order-1 lg:order-2">
-            <div className="sticky top-24">
-              <AdvertisementCard />
-            </div>
-          </div>
-        )}
+      {/* Booking Form Layout */}
+      <div className="w-full">
+        <BookingForm 
+          appointmentCategory={appointmentCategory}
+          setAppointmentCategory={handleCategoryChange}
+          appointmentType={appointmentType}
+          setAppointmentType={handleTypeChange}
+          experts={experts}
+          expertId={expertId}
+          handleSelectExpert={handleSelectExpert}
+          date={date}
+          setDate={handleDateChange}
+          nutritionistId={nutritionistId}
+          nutritionistInfo={nutritionistInfo}
+          fetchSlots={fetchSlots}
+          fetchingSlots={fetchingSlots}
+          slots={slots}
+          handleBook={handleBook}
+          loading={loading}
+          pendingSlotId={pendingSlotId}
+          onViewProfile={(nutri) => setProfileModalNutri(nutri)}
+        />
       </div>
     </div>
   );
