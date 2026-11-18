@@ -50,7 +50,7 @@ const DropdownLink = ({ label, items, onClose, isMobile = false }) => {
   );
 };
 
-const Navbar = ({ links = [], rightContent, align = "right", logo }) => {
+const Navbar = ({ links = [], rightContent, align = "right" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('');
@@ -153,23 +153,17 @@ const Navbar = ({ links = [], rightContent, align = "right", logo }) => {
 
   return (
     <nav
-      className={`sticky top-0 z-50 h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between font-[var(--font-secondary)] text-sm md:text-base transition-all duration-300 ${
+      className={`sticky top-0 z-50 h-16 px-4 sm:px-6 flex items-center justify-between font-[var(--font-secondary)] text-sm md:text-base transition-all duration-300 ${
         hasSolidBg
           ? "bg-[var(--color-bg-surface)]/95 backdrop-blur-lg shadow-sm border-b border-[var(--color-border-default)]"
           : "bg-transparent"
         }`}
     >
       <NavLink to="/" className="flex items-center shrink-0">
-        {logo ? (
-          logo
-        ) : (
-          <span className="text-xl sm:text-2xl lg:text-3xl tracking-wide font-[var(--font-primary)]">
-            <span className="font-extrabold tracking-wide font-[var(--font-primary)]">
-              <span className="text-[var(--color-primary)]">Track</span>
-              <span className="text-[var(--color-text-strong)]">Intake</span>
-            </span>
-          </span>
-        )}
+        {/* MODIFIED: Logo text is now responsive */}
+        <span className="text-xl sm:text-2xl lg:text-3xl tracking-wide font-[var(--font-primary)]">
+          <span className="font-extrabold tracking-wide font-[var(--font-primary)]"><span className="text-[var(--color-primary)]">Track</span><span className="text-[var(--color-text-strong)]">Intake</span></span>
+        </span>
       </NavLink>
 
       {/* Navigation Links */}

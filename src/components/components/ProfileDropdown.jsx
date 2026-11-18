@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext'; // Adjust path as needed
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MessageSquare, LogOut, ChevronDown, Sparkles } from 'lucide-react'; // Replaced Bell with a more generic User icon for the profile
+import { User, MessageSquare, LogOut, ChevronDown } from 'lucide-react'; // Replaced Bell with a more generic User icon for the profile
 
 // --- Custom Hook (Internal to this file, unchanged) ---
 const useClickOutside = (ref, handler) => {
@@ -157,13 +157,6 @@ export const ProfileDropdown = () => {
                 icon={<MessageSquare size={18} />}
                 label="Messages"
                 to="/dashboard/messages"
-              />
-            </motion.div>
-            <motion.div variants={itemVariants}>
-              <DropdownItem
-                icon={<Sparkles size={18} />}
-                label="About Founder"
-                to="/founder"
               />
             </motion.div>
               

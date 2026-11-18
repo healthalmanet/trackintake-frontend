@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap, Globe, Quote, Sparkles, Award, Cpu, Network } from 'lucide-react';
+import { GraduationCap, Globe, Quote, Award, Cpu, Network } from 'lucide-react';
 import founderImg from '../../assets/founder_yeshwant_maheshram.jpg';
 
 const itemFadeUp = {
@@ -21,16 +21,6 @@ const FounderSection = () => {
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 lg:mb-20">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-primary-bg-subtle)] border border-[var(--color-primary)]/20 text-[var(--color-primary)] text-xs sm:text-sm font-semibold uppercase tracking-wider mb-4"
-          >
-            <Sparkles className="w-4 h-4" />
-            Leadership & Vision
-          </motion.div>
-          
           <motion.h2
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -111,7 +101,7 @@ const FounderSection = () => {
             {/* Lead Narrative */}
             <div className="bg-[var(--color-bg-surface)] p-6 sm:p-8 rounded-3xl border border-[var(--color-border-default)] shadow-md space-y-5">
               <p className="text-base sm:text-lg leading-relaxed">
-                What began as an early passion for electronics in the backyard of <strong className="text-[var(--color-text-strong)] font-semibold">Yeshwant Maheshram’s parental home in the 1980s</strong> evolved into a lifelong journey of technology innovation and entrepreneurship.
+                What began as an early passion for electronics in the backyard of Yeshwant Maheshram’s parental home in the early college days evolved into a lifelong journey of technology innovation and entrepreneurship.
               </p>
               <p className="text-base sm:text-lg leading-relaxed">
                 Across decades spanning consumer electronics, personal computing, academic teaching, research, and enterprise ERP systems, Yeshwant has consistently demonstrated how disciplined thinking and resilience turn ambitious ideas into practical business solutions.
