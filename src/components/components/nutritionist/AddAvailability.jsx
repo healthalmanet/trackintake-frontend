@@ -136,7 +136,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md rounded-3xl bg-[var(--color-bg-surface)] shadow-2xl overflow-hidden border border-[var(--color-border-default)]"
+        className="relative w-full max-w-xl rounded-3xl bg-[var(--color-bg-surface)] shadow-2xl overflow-hidden border-2 border-orange-200"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: "90vh", overflowY: "auto" }}
       >
@@ -144,35 +144,51 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
         <div className="p-6 text-white relative overflow-hidden bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-primary-hover)] to-[#E64A19]">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer z-10"
           >
             <X size={18} />
           </button>
 
-          <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl font-bold shadow-inner">
-              {(p.name || "P").charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider mb-1">
-                {isVirtual ? (
-                  <>
-                    <Video size={11} /> Virtual Consultation
-                  </>
-                ) : (
-                  <>
-                    <Building2 size={11} /> In-Clinic Consultation
-                  </>
-                )}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl font-bold shadow-inner">
+                {(p.name || "P").charAt(0).toUpperCase()}
               </div>
-              <h2 className="text-xl font-bold font-[var(--font-primary)]">{p.name || "Patient"}</h2>
-              <p className="text-white/85 text-xs">{p.email || "No email available"}</p>
+              <div>
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider mb-1">
+                  {isVirtual ? (
+                    <>
+                      <Video size={11} /> Virtual Consultation
+                    </>
+                  ) : (
+                    <>
+                      <Building2 size={11} /> In-Clinic Consultation
+                    </>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold font-[var(--font-primary)]">{p.name || "Patient"}</h2>
+                <p className="text-white/85 text-xs">{p.email || "No email available"}</p>
+              </div>
             </div>
+
+            {p.id && navigate && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(`/nutritionist/patient/${p.id}`);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-orange-900 bg-white hover:bg-orange-50 shadow-sm transition-all cursor-pointer"
+              >
+                <span>Go to Patient Profile & Diet Plan</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Time Banner */}
-        <div className="mx-5 -mt-3 bg-[var(--color-bg-surface)] rounded-2xl p-3.5 shadow-md border-2 border-[var(--color-border-default)] flex items-center justify-between">
+        <div className="mx-6 -mt-3 bg-[var(--color-bg-surface)] rounded-2xl p-3.5 shadow-md border-2 border-[var(--color-border-default)] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock size={15} className="text-[var(--color-primary)]" />
             <span className="font-bold text-[var(--color-text-strong)] text-sm font-[var(--font-primary)]">
@@ -188,9 +204,9 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 space-y-4">
+        <div className="p-6 space-y-4">
           {/* Price & Payment Summary */}
-          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">Consultation Fee</span>
             <span className="text-sm font-black text-slate-900">
               {appt.status === "PENDING_REVIEW" ? (
@@ -205,7 +221,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
 
           {/* Consultation Reason & Focus Areas */}
           {(appt.patient_case_summary || (Array.isArray(appt.patient_medical_conditions) && appt.patient_medical_conditions.length > 0)) && (
-            <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2 text-xs">
+            <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2 text-xs">
               <span className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
                 <FileText size={13} className="text-orange-600" /> Consultation Reason & Focus Areas
               </span>
@@ -229,7 +245,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
 
           {/* Pending Review Alert Banner */}
           {appt.status === "PENDING_REVIEW" && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 space-y-1.5 text-xs">
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 space-y-1.5 text-xs">
               <div className="flex items-center gap-1.5 text-amber-900 font-bold">
                 <Sparkles size={14} className="text-amber-600" />
                 <span>Case Review & Fee Quote Required</span>
@@ -302,6 +318,27 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
             </div>
           )}
 
+          {/* Recommended Follow-up (if already assigned) */}
+          {(appt.follow_up_date || appt.follow_up_notes) && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-emerald-950 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                  <Calendar size={13} className="text-emerald-700" /> Recommended Follow-up
+                </span>
+                {appt.follow_up_date && (
+                  <span className="px-2 py-0.5 rounded-full bg-white border border-emerald-300 text-xs font-black text-emerald-900">
+                    {fmtDate(appt.follow_up_date)}
+                  </span>
+                )}
+              </div>
+              {appt.follow_up_notes && (
+                <p className="text-emerald-950 font-semibold bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                  {appt.follow_up_notes}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Patient Details */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 mb-2">
@@ -332,7 +369,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-2 pt-2 border-t border-slate-200">
+          <div className="space-y-2 pt-3 border-t border-slate-200">
             {appt.id && (
               <button
                 type="button"
@@ -340,7 +377,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                   onClose();
                   onOpenDetail?.(appt.id);
                 }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer bg-orange-500 hover:bg-orange-600"
+                className="w-full py-3 px-4 rounded-xl text-xs font-black text-white transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700"
               >
                 {appt.status === "PENDING_REVIEW" ? (
                   <>
@@ -348,7 +385,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                   </>
                 ) : (
                   <>
-                    <FileText size={14} /> View Session Details & Clinical Notes
+                    <FileText size={14} /> View Session Details, Clinical Notes & Follow-Up →
                   </>
                 )}
               </button>
@@ -361,9 +398,10 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
                   onClose();
                   navigate(`/nutritionist/patient/${p.id}`);
                 }}
-                className="w-full py-2 px-4 rounded-xl text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer text-center"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border-2 border-slate-200 transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
               >
-                Go to Patient Profile & Diet Plan →
+                <span>Go to Patient Profile & Diet Plan</span>
+                <ChevronRight size={14} />
               </button>
             )}
           </div>
@@ -1288,7 +1326,13 @@ const AddAvailability = () => {
       <div
         key={slot.id}
         onClick={() => {
-          if (isBooked) setSelectedSlot(slot);
+          if (isBooked) {
+            if (slot.appointment?.id) {
+              setDetailModalApptId(slot.appointment.id);
+            } else {
+              setSelectedSlot(slot);
+            }
+          }
         }}
         className={`rounded-2xl border-2 transition-all p-4 bg-white flex flex-col justify-between shadow-xs ${
           isBooked

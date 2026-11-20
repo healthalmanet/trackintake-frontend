@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Calendar, Clock, Video, Building2, User, Mail, Phone,
@@ -49,6 +50,7 @@ const AppointmentDetailModal = ({
   userRole = "patient", // "patient" | "nutritionist"
   onNotesSaved,
 }) => {
+  const navigate = useNavigate();
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
@@ -57,6 +59,8 @@ const AppointmentDetailModal = ({
   // Editable fields for nutritionist
   const [notes, setNotes] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpNotes, setFollowUpNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -85,6 +89,8 @@ const AppointmentDetailModal = ({
         setAppointment(res.data);
         setNotes(res.data.notes || "");
         setInstructions(res.data.instructions || "");
+        setFollowUpDate(res.data.follow_up_date || "");
+        setFollowUpNotes(res.data.follow_up_notes || "");
       } catch (err) {
         console.error("Failed to load appointment details:", err);
         toast.error("Could not load appointment details.");
@@ -126,10 +132,14 @@ const AppointmentDetailModal = ({
       const res = await updateAppointmentNotes(appointmentId, {
         notes: notes.trim(),
         instructions: instructions.trim(),
+        follow_up_date: followUpDate || null,
+        follow_up_notes: followUpNotes.trim(),
       });
       setAppointment(res.data);
+      setFollowUpDate(res.data?.follow_up_date || "");
+      setFollowUpNotes(res.data?.follow_up_notes || "");
       setIsEditingNotes(false);
-      toast.success("Appointment notes & instructions saved successfully!");
+      toast.success("Appointment notes, instructions & follow-up saved!");
       onNotesSaved?.(res.data);
     } catch (err) {
       console.error("Failed to save notes:", err);
@@ -305,6 +315,21 @@ const AppointmentDetailModal = ({
                 Session ID: #{appointmentId} • Booked {appointment?.created_at ? fmtDateTime(appointment.created_at) : "recently"}
               </p>
             </div>
+
+            {/* Quick Link to Patient Profile & Diet Plan for Nutritionist */}
+            {isNutritionist && p?.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose?.();
+                  navigate(`/nutritionist/patient/${p.id}`);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-[#F26722] to-amber-600 hover:from-[#d95616] hover:to-amber-700 shadow-sm hover:shadow-md transition-all cursor-pointer mr-10 sm:mr-12"
+              >
+                <span>Go to Patient Profile & Diet Plan</span>
+                <ChevronRight size={14} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -803,6 +828,22 @@ const AppointmentDetailModal = ({
                           🎯 Health Goal: {p.goal}
                         </p>
                       )}
+
+                      {isNutritionist && p.id && (
+                        <div className="mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClose?.();
+                              navigate(`/nutritionist/patient/${p.id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F26722] border border-orange-200 text-xs font-black transition cursor-pointer"
+                          >
+                            <span>Go to Patient Profile & Diet Plan</span>
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -925,6 +966,70 @@ const AppointmentDetailModal = ({
                       />
                     </div>
 
+                    {/* 📅 Recommended Follow-Up Input Section */}
+                    <div className="p-3.5 rounded-2xl bg-orange-50/70 border-2 border-orange-200 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-black flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                          <Calendar size={13} className="text-[#F26722]" /> Recommended Follow-Up Consultation
+                        </label>
+                        <span className="text-[10px] text-[#F26722] font-black bg-white px-2 py-0.5 rounded-md border border-orange-200">
+                          Visible to Patient
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <span className="text-[10px] font-black text-neutral-600 block mb-1">Target Follow-Up Date</span>
+                          <input
+                            type="date"
+                            value={followUpDate}
+                            onChange={(e) => setFollowUpDate(e.target.value)}
+                            className="w-full p-2.5 bg-white border-2 border-neutral-300 rounded-xl text-xs text-black font-bold focus:border-[#F26722] focus:outline-none"
+                          />
+                          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                            {[
+                              { label: "+7 Days", days: 7 },
+                              { label: "+14 Days", days: 14 },
+                              { label: "+1 Month", days: 30 },
+                            ].map((preset) => (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                onClick={() => {
+                                  const d = new Date();
+                                  d.setDate(d.getDate() + preset.days);
+                                  setFollowUpDate(d.toISOString().split("T")[0]);
+                                }}
+                                className="px-2 py-0.5 rounded-md bg-white border border-neutral-300 hover:border-[#F26722] hover:text-[#F26722] text-[10px] font-black text-neutral-700 transition cursor-pointer"
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                            {followUpDate && (
+                              <button
+                                type="button"
+                                onClick={() => setFollowUpDate("")}
+                                className="px-2 py-0.5 rounded-md text-[10px] font-black text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-black text-neutral-600 block mb-1">Follow-Up Goal / Focus</span>
+                          <input
+                            type="text"
+                            value={followUpNotes}
+                            onChange={(e) => setFollowUpNotes(e.target.value)}
+                            placeholder="e.g. Review weight log, lab results & diet adherence"
+                            className="w-full p-2.5 bg-white border-2 border-neutral-300 rounded-xl text-xs text-black font-bold focus:border-[#F26722] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button
                         type="button"
@@ -976,6 +1081,38 @@ const AppointmentDetailModal = ({
                         </p>
                       )}
                     </div>
+
+                    {/* 📅 Recommended Follow-Up Consultation Display (Visible to Patient & Nutritionist) */}
+                    {(followUpDate || followUpNotes) ? (
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-300 space-y-2 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-emerald-950 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                            <Calendar size={14} className="text-emerald-700" /> Recommended Follow-up Consultation
+                          </span>
+                          {followUpDate && (
+                            <span className="px-2.5 py-0.5 rounded-full bg-white border border-emerald-300 text-xs font-black text-emerald-900 shadow-2xs">
+                              📅 {fmtDate(followUpDate)}
+                            </span>
+                          )}
+                        </div>
+                        {followUpNotes && (
+                          <p className="text-xs text-emerald-950 font-semibold bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                            {followUpNotes}
+                          </p>
+                        )}
+                      </div>
+                    ) : isNutritionist ? (
+                      <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs text-neutral-600 italic font-medium flex items-center justify-between">
+                        <span>No follow-up consultation date scheduled yet.</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingNotes(true)}
+                          className="text-[#F26722] font-black hover:underline not-italic cursor-pointer"
+                        >
+                          + Set Follow-Up
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
