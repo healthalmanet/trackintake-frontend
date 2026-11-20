@@ -5,10 +5,23 @@ import {
   Search, X, User, Video, Copy, ExternalLink,
   Clock, Calendar, Sparkles, Zap, ArrowRight, Check,
   RefreshCw, ShieldCheck, Sun, Sunrise, Sunset,
-  SlidersHorizontal, CheckCircle2, ChevronLeft,
+  SlidersHorizontal, CheckCircle2, ChevronLeft, ChevronRight,
   Building2, MapPin, Layers, Info, CheckSquare, Square, DollarSign, FileText,
-  Loader2, CalendarClock, History, AlertCircle
+  Loader2, CalendarClock, History, AlertCircle, List, Phone, Mail
 } from "lucide-react";
+import {
+  format,
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isSameMonth,
+  isSameDay,
+  isToday
+} from "date-fns";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getMySlots, addAvailability, deleteAvailability } from "../../../api/availabilityApi";
 import { getNutritionistProfile } from "../../../api/nutritionistApi";
@@ -361,7 +374,7 @@ const PatientModal = ({ slot, onClose, onOpenDetail, navigate }) => {
 };
 
 /* ─── Create Slots Modal (Custom Range + Mode + Grayed Pricing) ──── */
-const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
+const CreateSlotsModal = ({ isOpen, onClose, onCreated, initialDate = null }) => {
   // Mode selection
   const [slotType, setSlotType] = useState("VIRTUAL"); // VIRTUAL | IN_PERSON | BOTH
   const [pricingMode, setPricingMode] = useState("FIXED"); // FIXED | VARIABLE
@@ -393,6 +406,12 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
   // Fetch nutritionist profile pricing settings
   useEffect(() => {
     if (isOpen) {
+      if (initialDate) {
+        setSingleDate(initialDate);
+        setStartDate(initialDate);
+        setEndDate(initialDate);
+        setDateMode("SINGLE");
+      }
       setLoadingProfile(true);
       setSaveError(null);
       getNutritionistProfile()
@@ -404,7 +423,7 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated }) => {
         .catch((err) => console.error("Error fetching pricing settings:", err))
         .finally(() => setLoadingProfile(false));
     }
-  }, [isOpen]);
+  }, [isOpen, initialDate]);
 
   const applyPreset = (preset) => {
     setActivePreset(preset);
@@ -1091,13 +1110,19 @@ const AddAvailability = () => {
 
   // Modals & Drawers
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalInitialDate, setCreateModalInitialDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [detailModalApptId, setDetailModalApptId] = useState(null);
+
+  // View Mode: Calendar vs List
+  const [viewMode, setViewMode] = useState("calendar"); // "calendar" | "list"
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayStr());
 
   // Filters State
   const [timeHorizon, setTimeHorizon] = useState("upcoming"); // upcoming | past | all
   const [modeFilter, setModeFilter] = useState("ALL"); // ALL | VIRTUAL | IN_PERSON | BOTH
-  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | AVAILABLE | BOOKED
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | AVAILABLE | BOOKED | PENDING_REVIEW
   const [filterDate, setFilterDate] = useState("");
   const [search, setSearch] = useState("");
 
@@ -1106,11 +1131,16 @@ const AddAvailability = () => {
     setFetching(true);
     try {
       const params = {};
-      if (timeHorizon && timeHorizon !== "all") params.time_horizon = timeHorizon;
+      if (viewMode === "list") {
+        if (timeHorizon && timeHorizon !== "all") params.time_horizon = timeHorizon;
+        if (filterDate) params.date = filterDate;
+      } else {
+        // In calendar mode, load all slots so month indicators are populated
+        params.time_horizon = "all";
+      }
       if (modeFilter && modeFilter !== "ALL") params.slot_type = modeFilter;
       if (statusFilter === "AVAILABLE") params.status = "unbooked";
       if (statusFilter === "BOOKED" || statusFilter === "PENDING_REVIEW") params.status = "booked";
-      if (filterDate) params.date = filterDate;
       if (search) params.search = search;
 
       const res = await getMySlots(params);
@@ -1128,7 +1158,7 @@ const AddAvailability = () => {
 
   useEffect(() => {
     fetchSlots();
-  }, [timeHorizon, modeFilter, statusFilter, filterDate, location.key]);
+  }, [timeHorizon, modeFilter, statusFilter, filterDate, location.key, viewMode]);
 
   useEffect(() => {
     const timer = setTimeout(fetchSlots, 300);
@@ -1164,21 +1194,19 @@ const AddAvailability = () => {
 
     return combined.sort((a, b) => {
       if (a.date !== b.date) {
-        return timeHorizon === "past"
+        return timeHorizon === "past" && viewMode === "list"
           ? b.date.localeCompare(a.date)
           : a.date.localeCompare(b.date);
       }
-      return timeHorizon === "past"
-        ? b.start_time.localeCompare(a.start_time)
-        : a.start_time.localeCompare(b.start_time);
+      return a.start_time.localeCompare(b.start_time);
     });
-  }, [unbookedSlots, bookedSlots, timeHorizon, statusFilter]);
+  }, [unbookedSlots, bookedSlots, timeHorizon, statusFilter, viewMode]);
 
   const pendingReviewCount = useMemo(() => {
     return bookedSlots.filter((s) => s.appointment?.status === "PENDING_REVIEW").length;
   }, [bookedSlots]);
 
-  // Group by date
+  // Group by date for List View
   const groupedSlots = useMemo(() => {
     const map = {};
     for (const slot of allSlots) {
@@ -1194,12 +1222,226 @@ const AddAvailability = () => {
     }));
   }, [allSlots]);
 
+  // Fast hashmap by date for Calendar View
+  const slotsByDate = useMemo(() => {
+    const map = {};
+    for (const slot of allSlots) {
+      if (!map[slot.date]) {
+        map[slot.date] = { open: [], booked: [], pendingReview: [], all: [] };
+      }
+      map[slot.date].all.push(slot);
+      if (slot.is_booked) {
+        map[slot.date].booked.push(slot);
+        if (slot.appointment?.status === "PENDING_REVIEW") {
+          map[slot.date].pendingReview.push(slot);
+        }
+      } else {
+        map[slot.date].open.push(slot);
+      }
+    }
+    return map;
+  }, [allSlots]);
+
+  // Slots for the currently clicked date in Calendar
+  const selectedDaySlots = useMemo(() => {
+    return slotsByDate[selectedCalendarDate]?.all || [];
+  }, [slotsByDate, selectedCalendarDate]);
+
+  // Calendar dates matrix in current viewed month
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const calendarStartDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday start
+    const calendarEndDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
+
+    const days = [];
+    let day = calendarStartDate;
+    while (day <= calendarEndDate) {
+      days.push(day);
+      day = addDays(day, 1);
+    }
+    return days;
+  }, [calendarMonth]);
+
   const totalCount = allSlots.length;
   const availableCount = unbookedSlots.length;
   const bookedCount = bookedSlots.length;
 
+  const handleOpenAddModal = (date = null) => {
+    if (date) {
+      setCreateModalInitialDate(date);
+    } else {
+      setCreateModalInitialDate(null);
+    }
+    setCreateModalOpen(true);
+  };
+
+  /* ─── Render Single Slot Card ──────────────────────────────── */
+  const renderSlotCard = (slot) => {
+    const isBooked = slot.is_booked;
+    const mode = slot.slot_type || "VIRTUAL";
+    const price = slot.price || (mode === "IN_PERSON" ? slot.offline_price : slot.online_price) || 0;
+    const isPendingReview = slot.appointment?.status === "PENDING_REVIEW";
+    const isAwaitingPayment = slot.appointment?.status === "AWAITING_PAYMENT";
+
+    return (
+      <div
+        key={slot.id}
+        onClick={() => {
+          if (isBooked) setSelectedSlot(slot);
+        }}
+        className={`rounded-2xl border-2 transition-all p-4 bg-white flex flex-col justify-between shadow-xs ${
+          isBooked
+            ? "cursor-pointer hover:shadow-md hover:border-orange-500 border-orange-200"
+            : "hover:border-orange-400 border-slate-200"
+        }`}
+      >
+        <div>
+          {/* Slot Header */}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div>
+              <span className="text-sm font-black text-slate-900 font-[var(--font-primary)]">
+                {slot.start_time} – {slot.end_time}
+              </span>
+
+              {/* Mode Badge & Pricing Mode Badge */}
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {mode === "VIRTUAL" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                    <Video size={10} /> Virtual
+                  </span>
+                )}
+                {mode === "IN_PERSON" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    <Building2 size={10} /> In-Clinic
+                  </span>
+                )}
+                {mode === "BOTH" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    <Layers size={10} /> Online / Clinic
+                  </span>
+                )}
+                {slot.pricing_mode === "VARIABLE" ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-800 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                    <FileText size={10} /> Variable Quote
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                    <Zap size={10} /> Fixed
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              {isBooked ? (
+                isPendingReview ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-900 border border-orange-300 animate-pulse">
+                    <Sparkles size={10} /> Review Case
+                  </span>
+                ) : isAwaitingPayment ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-800 border border-orange-200">
+                    <Clock size={10} /> Quoted
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                    <Lock size={10} /> Booked
+                  </span>
+                )
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Open
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Price Display */}
+          <div className="flex items-center justify-between text-xs py-1.5 border-t border-slate-200">
+            <span className="text-[11px] font-medium text-slate-600">
+              {slot.pricing_mode === "VARIABLE" ? (
+                <span className="text-orange-700 font-bold">Quote upon case review</span>
+              ) : (
+                <>Fee: <strong className="text-slate-900">₹{price}</strong></>
+              )}
+            </span>
+            {mode === "IN_PERSON" && (
+              <span className="text-[10px] font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
+                {slot.offline_payment_required ? "Pay Online" : "Pay at Clinic"}
+              </span>
+            )}
+          </div>
+
+          {/* Patient Snippet for Booked Slots */}
+          {isBooked && slot.patient && (
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 my-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  {(slot.patient.name || "P").charAt(0).toUpperCase()}
+                </div>
+                <div className="overflow-hidden flex-1">
+                  <p className="text-xs font-bold text-slate-900 truncate">
+                    {slot.patient.name || "Patient"}
+                  </p>
+                  <p className="text-[10px] text-slate-500 truncate">
+                    {slot.patient.email || "No email"}
+                  </p>
+                </div>
+              </div>
+              {slot.patient.phone && (
+                <p className="text-[10px] text-slate-600 flex items-center gap-1 truncate">
+                  <Phone size={10} className="text-slate-400 shrink-0" />
+                  <span>{slot.patient.phone}</span>
+                </p>
+              )}
+              {slot.patient.goal && (
+                <p className="text-[10px] text-orange-950 font-medium truncate">
+                  🎯 {slot.patient.goal}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Slot Footer Actions */}
+        <div className="pt-2 mt-1 border-t border-slate-200 flex items-center justify-between">
+          {isBooked ? (
+            <div className="flex items-center justify-between w-full text-xs font-bold text-orange-600">
+              <span className={isPendingReview ? "text-orange-700 font-black flex items-center gap-1" : ""}>
+                {isPendingReview ? (
+                  <>
+                    <Sparkles size={12} /> Review Case Request
+                  </>
+                ) : (
+                  "Patient Details & Session"
+                )}
+              </span>
+              <ArrowRight size={13} className={isPendingReview ? "text-orange-700" : ""} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[10px] text-slate-500">
+                Available for booking
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteSlot(slot.id);
+                }}
+                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                title="Delete Slot"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen pb-20 bg-white text-slate-900 font-[var(--font-secondary)]">
+    <div className="min-h-screen pb-20 bg-[var(--color-bg-app)] text-slate-900 font-[var(--font-secondary)]">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -1235,13 +1477,20 @@ const AddAvailability = () => {
       {/* Add Slots Modal */}
       <CreateSlotsModal
         isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        onCreated={fetchSlots}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setCreateModalInitialDate(null);
+        }}
+        onCreated={() => {
+          fetchSlots();
+          setCreateModalInitialDate(null);
+        }}
+        initialDate={createModalInitialDate}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-6 sm:pt-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 space-y-6">
 
-        {/* ── Clean Header & Actions ── */}
+        {/* ── Header & Primary Controls ── */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <div className="mb-3">
@@ -1254,32 +1503,32 @@ const AddAvailability = () => {
               Appointments & Availability
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-              Manage appointments, consultation slots, patient requests, and review booked sessions.
+              Interactive calendar scheduling, consultation slots, patient reviews, and session management.
             </p>
           </div>
 
           {/* Quick Metrics Chips & Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white border-2 border-slate-200 shadow-xs flex items-center gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <div className="px-3.5 py-2 rounded-2xl bg-white border-2 border-slate-200 shadow-2xs flex items-center gap-2.5">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div>
                 <span className="text-base sm:text-lg font-black text-emerald-600 block leading-tight">
                   {summary.total_available ?? availableCount}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Available Slots
+                  Open Slots
                 </span>
               </div>
             </div>
 
-            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white border-2 border-slate-200 shadow-xs flex items-center gap-2.5 sm:gap-3">
+            <div className="px-3.5 py-2 rounded-2xl bg-white border-2 border-slate-200 shadow-2xs flex items-center gap-2.5">
               <Lock size={14} className="text-orange-600" />
               <div>
                 <span className="text-base sm:text-lg font-black text-orange-600 block leading-tight">
                   {summary.total_booked ?? bookedCount}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Booked Sessions
+                  Booked
                 </span>
               </div>
             </div>
@@ -1288,7 +1537,7 @@ const AddAvailability = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter("PENDING_REVIEW")}
-                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-orange-50 border-2 border-orange-300 shadow-xs flex items-center gap-2.5 sm:gap-3 cursor-pointer hover:bg-orange-100 transition-all text-left"
+                className="px-3.5 py-2 rounded-2xl bg-orange-50 border-2 border-orange-300 shadow-2xs flex items-center gap-2.5 cursor-pointer hover:bg-orange-100 transition-all text-left"
               >
                 <Sparkles size={16} className="text-orange-600 animate-pulse shrink-0" />
                 <div>
@@ -1306,14 +1555,14 @@ const AddAvailability = () => {
               <button
                 onClick={fetchSlots}
                 disabled={fetching}
-                className="p-2.5 rounded-2xl border-2 border-slate-200 bg-white hover:border-orange-500 text-slate-500 hover:text-orange-600 transition-colors cursor-pointer shadow-xs"
+                className="p-2.5 rounded-2xl border-2 border-slate-200 bg-white hover:border-orange-500 text-slate-500 hover:text-orange-600 transition-colors cursor-pointer shadow-2xs"
                 title="Refresh Slots"
               >
                 <RefreshCw size={16} className={fetching ? "animate-spin text-orange-600" : ""} />
               </button>
 
               <button
-                onClick={() => setCreateModalOpen(true)}
+                onClick={() => handleOpenAddModal()}
                 className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md active:scale-98 transition-all cursor-pointer"
               >
                 <Plus size={16} /> Add Slots
@@ -1347,479 +1596,440 @@ const AddAvailability = () => {
           </div>
         )}
 
-        {/* ── Streamlined Filter Toolbar (Horizon + Mode + Status + Search) ── */}
-        <div className="p-4 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-3">
-          
-          {/* Main Horizon & Mode & Status Row */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Horizon Filter Tabs (Upcoming / Past / All) */}
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
-              {[
-                { key: "upcoming", label: "Upcoming", count: summary.upcoming_count, icon: <CalendarClock size={12} /> },
-                { key: "past", label: "Past", count: summary.past_count, icon: <History size={12} /> },
-                { key: "all", label: "All Slots", count: summary.total_count, icon: <CalendarDays size={12} /> },
-              ].map((tab) => {
-                const isActive = timeHorizon === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setTimeHorizon(tab.key)}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      isActive
-                        ? "bg-orange-500 text-white shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    {isActive && fetching ? (
-                      <Loader2 size={12} className="animate-spin text-white shrink-0" />
-                    ) : (
-                      tab.icon
-                    )}
-                    <span>{tab.label}</span>
-                    {tab.count !== undefined && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        isActive
-                          ? "bg-white/25 text-white"
-                          : "bg-slate-200 text-slate-700"
-                      }`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+        {/* ── Clean Consolidated Control Toolbar ── */}
+        <div className="p-3.5 sm:p-4 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            {/* Left: View Mode Switcher + Horizon Tabs */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Calendar vs List Segmented Switcher */}
+              <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("calendar")}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === "calendar"
+                      ? "bg-orange-500 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Calendar size={13} />
+                  <span>Calendar View</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === "list"
+                      ? "bg-orange-500 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <List size={13} />
+                  <span>List View</span>
+                </button>
+              </div>
+
+              {/* In List View: Horizon Filters (Upcoming / Past / All) */}
+              {viewMode === "list" && (
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200">
+                  {[
+                    { key: "upcoming", label: "Upcoming", count: summary.upcoming_count },
+                    { key: "past", label: "Past", count: summary.past_count },
+                    { key: "all", label: "All Slots", count: summary.total_count },
+                  ].map((tab) => {
+                    const isActive = timeHorizon === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setTimeHorizon(tab.key)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          isActive
+                            ? "bg-white text-orange-600 shadow-2xs font-black border border-slate-200"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        {tab.count !== undefined && (
+                          <span className="text-[10px] opacity-75">({tab.count})</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Mode Filter Tabs (All / Virtual / In-Clinic / Both) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
-              {[
-                { key: "ALL", label: "All Modes", icon: <Layers size={11} /> },
-                { key: "VIRTUAL", label: "Virtual", icon: <Video size={11} /> },
-                { key: "IN_PERSON", label: "In-Clinic", icon: <Building2 size={11} /> },
-                { key: "BOTH", label: "Both", icon: <Layers size={11} /> },
-              ].map((m) => {
-                const isActive = modeFilter === m.key;
-                return (
+            {/* Right: Search + Quick Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search Patient */}
+              <div className="relative min-w-[180px] sm:min-w-[220px]">
+                {fetching && search ? (
+                  <Loader2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-600 animate-spin" />
+                ) : (
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                )}
+                <input
+                  type="text"
+                  placeholder="Search patient or email..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-slate-200 bg-white focus:border-orange-500 focus:outline-none text-xs text-slate-900 font-medium"
+                />
+                {search && (
                   <button
-                    key={m.key}
-                    onClick={() => setModeFilter(m.key)}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      isActive
-                        ? "bg-white text-orange-600 shadow-xs font-black border-2 border-orange-500"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {isActive && fetching ? (
-                      <Loader2 size={11} className="animate-spin text-orange-600 shrink-0" />
-                    ) : (
-                      m.icon
-                    )}
-                    <span>{m.label}</span>
+                    <X size={12} />
                   </button>
-                );
-              })}
-            </div>
+                )}
+              </div>
 
-            {/* Status Tabs (All / Open / Booked / Case Requests) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
-              {[
-                { key: "ALL", label: "All", count: totalCount, icon: <Layers size={11} /> },
-                { key: "AVAILABLE", label: "Open", count: availableCount, icon: <CheckCircle2 size={11} className="text-emerald-500" /> },
-                { key: "BOOKED", label: "Booked", count: bookedCount, icon: <Lock size={11} className="text-orange-500" /> },
-                ...(pendingReviewCount > 0
-                  ? [{ key: "PENDING_REVIEW", label: "Case Requests ⚡", count: pendingReviewCount, icon: <Sparkles size={11} className="text-orange-600 animate-pulse" /> }]
-                  : []),
-              ].map((st) => {
-                const isActive = statusFilter === st.key;
-                return (
+              {/* Status Filter */}
+              <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200">
+                {[
+                  { key: "ALL", label: "All" },
+                  { key: "AVAILABLE", label: "Open" },
+                  { key: "BOOKED", label: "Booked" },
+                  ...(pendingReviewCount > 0
+                    ? [{ key: "PENDING_REVIEW", label: "Quotes ⚡" }]
+                    : []),
+                ].map((st) => (
                   <button
                     key={st.key}
                     onClick={() => setStatusFilter(st.key)}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      isActive
-                        ? "bg-white text-orange-600 shadow-xs font-black border-2 border-orange-500"
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === st.key
+                        ? "bg-white text-orange-600 shadow-2xs font-black border border-slate-200"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    {isActive && fetching ? (
-                      <Loader2 size={11} className="animate-spin text-orange-600 shrink-0" />
-                    ) : (
-                      st.icon
-                    )}
-                    <span>{st.label}</span>
-                    <span className="text-[10px] opacity-75 font-normal">({st.count})</span>
+                    {st.label}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Search & Specific Date Picker */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200">
-            <div className="relative">
-              {fetching && search ? (
-                <Loader2
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-600 animate-spin"
-                />
-              ) : (
-                <Search
-                  size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-              )}
-              <input
-                type="text"
-                placeholder="Search patient name or email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 bg-white focus:border-orange-500 focus:outline-none text-xs text-slate-900 font-medium"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-
-            <div className="relative">
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:border-orange-500 focus:outline-none text-xs text-slate-900 font-semibold"
-              />
-              {filterDate && (
-                <button
-                  onClick={() => setFilterDate("")}
-                  title="Clear Date"
-                  className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
-              )}
-              {fetching && filterDate && (
-                <Loader2
-                  size={12}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-orange-600 animate-spin"
-                />
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setTimeHorizon("upcoming");
-                  setModeFilter("ALL");
-                  setStatusFilter("ALL");
-                  setFilterDate("");
-                  setSearch("");
-                }}
-                className="w-full py-1.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Reset Filters
-              </button>
-            </div>
-          </div>
-
-          {/* Active Filter Progress Bar */}
-          {fetching && (
-            <div className="w-full h-1 bg-slate-200 overflow-hidden rounded-full mt-2">
-              <div className="h-full bg-orange-500 w-full animate-pulse" />
-            </div>
-          )}
-        </div>
-
-        {/* ── Slot Groups by Date / Loader / Empty State ── */}
-        {fetching ? (
-          <div className="space-y-6">
-            {/* Shimmering Loader Header */}
-            <div className="p-8 sm:p-10 rounded-3xl border-2 border-slate-200 bg-white text-center shadow-xs">
-              <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3 text-orange-600">
-                <Loader2 size={28} className="animate-spin text-orange-600" />
+                ))}
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 font-[var(--font-primary)]">
-                Loading Availability Slots...
-              </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                Fetching {timeHorizon === "all" ? "all" : timeHorizon} consultation slots with current filters
-              </p>
-            </div>
 
-            {/* Skeleton Slot Cards Shimmer */}
-            {[1, 2].map((groupKey) => (
-              <div key={groupKey} className="space-y-3 animate-pulse">
-                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-md bg-slate-200" />
-                    <div className="w-36 h-4 rounded-md bg-slate-200" />
-                    <div className="w-16 h-4 rounded-full bg-slate-200" />
-                  </div>
-                  <div className="w-14 h-3 rounded-md bg-slate-200" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {[1, 2, 3].map((cardKey) => (
-                    <div
-                      key={cardKey}
-                      className="p-4 rounded-2xl border-2 border-slate-200 bg-white space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="w-24 h-5 rounded-lg bg-slate-200" />
-                        <div className="w-16 h-5 rounded-lg bg-slate-200" />
-                      </div>
-                      <div className="w-32 h-4 rounded-md bg-slate-200" />
-                      <div className="w-full h-9 rounded-xl bg-slate-200" />
-                    </div>
-                  ))}
-                </div>
+              {/* Mode Filter */}
+              <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200">
+                {[
+                  { key: "ALL", label: "All Modes" },
+                  { key: "VIRTUAL", label: "Virtual" },
+                  { key: "IN_PERSON", label: "In-Clinic" },
+                ].map((m) => (
+                  <button
+                    key={m.key}
+                    onClick={() => setModeFilter(m.key)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      modeFilter === m.key
+                        ? "bg-white text-orange-600 shadow-2xs font-black border border-slate-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : groupedSlots.length === 0 ? (
-          <div className="text-center py-16 px-4 rounded-3xl border-2 border-dashed border-slate-200 bg-white">
-            <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3 text-orange-600">
-              <CalendarDays size={28} />
-            </div>
-            <h3 className="text-base font-bold text-slate-900 font-[var(--font-primary)]">
-              No {timeHorizon === "all" ? "availability" : timeHorizon} slots found
-            </h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
-              {search
-                ? `No consultation slots match your search "${search}".`
-                : filterDate
-                ? `No consultation slots scheduled for ${fmtDate(filterDate)}.`
-                : modeFilter !== "ALL" || statusFilter !== "ALL"
-                ? `No consultation slots match your filter criteria (${modeFilter !== "ALL" ? `Mode: ${modeFilter}` : ""} ${statusFilter !== "ALL" ? `Status: ${statusFilter}` : ""}).`
-                : timeHorizon === "upcoming" && summary.past_count > 0
-                ? `You don't have any upcoming availability slots matching your filter, but you have ${summary.past_count} slot${summary.past_count > 1 ? "s" : ""} in Past Slots.`
-                : timeHorizon === "upcoming"
-                ? "You don't have any upcoming availability slots. Generate new slots to let patients book appointments with you."
-                : "No consultation slots match your current filter settings."}
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {(search || filterDate || modeFilter !== "ALL" || statusFilter !== "ALL" || timeHorizon !== "upcoming") && (
+
+              {/* Reset if filtered */}
+              {(search || filterDate || modeFilter !== "ALL" || statusFilter !== "ALL") && (
                 <button
                   onClick={() => {
-                    setTimeHorizon("upcoming");
                     setModeFilter("ALL");
                     setStatusFilter("ALL");
                     setFilterDate("");
                     setSearch("");
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 cursor-pointer"
+                  className="py-1 px-2 rounded-lg text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors cursor-pointer"
+                  title="Reset Filters"
                 >
-                  <RefreshCw size={13} /> Reset Filters
+                  Reset
                 </button>
               )}
-              {timeHorizon === "upcoming" && summary.past_count > 0 && (
-                <>
+            </div>
+          </div>
+        </div>
+
+        {/* ═════════════════════════════════════════════════════════
+            VIEW 1: INTERACTIVE CALENDAR UI (DEFAULT)
+        ═══════════════════════════════════════════════════════════ */}
+        {viewMode === "calendar" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left 7 Columns: Interactive Month Grid */}
+            <div className="lg:col-span-7 xl:col-span-7 bg-white rounded-3xl border-2 border-slate-200 shadow-xs overflow-hidden">
+              {/* Calendar Month Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50/70">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setTimeHorizon("past")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 cursor-pointer"
+                    onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
+                    className="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                    title="Previous Month"
                   >
-                    View Past Slots ({summary.past_count})
+                    <ChevronLeft size={18} />
                   </button>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 font-[var(--font-primary)] min-w-[150px] text-center">
+                    {format(calendarMonth, "MMMM yyyy")}
+                  </h2>
                   <button
-                    onClick={() => setTimeHorizon("all")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-900 bg-slate-100 border border-slate-200 hover:bg-slate-200 cursor-pointer"
+                    onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
+                    className="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                    title="Next Month"
                   >
-                    View All Slots ({summary.total_count})
+                    <ChevronRight size={18} />
                   </button>
-                </>
-              )}
-              <button
-                onClick={() => setCreateModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md cursor-pointer"
-              >
-                <Plus size={15} /> Add Availability Slots
-              </button>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      setCalendarMonth(today);
+                      setSelectedCalendarDate(getTodayStr());
+                    }}
+                    className="px-3 py-1 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:border-orange-500 hover:text-orange-600 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    Today
+                  </button>
+
+                  <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-semibold text-slate-500 pl-1 border-l border-slate-200">
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Open</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Booked</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Quote Due</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Day of Week Labels */}
+              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50 py-2">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+                  <div key={dayName} className="text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    {dayName}
+                  </div>
+                ))}
+              </div>
+
+              {/* Month Grid */}
+              <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-200">
+                {calendarDays.map((day) => {
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const isCurrMonth = isSameMonth(day, calendarMonth);
+                  const isTodayDay = isToday(day);
+                  const isSelected = selectedCalendarDate === dateStr;
+                  const dayData = slotsByDate[dateStr] || { open: [], booked: [], pendingReview: [], all: [] };
+                  const hasOpen = dayData.open.length > 0;
+                  const hasBooked = dayData.booked.length > 0;
+                  const hasQuote = dayData.pendingReview.length > 0;
+
+                  return (
+                    <div
+                      key={dateStr}
+                      onClick={() => {
+                        setSelectedCalendarDate(dateStr);
+                        if (!isCurrMonth) {
+                          setCalendarMonth(day);
+                        }
+                      }}
+                      className={`min-h-[76px] sm:min-h-[88px] p-1.5 sm:p-2 transition-all flex flex-col justify-between cursor-pointer select-none relative ${
+                        isSelected
+                          ? "bg-orange-50/60 ring-2 ring-orange-500 z-10 shadow-2xs"
+                          : isCurrMonth
+                          ? "bg-white hover:bg-slate-50"
+                          : "bg-slate-50/40 text-slate-400 hover:bg-slate-100/50"
+                      }`}
+                    >
+                      {/* Top: Day Number + Today Marker */}
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`text-xs font-bold flex items-center justify-center w-6 h-6 rounded-full ${
+                            isTodayDay
+                              ? "bg-orange-500 text-white font-black shadow-2xs"
+                              : isSelected
+                              ? "text-orange-600 font-black"
+                              : isCurrMonth
+                              ? "text-slate-800"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {format(day, "d")}
+                        </span>
+
+                        {/* Dot indicator on small screens */}
+                        <div className="flex sm:hidden items-center gap-0.5">
+                          {hasQuote && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+                          {hasBooked && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                          {hasOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                        </div>
+                      </div>
+
+                      {/* Bottom Badges on Tablet/Desktop */}
+                      <div className="hidden sm:flex flex-col gap-1 mt-1">
+                        {hasQuote && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-md font-extrabold bg-amber-100 text-amber-900 border border-amber-300 truncate block animate-pulse">
+                            ⚡ {dayData.pendingReview.length} Quote Due
+                          </span>
+                        )}
+                        {hasBooked && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-md font-bold bg-orange-100 text-orange-800 truncate block">
+                            {dayData.booked.length} booked
+                          </span>
+                        )}
+                        {hasOpen && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-md font-bold bg-emerald-100 text-emerald-800 truncate block">
+                            {dayData.open.length} open
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Calendar Summary Footnote */}
+              <div className="p-3 bg-slate-50/70 flex items-center justify-between text-xs text-slate-500">
+                <span>Click any day to manage its consultation schedule</span>
+                <span className="font-semibold text-slate-700">
+                  {format(calendarMonth, "MMMM")}: {summary.total_count || totalCount} Total Slots
+                </span>
+              </div>
+            </div>
+
+            {/* Right 5 Columns: Selected Day Agenda & Details */}
+            <div className="lg:col-span-5 xl:col-span-5 space-y-4">
+              <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-xs p-5">
+                {/* Day Header */}
+                <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Day Schedule
+                      </span>
+                      {getRelativeDateLabel(selectedCalendarDate) && (
+                        <span
+                          className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                            getRelativeDateLabel(selectedCalendarDate) === "Today"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : getRelativeDateLabel(selectedCalendarDate) === "Tomorrow"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {getRelativeDateLabel(selectedCalendarDate)}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 font-[var(--font-primary)]">
+                      {fmtDate(selectedCalendarDate)}
+                    </h3>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddModal(selectedCalendarDate)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-2xs shrink-0 cursor-pointer"
+                  >
+                    <Plus size={14} /> Add Slots
+                  </button>
+                </div>
+
+                {/* Day Slots List */}
+                <div className="pt-3">
+                  {fetching ? (
+                    <div className="py-12 text-center text-slate-500 space-y-2">
+                      <Loader2 size={24} className="animate-spin text-orange-600 mx-auto" />
+                      <p className="text-xs font-semibold">Loading day slots...</p>
+                    </div>
+                  ) : selectedDaySlots.length === 0 ? (
+                    <div className="py-12 px-4 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50">
+                      <CalendarClock size={32} className="text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm font-bold text-slate-800">
+                        No slots for {fmtDate(selectedCalendarDate)}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1 mb-4">
+                        You have not scheduled any consultation slots for this date.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAddModal(selectedCalendarDate)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Availability for this Date
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[620px] overflow-y-auto pr-1">
+                      <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
+                        <span>{selectedDaySlots.length} slot{selectedDaySlots.length > 1 ? "s" : ""} scheduled</span>
+                        <span>
+                          {selectedDaySlots.filter(s => s.is_booked).length} booked • {selectedDaySlots.filter(s => !s.is_booked).length} open
+                        </span>
+                      </div>
+                      {selectedDaySlots.map((slot) => renderSlotCard(slot))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
+          /* ═════════════════════════════════════════════════════════
+              VIEW 2: TRADITIONAL LIST VIEW (FILTERABLE CARDS)
+          ═══════════════════════════════════════════════════════════ */
           <div className="space-y-6">
-            {groupedSlots.map(({ date, slots, relative }) => (
-              <div key={date} className="space-y-3">
-                {/* Date Group Header */}
-                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={15} className="text-orange-600" />
-                    <h2 className="text-sm font-bold text-slate-900 font-[var(--font-primary)]">
-                      {fmtDate(date)}
-                    </h2>
-                    {relative && (
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        relative === "Today"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : relative === "Tomorrow"
-                          ? "bg-orange-100 text-orange-800"
-                          : "bg-slate-100 text-slate-700"
-                      }`}>
-                        {relative}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-500 font-semibold">
-                    {slots.length} slot{slots.length > 1 ? "s" : ""}
-                  </span>
-                </div>
-
-                {/* Slots Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {slots.map((slot) => {
-                    const isBooked = slot.is_booked;
-                    const mode = slot.slot_type || "VIRTUAL";
-                    const price = slot.price || (mode === "IN_PERSON" ? slot.offline_price : slot.online_price) || 0;
-
-                    return (
-                      <div
-                        key={slot.id}
-                        onClick={() => {
-                          if (isBooked) setSelectedSlot(slot);
-                        }}
-                        className={`rounded-2xl border-2 transition-all p-4 bg-white flex flex-col justify-between shadow-xs ${
-                          isBooked
-                            ? "cursor-pointer hover:shadow-md hover:border-orange-500 border-orange-200"
-                            : "hover:border-orange-400 border-slate-200"
-                        }`}
-                      >
-                        <div>
-                          {/* Slot Header */}
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div>
-                              <span className="text-sm font-black text-slate-900 font-[var(--font-primary)]">
-                                {slot.start_time} – {slot.end_time}
-                              </span>
-
-                              {/* Mode Badge & Pricing Mode Badge */}
-                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                {mode === "VIRTUAL" && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
-                                    <Video size={10} /> Virtual
-                                  </span>
-                                )}
-                                {mode === "IN_PERSON" && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                    <Building2 size={10} /> In-Clinic
-                                  </span>
-                                )}
-                                {mode === "BOTH" && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                    <Layers size={10} /> Online / Clinic
-                                  </span>
-                                )}
-                                {slot.pricing_mode === "VARIABLE" ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-800 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
-                                    <FileText size={10} /> Variable Quote
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    <Zap size={10} /> Fixed
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div>
-                              {isBooked ? (
-                                slot.appointment?.status === "PENDING_REVIEW" ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-900 border border-orange-300 animate-pulse">
-                                    <Sparkles size={10} /> Review Case
-                                  </span>
-                                ) : slot.appointment?.status === "AWAITING_PAYMENT" ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-800 border border-orange-200">
-                                    <Clock size={10} /> Quoted
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
-                                    <Lock size={10} /> Booked
-                                  </span>
-                                )
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Open
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Price Display */}
-                          <div className="flex items-center justify-between text-xs py-1.5 border-t border-slate-200">
-                            <span className="text-[11px] font-medium text-slate-600">
-                              {slot.pricing_mode === "VARIABLE" ? (
-                                <span className="text-orange-700 font-bold">Quote upon case review</span>
-                              ) : (
-                                <>Fee: <strong className="text-slate-900">₹{price}</strong></>
-                              )}
-                            </span>
-                            {mode === "IN_PERSON" && (
-                              <span className="text-[10px] font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
-                                {slot.offline_payment_required ? "Pay Online" : "Pay at Clinic"}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Patient Snippet for Booked Slots */}
-                          {isBooked && slot.patient && (
-                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 my-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                  {(slot.patient.name || "P").charAt(0).toUpperCase()}
-                                </div>
-                                <div className="overflow-hidden">
-                                  <p className="text-xs font-bold text-slate-900 truncate">
-                                    {slot.patient.name || "Patient"}
-                                  </p>
-                                  <p className="text-[10px] text-slate-500 truncate">
-                                    {slot.patient.email || "No email"}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Slot Footer Actions */}
-                        <div className="pt-2 mt-1 border-t border-slate-200 flex items-center justify-between">
-                          {isBooked ? (
-                            <div className="flex items-center justify-between w-full text-xs font-bold text-orange-600">
-                              <span className={slot.appointment?.status === "PENDING_REVIEW" ? "text-orange-700 font-black flex items-center gap-1" : ""}>
-                                {slot.appointment?.status === "PENDING_REVIEW" ? (
-                                  <>
-                                    <Sparkles size={12} /> Review Case Request
-                                  </>
-                                ) : (
-                                  "Patient Details"
-                                )}
-                              </span>
-                              <ArrowRight size={13} className={slot.appointment?.status === "PENDING_REVIEW" ? "text-orange-700" : ""} />
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-[10px] text-slate-500">
-                                Available for booking
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteSlot(slot.id);
-                                }}
-                                className="p-1 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="Delete Slot"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            {fetching ? (
+              <div className="p-10 rounded-3xl border-2 border-slate-200 bg-white text-center shadow-xs">
+                <Loader2 size={32} className="animate-spin text-orange-600 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-900">Loading Availability Slots...</h3>
+                <p className="text-xs text-slate-500 mt-1">Fetching your consultation schedule...</p>
               </div>
-            ))}
+            ) : groupedSlots.length === 0 ? (
+              <div className="text-center py-16 px-4 rounded-3xl border-2 border-dashed border-slate-200 bg-white">
+                <CalendarDays size={32} className="text-orange-600 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-900">No availability slots found</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                  {search
+                    ? `No consultation slots match your search "${search}".`
+                    : "No consultation slots match your current filter settings."}
+                </p>
+                <button
+                  onClick={() => handleOpenAddModal()}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md cursor-pointer"
+                >
+                  <Plus size={15} /> Add Availability Slots
+                </button>
+              </div>
+            ) : (
+              groupedSlots.map(({ date, slots, relative }) => (
+                <div key={date} className="space-y-3">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={15} className="text-orange-600" />
+                      <h2 className="text-sm font-bold text-slate-900 font-[var(--font-primary)]">
+                        {fmtDate(date)}
+                      </h2>
+                      {relative && (
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                            relative === "Today"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : relative === "Tomorrow"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {relative}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-slate-500 font-semibold">
+                      {slots.length} slot{slots.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {slots.map((slot) => renderSlotCard(slot))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>

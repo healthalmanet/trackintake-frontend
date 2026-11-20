@@ -25,15 +25,30 @@ class WebSocketManager {
       onSuggestion: new Set(),
       onAppointment: new Set(),
     };
-    this.wsUrl = import.meta.env.VITE_WS_URL;
+    const defaultWsUrl = typeof window !== 'undefined'
+      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+      : '';
+    this.wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;
     this.heartbeatInterval = 30000;
     this.maxReconnectDelay = 30000;
     this.baseReconnectDelay = 2000;
 
-    // Handle page unload and logout events
+    // Handle page unload, focus, storage and logout events
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => this.disconnectAll());
       window.addEventListener('trackintake:logout', () => this.disconnectAll());
+      window.addEventListener('focus', () => {
+        if (localStorage.getItem('token')) {
+          this.connect('message');
+          this.connect('reminder');
+        }
+      });
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'token' && e.newValue) {
+          this.connect('message');
+          this.connect('reminder');
+        }
+      });
     }
   }
 
@@ -173,6 +188,11 @@ const useWebSockets = ({ onReminder, onMessage, onSuggestion, onAppointment } = 
     onMessageRef.current = onMessage;
     onSuggestionRef.current = onSuggestion;
     onAppointmentRef.current = onAppointment;
+    // Ensure active connection if token is available
+    if (localStorage.getItem('token')) {
+      manager.connect('message');
+      manager.connect('reminder');
+    }
   });
 
   useEffect(() => {
@@ -198,4 +218,5 @@ const useWebSockets = ({ onReminder, onMessage, onSuggestion, onAppointment } = 
   }, []);
 };
 
+export { manager as wsManager };
 export default useWebSockets;

@@ -605,7 +605,18 @@ const QuickMealLogger = ({ onMealLogged }) => {
                     </div>
                   )}
 
-                  <input type="text" value={item.remark} onChange={(e) => handleFoodChange(index, "remark", e.target.value)} placeholder="Remark (optional)" className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" />
+                  <div>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-1">
+                      Remarks (Optional - e.g. with 3 spoons of ghee, 3 tbsp bhindi)
+                    </label>
+                    <input
+                      type="text"
+                      value={item.remark}
+                      onChange={(e) => handleFoodChange(index, "remark", e.target.value)}
+                      placeholder="e.g. with 3 spoons of ghee, 3 tbsp bhindi, or cooked in olive oil"
+                      className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition"
+                    />
+                  </div>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input type="date" value={item.logDate || ""} max={getLocalDateInputFormat(new Date())} onChange={(e) => handleFoodChange(index, "logDate", e.target.value)} className="flex-1 bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)] transition" required />
                     <div className="flex-1"> {/* Wrapper div is needed for flex layout to work correctly */}

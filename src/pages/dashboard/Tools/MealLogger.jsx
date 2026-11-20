@@ -1029,19 +1029,21 @@ const MealLogger = () => {
                         </div>
 
 
-                        <div className="col-span-12 relative">
-                          <input
-                            type="text"
-                            value={input.remark}
-                            onChange={(e) =>
-                              handleFoodChange(idx, "remark", e.target.value)
-                            }
-                            className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2.5 text-[var(--color-text-default)] focus:outline-none focus:border-[var(--color-primary)] transition-colors peer"
-                            placeholder=" "
-                          />
-                          <label className="absolute left-3 -top-2.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-surface)] px-1 peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-[var(--color-primary)] transition-all pointer-events-none">
-                            Remarks (Optional)
-                          </label>
+                        <div className="col-span-12">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={input.remark}
+                              onChange={(e) =>
+                                handleFoodChange(idx, "remark", e.target.value)
+                              }
+                              className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] rounded-lg px-3 py-2.5 text-sm text-[var(--color-text-default)] placeholder:text-[var(--color-text-muted)] placeholder:text-xs focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                              placeholder="e.g. with 3 spoons of ghee, 3 tbsp bhindi, or cooked in olive oil"
+                            />
+                            <label className="absolute left-3 -top-2.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-surface)] px-1 pointer-events-none truncate max-w-[90%]">
+                              Remarks (Optional - e.g. with 3 spoons of ghee, 3 tbsp bhindi)
+                            </label>
+                          </div>
                         </div>
                         <button
                           type="button"
