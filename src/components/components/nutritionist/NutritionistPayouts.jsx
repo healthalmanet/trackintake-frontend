@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   DollarSign, TrendingUp, Clock, CheckCircle2,
   Calendar, User, Video, Search, RefreshCw,
-  AlertCircle, ArrowUpRight, Filter, ChevronLeft
+  AlertCircle, ArrowUpRight, Filter, ChevronLeft, Percent, ShieldCheck
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { getNutritionistPayouts } from "../../../api/appointmentApi";
@@ -96,15 +96,41 @@ const NutritionistPayouts = () => {
           </button>
         </div>
 
+        {/* ── Platform Commission Policy Notice ── */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-orange-50/90 via-amber-50/40 to-white border-2 border-orange-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-2.5 rounded-2xl bg-orange-100 text-orange-700 shrink-0 mt-0.5 sm:mt-0">
+              <Percent size={20} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 font-[var(--font-primary)]">
+                  Platform Commission Policy: {summary.commission_rate ?? 5}% Fee Cut
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200">
+                  Standard Rate
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                TrackIntake retains a {summary.commission_rate ?? 5}% platform commission on online consultations for scheduling, secure video rooms, and payment processing. All figures below represent your net take-home earnings.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-orange-800 bg-orange-100/70 px-3 py-1.5 rounded-xl shrink-0 self-end sm:self-center">
+            <ShieldCheck size={15} className="text-orange-600" />
+            <span>Automatic Deduction</span>
+          </div>
+        </div>
+
         {/* ── Summary Statistics Cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-          {/* Total Earnings */}
+          {/* Net Earnings */}
           <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Total Earnings
+                Net Take-Home
               </span>
-              <div className="p-2 rounded-xl bg-orange-50 text-orange-600">
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
                 <DollarSign size={18} />
               </div>
             </div>
@@ -112,7 +138,7 @@ const NutritionistPayouts = () => {
               ₹{Number(summary.total_earned || 0).toLocaleString()}
             </p>
             <p className="text-[11px] text-slate-500 font-medium">
-              From online booking fees
+              After {summary.commission_rate ?? 5}% platform cut
             </p>
           </div>
 
@@ -152,21 +178,21 @@ const NutritionistPayouts = () => {
             </p>
           </div>
 
-          {/* Total Bookings */}
+          {/* Platform Fee & Bookings Combined Card */}
           <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Online Consultations
+                Platform Cut ({summary.commission_rate ?? 5}%)
               </span>
               <div className="p-2 rounded-xl bg-orange-50 text-orange-600">
-                <TrendingUp size={18} />
+                <Percent size={18} />
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900 font-[var(--font-primary)]">
-              {summary.total_bookings || 0}
+            <p className="text-2xl sm:text-3xl font-black text-orange-600 font-[var(--font-primary)]">
+              -₹{Number(summary.platform_commission_total || 0).toLocaleString()}
             </p>
             <p className="text-[11px] text-slate-500 font-medium">
-              Platform appointment sessions
+              Across {summary.total_bookings || 0} online sessions
             </p>
           </div>
         </div>
@@ -236,8 +262,9 @@ const NutritionistPayouts = () => {
                     <th className="py-3.5 px-4">Patient</th>
                     <th className="py-3.5 px-4">Session Date & Time</th>
                     <th className="py-3.5 px-4">Mode</th>
-                    <th className="py-3.5 px-4">Fee Collected</th>
-                    <th className="py-3.5 px-4">Payout Amount</th>
+                    <th className="py-3.5 px-4">Booking Fee</th>
+                    <th className="py-3.5 px-4">Platform Fee Cut</th>
+                    <th className="py-3.5 px-4">Net Payout</th>
                     <th className="py-3.5 px-4">Payout Status</th>
                     <th className="py-3.5 px-4">Admin Disbursement</th>
                   </tr>
@@ -246,6 +273,8 @@ const NutritionistPayouts = () => {
                   {payouts.map((item) => {
                     const isPending = item.payout_status === "PENDING";
                     const isPaid = item.payout_status === "PAID";
+                    const commRate = item.commission_rate ?? summary.commission_rate ?? 5;
+                    const commAmount = item.commission_amount ?? (item.fee_amount ? Number(((item.fee_amount * commRate) / 100).toFixed(2)) : 0);
                     return (
                       <tr
                         key={item.id}
@@ -281,8 +310,17 @@ const NutritionistPayouts = () => {
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-600">
+                        <td className="py-3.5 px-4 font-bold text-slate-700">
                           ₹{item.fee_amount || 0}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-orange-600">
+                          {commAmount > 0 ? (
+                            <span className="inline-flex items-center gap-1">
+                              -₹{commAmount} <span className="text-[10px] text-slate-400">({commRate}%)</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-medium">₹0</span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 font-black text-slate-900 text-sm">
                           ₹{item.payout_amount || item.fee_amount || 0}

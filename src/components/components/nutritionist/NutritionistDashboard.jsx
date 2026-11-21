@@ -42,6 +42,8 @@ import {
   CheckCheck,
   ShieldCheck,
   CreditCard,
+  DollarSign,
+  Percent,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";

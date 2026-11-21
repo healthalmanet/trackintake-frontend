@@ -46,74 +46,149 @@ const NutriNavbar = () => {
     useEffect(() => {
         clearNotificationsFromSender = (senderId) => {
             if (!senderId) return;
-            setNotifications(prev => prev.filter(n => String(n.sender_id) !== String(senderId)));
+            const senderIdStr = String(senderId);
+            setNotifications(prev => prev.filter(n => String(n.sender_id) !== senderIdStr));
         };
         return () => { clearNotificationsFromSender = () => {}; };
     }, []);
 
-    useEffect(() => {
-        if (!user) return;
-        const fetchInitialNotifications = async () => {
+    const fetchInitialNotifications = useCallback(async () => {
+        if (!user?.id) return;
+        try {
+            // 1. Fetch unread chat messages for this user
+            const response = await getMessages({ is_read: 'false' }); 
+            const rawMessages = Array.isArray(response.data) 
+                ? response.data 
+                : (response.data?.results || response.data?.messages || []);
+
+            const currentUserIdStr = String(user.id);
+            const activeUnreadChatNotifs = rawMessages
+                .filter(msg => {
+                    const senderIdStr = String(msg.sender_id || msg.sender?.id || '');
+                    const receiverIdStr = String(msg.receiver_id || msg.receiver?.id || '');
+                    // Exclude messages sent by the nutritionist themselves
+                    if (senderIdStr === currentUserIdStr) return false;
+                    // Ensure message is destined for this nutritionist
+                    if (receiverIdStr && receiverIdStr !== currentUserIdStr) return false;
+                    // Must be unread
+                    return !msg.is_read;
+                })
+                .map(msg => ({
+                    id: String(msg.id),
+                    type: 'message',
+                    sender_id: msg.sender_id || msg.sender?.id,
+                    sender_name: msg.sender_name || msg.sender?.full_name || 'Patient',
+                    text: msg.text || msg.message || 'New message',
+                    timestamp: msg.timestamp || new Date().toISOString(),
+                    is_read: false,
+                    read: false,
+                }));
+
+            activeUnreadChatNotifs.forEach(n => processedNotificationIds.current.add(String(n.id)));
+
+            // 2. Fetch persistent in-app appointment notifications from database
+            const activeAppNotifs = [];
             try {
-                // 1. Fetch unread chat messages
-                const response = await getMessages({ is_read: 'false' }); 
-                const allFetchedMessages = response.data.results || [];
-                const unreadMessages = allFetchedMessages.filter(msg => msg.is_read === false);
-                const newNotifications = unreadMessages
-                    .filter(msg => msg.sender_id !== user.id && !processedNotificationIds.current.has(msg.id));
-
-                if (newNotifications.length > 0) {
-                    newNotifications.forEach(n => processedNotificationIds.current.add(n.id));
-                }
-
-                // 2. Fetch persistent in-app appointment notifications from database
-                try {
-                    const appRes = await getAppointmentNotifications();
-                    const appList = appRes.data?.notifications || [];
-                    appList.forEach(notif => {
-                        const uniqueId = `app_${notif.id}`;
-                        if (!processedNotificationIds.current.has(uniqueId)) {
-                            processedNotificationIds.current.add(uniqueId);
-                            newNotifications.push({
-                                id: uniqueId,
-                                dbId: notif.id,
-                                type: 'appointment',
-                                title: notif.title,
-                                text: notif.message,
-                                sender_name: notif.title || 'Consultation Update',
-                                timestamp: notif.created_at,
-                                is_read: notif.is_read,
-                                read: notif.is_read,
-                                appointmentId: notif.appointment_id,
-                            });
-                        }
+                const appRes = await getAppointmentNotifications();
+                const appList = appRes.data?.notifications || [];
+                appList.forEach(notif => {
+                    const uniqueId = `app_${notif.id}`;
+                    processedNotificationIds.current.add(uniqueId);
+                    activeAppNotifs.push({
+                        id: uniqueId,
+                        dbId: notif.id,
+                        type: 'appointment',
+                        title: notif.title,
+                        text: notif.message,
+                        sender_name: notif.title || 'Consultation Update',
+                        timestamp: notif.created_at,
+                        is_read: notif.is_read,
+                        read: notif.is_read,
+                        appointmentId: notif.appointment_id,
                     });
-                } catch (appErr) {
-                    console.warn("Failed to fetch nutritionist appointment notifications:", appErr);
-                }
+                });
+            } catch (appErr) {
+                console.warn("Failed to fetch nutritionist appointment notifications:", appErr);
+            }
 
-                if (newNotifications.length > 0) {
-                    setNotifications(prev => 
-                        [...newNotifications, ...prev]
-                        .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-                        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                    );
-                }
-            } catch (error) {
-                console.error("Failed to fetch initial nutritionist notifications:", error);
+            const combined = [...activeUnreadChatNotifs, ...activeAppNotifs];
+            setNotifications(prev => {
+                const map = new Map();
+                combined.forEach(item => map.set(String(item.id), item));
+                prev.forEach(item => {
+                    if (!map.has(String(item.id))) {
+                        map.set(String(item.id), item);
+                    }
+                });
+                return Array.from(map.values())
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            });
+        } catch (error) {
+            console.error("Failed to fetch initial nutritionist notifications:", error);
+        }
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        fetchInitialNotifications();
+
+        // Refetch when tab regains focus or visibility
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchInitialNotifications();
             }
         };
-        fetchInitialNotifications();
-    }, [user]);
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', fetchInitialNotifications);
+
+        // Periodic background poll every 20s to ensure bell sync even without active WebSockets
+        const pollInterval = setInterval(() => {
+            fetchInitialNotifications();
+        }, 20000);
+
+        return () => {
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', fetchInitialNotifications);
+            clearInterval(pollInterval);
+        };
+    }, [user?.id, fetchInitialNotifications]);
 
     const handleNewNotification = useCallback((data) => {
-        if (user && data.sender_id !== user.id && data.is_read === false) {
-            if (!processedNotificationIds.current.has(data.id)) {
-                processedNotificationIds.current.add(data.id);
-                setNotifications(prev => [data, ...prev].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
-            }
+        if (!user?.id || !data) return;
+        const senderIdStr = String(data.sender_id || data.sender?.id || '');
+        const receiverIdStr = String(data.receiver_id || data.receiver?.id || '');
+        const currentUserIdStr = String(user.id);
+
+        if (senderIdStr === currentUserIdStr) return;
+        if (receiverIdStr && receiverIdStr !== currentUserIdStr) return;
+        if (data.is_read === true) return;
+
+        const notifId = String(data.id || `msg_${Date.now()}`);
+        if (!processedNotificationIds.current.has(notifId)) {
+            processedNotificationIds.current.add(notifId);
+            const senderName = data.sender_name || data.sender?.name || data.sender?.full_name || 'Patient';
+            const textContent = data.text || data.message || 'New message';
+
+            const newNotif = {
+                id: notifId,
+                type: 'message',
+                sender_id: data.sender_id || data.sender?.id,
+                sender_name: senderName,
+                text: textContent,
+                timestamp: data.timestamp || new Date().toISOString(),
+                is_read: false,
+                read: false,
+            };
+
+            setNotifications(prev => [newNotif, ...prev.filter(n => String(n.id) !== notifId)].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+
+            // Toast alert when message arrives
+            toast(`💬 ${senderName}: "${textContent.length > 45 ? textContent.slice(0, 45) + '...' : textContent}"`, {
+                id: `toast_${notifId}`,
+                duration: 4000,
+            });
         }
-    }, [user]);
+    }, [user?.id]);
 
     const handleAppointmentNotification = useCallback((data) => {
         const uniqueId = `app_${data.id || Date.now()}`;
@@ -132,7 +207,7 @@ const NutriNavbar = () => {
                 appointmentId: data.appointment_id,
                 ...data,
             };
-            setNotifications(prev => [newNotif, ...prev].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+            setNotifications(prev => [newNotif, ...prev.filter(n => String(n.id) !== uniqueId)].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
         }
     }, []);
 
@@ -190,15 +265,12 @@ const NutriNavbar = () => {
         const willOpen = !isDropdownOpen;
         setIsDropdownOpen(willOpen);
         if (willOpen) {
-            // Automatically mark all notifications as read upon opening
+            // Locally mark notifications as read to clear bell badge
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read: true })));
             try {
-                await Promise.allSettled([
-                    markMessageAsRead({}),
-                    markAppointmentNotificationsRead(),
-                ]);
+                await markAppointmentNotificationsRead();
             } catch (error) {
-                console.warn("Could not mark notifications as read on server:", error);
+                console.warn("Could not mark appointment notifications as read on server:", error);
             }
         }
     };

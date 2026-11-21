@@ -860,7 +860,7 @@ const MealPhotoScannerModal = ({ isOpen, onClose, onMealLogged, onApplyToInputs 
                         type="text"
                         value={item.description}
                         onChange={(e) => updateItem(item.id, "description", e.target.value)}
-                        placeholder="Remark (optional)"
+                        placeholder="Remark (Optional - e.g. with 3 spoons of ghee, 3 tbsp bhindi)"
                         className="w-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-1.5 text-xs placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)]"
                       />
                     </div>
@@ -871,13 +871,13 @@ const MealPhotoScannerModal = ({ isOpen, onClose, onMealLogged, onApplyToInputs 
               {/* General Remarks */}
               <div>
                 <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-1">
-                  Remarks / Notes (Optional)
+                  Remarks (Optional - e.g. with 3 spoons of ghee, 3 tbsp bhindi)
                 </label>
                 <input
                   type="text"
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="e.g. Home-cooked thali, less oil"
+                  placeholder="e.g. with 3 spoons of ghee, 3 tbsp bhindi, or cooked in olive oil"
                   className="w-full bg-[var(--color-bg-app)] border-2 border-[var(--color-border-default)] text-[var(--color-text-strong)] rounded-lg px-3 py-2 text-xs font-medium placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)]"
                 />
               </div>
