@@ -36,7 +36,9 @@ import {
   Globe,
   Camera,
   X,
+  ArrowRight,
 } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -472,6 +474,33 @@ const NutritionistProfile = () => {
       <div>
         <BackButton label="Back to Dashboard" to="/nutritionist" />
       </div>
+
+      {/* ⚠️ Subscription & Admin Approval Prompt */}
+      {(!sub?.has_plan || !sub?.is_active) && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border-2 border-amber-500/40 text-center shadow-xs space-y-2"
+        >
+          <div className="flex items-center justify-center gap-2 text-amber-900 dark:text-amber-100 font-black text-sm sm:text-base">
+            <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+            <span>Buy subscription and admin will approve your account</span>
+          </div>
+          <p className="text-xs text-amber-800 dark:text-amber-200 max-w-xl mx-auto leading-relaxed">
+            You can view and edit your profile details below. To begin consulting patients, please purchase a practitioner plan so admin can review and approve your account.
+          </p>
+          <div className="pt-1">
+            <NavLink
+              to="/nutritionist/subscription"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold text-xs shadow-xs transition-all"
+            >
+              <span>View Plans & Subscribe</span>
+              <ArrowRight size={13} />
+            </NavLink>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Practitioner Profile Hero Card ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -660,10 +689,12 @@ const NutritionistProfile = () => {
           </div>
           <div className="mt-3">
             <span className="text-lg font-black text-[var(--color-text-strong)] font-[var(--font-primary)] truncate block">
-              {sub.has_plan ? sub.plan_name : "Active Plan"}
+              {sub.has_plan && sub.is_active ? sub.plan_name : "No Active Plan"}
             </span>
             <p className="text-xs font-semibold text-[var(--color-primary)] mt-0.5">
-              {sub.has_plan && sub.remaining_days ? `${sub.remaining_days} days remaining` : "Continuous Access"}
+              {sub.has_plan && sub.is_active && sub.remaining_days
+                ? `${sub.remaining_days} days remaining`
+                : "Buy subscription to get approved"}
             </p>
           </div>
         </motion.div>

@@ -86,6 +86,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
 
   const [otp, setOtp] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [otpTargetEmail, setOtpTargetEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -93,6 +95,21 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [serverError, setServerError] = useState("");
+
+  // Whenever email changes, immediately invalidate any stale OTP or token
+  const handleEmailChange = (val) => {
+    setEmail(val);
+    clearError("email");
+    const clean = val.trim().toLowerCase();
+    if (otpTargetEmail && clean !== otpTargetEmail) {
+      setOtpSent(false);
+      setOtp("");
+      setVerificationToken("");
+      setVerifiedEmail("");
+      setOtpTimer(0);
+      setServerError("");
+    }
+  };
 
   // Helper to clear error when user types into field
   const clearError = (field) => {
@@ -128,10 +145,10 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     );
   };
 
-  const handleNextStep = () => {
+  // Step Validation Helper
+  const validateStep = (s) => {
     const errors = {};
-    setServerError("");
-    if (step === 1) {
+    if (s === 1) {
       if (!fullName.trim()) {
         errors.fullName = "Please fill in your full name.";
       } else if (fullName.trim().length < 2) {
@@ -162,34 +179,16 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       } else if (password !== confirmPassword) {
         errors.confirmPassword = "Passwords do not match. Please re-check.";
       }
-
-      if (Object.keys(errors).length > 0) {
-        setFieldErrors(errors);
-        toast.error("Please fill in all mandatory fields highlighted in red.");
-        return;
-      }
-      setFieldErrors({});
-      toast.success("Basic details saved.");
-    } else if (step === 2) {
+    } else if (s === 2) {
       // Step 2 has optional fields, validate numbers if provided
       if (yearsOfExperience !== "" && (isNaN(parseInt(yearsOfExperience)) || parseInt(yearsOfExperience) < 0)) {
         errors.yearsOfExperience = "Years of experience cannot be a negative number.";
-        setFieldErrors(errors);
-        toast.error("Please correct the highlighted field.");
-        return;
       }
-      setFieldErrors({});
-      toast.success("Professional details saved.");
-    } else if (step === 3) {
+    } else if (s === 3) {
       if (selectedSpecializations.length === 0) {
         errors.specializations = "Please select at least 1 area of clinical specialization.";
-        setFieldErrors(errors);
-        toast.error("Please select at least one clinical specialization badge.");
-        return;
       }
-      setFieldErrors({});
-      toast.success("Specializations saved.");
-    } else if (step === 4) {
+    } else if (s === 4) {
       if (!isOnlineAvailable && !isOfflineAvailable) {
         errors.appointmentMode = "Please enable at least one consultation mode (Online or Offline).";
       }
@@ -215,16 +214,43 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           errors.offlineLocation = "Please enter a detailed clinic address (at least 5 characters).";
         }
       }
+    }
+    return errors;
+  };
 
+  const handleNextStep = () => {
+    setServerError("");
+    const errors = validateStep(step);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      toast.error("Please fill in all mandatory fields highlighted in red.");
+      return;
+    }
+    setFieldErrors({});
+    setStep((prev) => Math.min(prev + 1, 5));
+  };
+
+  // Direct Step Header Navigation
+  const handleJumpToStep = (targetStep) => {
+    if (targetStep === step) return;
+    setServerError("");
+    // Allow jumping backward anytime
+    if (targetStep < step) {
+      setStep(targetStep);
+      return;
+    }
+    // If jumping forward, validate each previous step
+    for (let s = 1; s < targetStep; s++) {
+      const errors = validateStep(s);
       if (Object.keys(errors).length > 0) {
+        setStep(s);
         setFieldErrors(errors);
-        toast.error("Please complete the appointment and pricing configuration.");
+        toast.error(`Please complete Step ${s} before proceeding to Step ${targetStep}.`);
         return;
       }
-      setFieldErrors({});
-      toast.success("Appointment & Pricing configured.");
     }
-    setStep((prev) => Math.min(prev + 1, 5));
+    setFieldErrors({});
+    setStep(targetStep);
   };
 
   const handlePrevStep = () => {
@@ -242,15 +268,27 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     const normalizedEmail = email.trim().toLowerCase();
     setSendingOtp(true);
     setVerificationToken("");
+    setVerifiedEmail("");
+    setOtpTargetEmail(normalizedEmail);
     setServerError("");
     clearError("otp");
     try {
-      await sendOtp(normalizedEmail);
+      console.log(`🔑 [OTP Request] Sending OTP to ${normalizedEmail}...`);
+      const otpRes = await sendOtp(normalizedEmail);
+      console.log(`✅ [OTP Request Success]`, otpRes?.data);
       toast.success(`OTP sent to ${normalizedEmail}. Valid for 10 minutes.`);
       setOtpSent(true);
       setOtpTimer(600);
     } catch (error) {
-      const errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.email || error?.response?.data?.message || error?.response?.data?.error || "Failed to send OTP.";
+      console.error("❌ [OTP Request Error]:", error);
+      let errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.email || error?.response?.data?.message || error?.response?.data?.error;
+      if (!errMsg) {
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+          errMsg = "Request timed out while contacting server. Please check your network and try again.";
+        } else {
+          errMsg = error?.message || "Failed to send OTP.";
+        }
+      }
       setFieldErrors((prev) => ({ ...prev, email: errMsg, otp: errMsg }));
       setServerError(errMsg);
       if (error?.response?.data?.email) {
@@ -267,6 +305,19 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     e.preventDefault();
     setServerError("");
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // If email was modified after OTP was sent, force fresh OTP request
+    if (otpTargetEmail && normalizedEmail !== otpTargetEmail) {
+      toast.error(`Email changed to ${normalizedEmail}. Requesting a new OTP code...`);
+      setOtpSent(false);
+      setOtp("");
+      setVerificationToken("");
+      setVerifiedEmail("");
+      await handleRequestOtp();
+      return;
+    }
+
     if (!otpSent) {
       await handleRequestOtp();
       return;
@@ -281,12 +332,14 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     clearError("otp");
     try {
       let token = verificationToken;
-      if (!token) {
+      // Re-verify if token is missing or if email doesn't match verifiedEmail
+      if (!token || normalizedEmail !== verifiedEmail) {
         try {
-          const verifyRes = await verifyOtp(email.trim().toLowerCase(), otp.trim());
+          const verifyRes = await verifyOtp(normalizedEmail, otp.trim());
           token = verifyRes?.data?.verification_token || verifyRes?.verification_token;
           if (token) {
             setVerificationToken(token);
+            setVerifiedEmail(normalizedEmail);
           }
         } catch (otpErr) {
           const otpMsg = otpErr?.response?.data?.error || otpErr?.response?.data?.otp?.[0] || otpErr?.response?.data?.message || "Invalid or expired OTP code. Please check your email.";
@@ -309,7 +362,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       // Use FormData to support document file attachments
       const formData = new FormData();
       formData.append("full_name", fullName.trim());
-      formData.append("email", email.trim().toLowerCase());
+      formData.append("email", normalizedEmail);
       formData.append("phone_number", phoneNumber.trim());
       formData.append("password", password);
       formData.append("verification_token", token);
@@ -421,6 +474,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
             msg = fieldMsgs.join("\n");
           }
         }
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        msg = "File upload timed out. Your documents may be large or connection is slow. Please try again with compressed files or try again.";
       } else if (err.message) {
         msg = err.message;
       }
@@ -467,7 +522,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           </button>
         </div>
 
-        {/* Stepper Progress Bar (5 Steps) */}
+        {/* Stepper Progress Bar (5 Steps - Clickable Navigation) */}
         <div className="px-4 sm:px-8 pt-4 pb-3 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)]">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {[
@@ -476,18 +531,42 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
               { num: 3, label: "Specializations" },
               { num: 4, label: "Appointment & Pricing" },
               { num: 5, label: "Documents & OTP" },
-            ].map((s) => (
-              <div key={s.num} className="flex flex-col gap-1.5">
-                <div
-                  className={`h-2 w-full rounded-full transition-all duration-300 ${
-                    step >= s.num ? "bg-[var(--color-primary)]" : "bg-[var(--color-border-default)]"
+            ].map((s) => {
+              const isActive = step === s.num;
+              const isPast = step > s.num;
+              return (
+                <button
+                  key={s.num}
+                  type="button"
+                  onClick={() => handleJumpToStep(s.num)}
+                  className={`flex flex-col gap-1.5 text-left p-1.5 -m-1.5 rounded-xl transition-all cursor-pointer ${
+                    isActive ? "opacity-100" : "hover:bg-[var(--color-bg-interactive-subtle)] opacity-75 hover:opacity-100"
                   }`}
-                />
-                <span className={`text-[11px] font-bold truncate ${step >= s.num ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}`}>
-                  {s.num}. {s.label}
-                </span>
-              </div>
-            ))}
+                  title={`Navigate to Step ${s.num}: ${s.label}`}
+                >
+                  <div
+                    className={`h-2 w-full rounded-full transition-all duration-300 ${
+                      isActive
+                        ? "bg-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/30"
+                        : isPast
+                        ? "bg-[var(--color-primary)]"
+                        : "bg-[var(--color-border-default)]"
+                    }`}
+                  />
+                  <span
+                    className={`text-[11px] font-bold truncate transition-colors ${
+                      isActive
+                        ? "text-[var(--color-primary)] font-black"
+                        : isPast
+                        ? "text-[var(--color-primary)] font-semibold"
+                        : "text-[var(--color-text-muted)] font-medium"
+                    }`}
+                  >
+                    {s.num}. {s.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -604,7 +683,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                       required
                       placeholder="nutritionist@example.com"
                       value={email}
-                      onChange={(e) => { setEmail(e.target.value); clearError("email"); }}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                       className={`w-full pl-11 pr-4 py-3 bg-[var(--color-bg-app)] border text-xs sm:text-sm text-[var(--color-text-strong)] rounded-xl outline-none transition-all ${
                         fieldErrors.email ? "border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5" : "border-[var(--color-border-default)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-bg-subtle)]"
                       }`}
@@ -1293,7 +1372,14 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                       <span>Verify Email & Finalize Registration</span>
                       <span className="text-rose-500 font-bold">*</span>
                     </h4>
-                    <p className="text-xs text-[var(--color-text-muted)]">OTP code sent to {email || "your registered email"}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      OTP code sent to <strong className="text-[var(--color-text-strong)]">{email ? email.trim().toLowerCase() : "your registered email"}</strong>
+                    </p>
+                    {otpSent && otpTargetEmail && email.trim().toLowerCase() !== otpTargetEmail && (
+                      <p className="text-xs text-amber-600 font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/30 mt-1">
+                        ⚠️ Email changed from {otpTargetEmail} to {email.trim().toLowerCase()}. Click &quot;Send OTP Code&quot; to authorize the new email.
+                      </p>
+                    )}
                   </div>
 
                   <button
