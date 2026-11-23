@@ -7,7 +7,8 @@ import {
   verifyPayment,
 } from "../../../api/subscriptionService";
 import { getPlanBenefits } from "../../../api/planBenefits";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
+import { loadRazorpayScript } from "../../../services/razorpay";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown,
@@ -84,6 +85,14 @@ const NutritionistSubscription = () => {
   // Handle plan purchase / upgrade via Razorpay
   const handleBuyPlan = async (plan) => {
     if (!plan || plan.price <= 0) return;
+
+    // Ensure Razorpay SDK is loaded
+    const rzpLoaded = await loadRazorpayScript();
+    if (!rzpLoaded && !window.Razorpay) {
+      toast.error("Payment gateway is initializing. Please refresh or try again in a moment.");
+      return;
+    }
+
     setPurchasingPlanId(plan.id);
     const toastId = toast.loading(`Initiating checkout for ${plan.name}...`);
 
@@ -110,6 +119,21 @@ const NutritionistSubscription = () => {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
+
+            // Invalidate cached subscription in session storage
+            try {
+              sessionStorage.removeItem("user_sub_cache");
+              sessionStorage.removeItem("sub_checked");
+            } catch {
+              // Ignore
+            }
+
+            // Notify all hooks across app
+            try {
+              window.dispatchEvent(new Event("subscription_updated"));
+            } catch {
+              // Ignore
+            }
 
             toast.update(toastId, {
               render: "🎉 Plan activated successfully!",
@@ -375,6 +399,23 @@ const NutritionistSubscription = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* ⚠️ Subscription & Admin Approval Status Banner */}
+      {(!hasPlan || !isActive) && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border-2 border-amber-500/40 text-center shadow-xs space-y-1"
+        >
+          <div className="flex items-center justify-center gap-2 text-amber-900 dark:text-amber-100 font-black text-sm sm:text-base">
+            <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+            <span>Buy subscription and admin will approve your account</span>
+          </div>
+          <p className="text-xs text-amber-800 dark:text-amber-200 max-w-xl mx-auto leading-relaxed">
+            Please purchase a practitioner plan below. Once your subscription is active, admin will review your credentials and approve your account for clinical consultations.
+          </p>
+        </motion.div>
+      )}
 
       {/* ── Tab Navigation Bar ── */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 p-1 bg-[var(--color-bg-surface)] rounded-2xl border border-[var(--color-border-default)] shadow-xs max-w-xl">

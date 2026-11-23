@@ -3,7 +3,8 @@ import { Routes, Route, NavLink, useLocation } from "react-router-dom";
 import NutriNavbar from "../components/components/nutritionist/NutriNavbar";
 import Footer from "../components/components/Footer";
 import { getNutritionistProfile } from "../api/nutritionistApi";
-import { Clock, ShieldAlert, Lock, ArrowRight } from "lucide-react";
+import { useSubscription } from "../hook/useSubscription";
+import { Clock, ShieldAlert, Lock, ArrowRight, Sparkles } from "lucide-react";
 
 // Eagerly load primary dashboard view
 import NutritionistDashboard from "../components/components/nutritionist/NutritionistDashboard";
@@ -36,7 +37,10 @@ const NutritionistPage = () => {
   const [toolboxTab, setToolboxTab] = useState("assistant");
   const [isVerified, setIsVerified] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const { subscription, loading: loadingSub } = useSubscription();
   const location = useLocation();
+
+  const hasActiveSubscription = Boolean(subscription && subscription.has_plan && subscription.is_active);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -63,21 +67,41 @@ const NutritionistPage = () => {
         <NutriNavbar />
       </div>
 
-      {/* ⏳ Pending Admin Verification Top Alert Banner */}
-      {!loadingProfile && !isVerified && (
+      {/* 💳 Case 1: No Active Subscription -> Banner prompt */}
+      {!loadingSub && !hasActiveSubscription && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-center text-xs sm:text-sm font-semibold text-white flex items-center justify-center gap-2.5 flex-wrap z-30 shadow-sm">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-white font-black text-[11px] uppercase tracking-wider">
+            <Sparkles size={12} className="shrink-0" />
+            <span>Action Required</span>
+          </span>
+          <span className="font-bold">
+            Buy subscription and admin will approve your account.
+          </span>
+          <NavLink
+            to="/nutritionist/subscription"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-white text-orange-600 font-bold text-xs hover:bg-orange-50 transition-colors shadow-xs"
+          >
+            <span>View Plans & Subscribe</span>
+            <ArrowRight size={13} />
+          </NavLink>
+        </div>
+      )}
+
+      {/* ⏳ Case 2: Subscription Active, but Admin Verification Pending Banner */}
+      {!loadingProfile && hasActiveSubscription && !isVerified && (
         <div className="bg-white border-b-2 border-orange-200 px-4 py-2.5 text-center text-xs sm:text-sm font-semibold text-slate-900 flex items-center justify-center gap-2.5 flex-wrap z-30 shadow-xs">
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-black text-[11px] uppercase tracking-wider shadow-xs">
             <Clock size={12} className="shrink-0 stroke-[2.5]" />
             <span>Verification Pending</span>
           </span>
           <span className="text-slate-800">
-            Your profile & subscription are active. Clinical practice actions will fully unlock as soon as Admin completes verification.
+            Subscription active! Admin will review your credentials and approve your account shortly.
           </span>
           <NavLink
             to="/nutritionist/profile"
             className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs transition-colors border border-orange-300"
           >
-            <span>View Status</span>
+            <span>View Profile Status</span>
             <ArrowRight size={13} />
           </NavLink>
         </div>
@@ -85,7 +109,8 @@ const NutritionistPage = () => {
 
       {/* 📄 Dynamic Routed Content with Suspense Code-Splitting */}
       <div className="flex-1 relative">
-        {!loadingProfile && !isVerified && !isProfileRoute && (
+        {/* Verification Pending Modal: Only shown when subscription IS active, but admin hasn't verified yet */}
+        {!loadingProfile && hasActiveSubscription && !isVerified && !isProfileRoute && (
           <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-xs flex items-start justify-center pt-16 px-4">
             <div className="max-w-md w-full bg-white border-2 border-slate-200 p-6 sm:p-8 rounded-3xl shadow-2xl text-center space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mx-auto border border-orange-200 shadow-xs">
@@ -95,7 +120,7 @@ const NutritionistPage = () => {
                 Admin Verification Pending
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed font-[var(--font-secondary)]">
-                Welcome to TrackIntake! Your account registration & subscription access are active. Clinical practice features (assigning patients, diet plan generation, and patient chat) will automatically unlock once Admin completes your verification.
+                Welcome to TrackIntake! Your subscription is active. Clinical practice features (assigning patients, diet plan generation, and patient chat) will automatically unlock once Admin completes your credential verification.
               </p>
               <div className="pt-2 flex justify-center gap-3">
                 <NavLink
@@ -112,6 +137,7 @@ const NutritionistPage = () => {
         <Suspense fallback={<PageFallbackLoader />}>
           <Routes>
             <Route path="subscription" element={<NutritionistSubscription />} />
+            <Route path="profile" element={<NutritionistProfile />} />
             <Route
               path="*"
               element={
@@ -136,7 +162,6 @@ const NutritionistPage = () => {
                         </SubscriptionGuard>
                       }
                     />
-                    <Route path="profile" element={<NutritionistProfile />} />
                     <Route path="payouts" element={<NutritionistPayouts />} />
                   </Routes>
                 </SubscriptionGuard>

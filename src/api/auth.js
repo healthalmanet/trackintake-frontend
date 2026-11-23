@@ -7,10 +7,10 @@ import axiosRetry from "axios-retry";
 const BASE_URL = import.meta.env.VITE_API_URL;
 
 
-// --- Axios Instance ---hai 
+// --- Axios Instance ---
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000, // 15 seconds
+  timeout: 60000, // 60 seconds (prevents 15000ms timeouts on slow networks & cold starts)
   headers: {
     "Content-Type": "application/json",
   },
@@ -42,7 +42,9 @@ export const loginUser = (loginData) => {
 };
 
 export const registerUser = (userData) => {
-  return axiosInstance.post("/signup/", userData);
+  return axiosInstance.post("/signup/", userData, {
+    timeout: 180000, // 3 minutes for multi-file verification uploads (certificates, photos)
+  });
 };
 
 export const refreshToken = (refreshTokenValue) => {
@@ -77,11 +79,15 @@ export const resetPassword = ({ uidb64, token, password }) => {
 // --- OTP Verification ---
 
 export const sendOtp = (email) => {
-  return axiosInstance.post("/send-otp/", { email });
+  return axiosInstance.post("/send-otp/", { email }, {
+    timeout: 45000, // 45 seconds for external email delivery (Resend)
+  });
 };
 
 export const verifyOtp = (email, otp) => {
-  return axiosInstance.post("/verify-otp/", { email, otp });
+  return axiosInstance.post("/verify-otp/", { email, otp }, {
+    timeout: 30000,
+  });
 };
 
 

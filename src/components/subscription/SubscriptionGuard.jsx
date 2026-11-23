@@ -8,6 +8,7 @@ import {
   getMySubscription,
 } from "../../api/subscriptionService";
 import { getPlanBenefits } from "../../api/planBenefits";
+import { loadRazorpayScript } from "../../services/razorpay";
 import {
   Lock,
   Crown,
@@ -88,8 +89,9 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
       return;
     }
 
-    // Verify Razorpay SDK availability
-    if (!window.Razorpay) {
+    // Ensure Razorpay SDK is loaded
+    const rzpLoaded = await loadRazorpayScript();
+    if (!rzpLoaded && !window.Razorpay) {
       toast.error("Payment gateway is initializing. Please refresh the page or try again in a moment.");
       return;
     }
@@ -131,6 +133,13 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
 
             const freshSub = await getMySubscription();
             setLocalSub(freshSub);
+
+            // Notify all hooks across app
+            try {
+              window.dispatchEvent(new Event("subscription_updated"));
+            } catch {
+              // Ignore
+            }
 
             toast.update(toastId, {
               render: "🎉 Plan activated successfully! Access unlocked.",
@@ -261,6 +270,22 @@ const SubscriptionGuard = ({ children, role = "user", feature = null, featureNam
               ? "Select an active practitioner subscription to manage client appointments, issue diet plans, conduct live consultations, and access clinical analytics."
               : "Subscribe to unlock personalized AI meal planning, track macros & water logs, and get direct consultations with certified clinical nutritionists."}
           </p>
+
+          {role === "nutritionist" && !hasActiveSubscription && (
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="mt-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border-2 border-amber-500/40 text-center shadow-xs"
+            >
+              <div className="flex items-center justify-center gap-2 text-amber-900 dark:text-amber-100 font-black text-sm sm:text-base">
+                <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+                <span>Buy subscription and admin will approve your account</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-200 mt-1 max-w-xl mx-auto leading-relaxed">
+                Choose any practitioner plan below to activate your account. Once your subscription is purchased, our administrator will review your submitted credentials and approve your profile for clinical appointments.
+              </p>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* ── Plans Grid or Loaders ── */}

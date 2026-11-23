@@ -36,30 +36,48 @@ export function useSubscription() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    getMySubscription(token)
-      .then((data) => {
-        setSubscription(data);
-        try {
-          sessionStorage.setItem(
-            CACHE_KEY,
-            JSON.stringify({ data, timestamp: Date.now() })
-          );
-        } catch {
-          // Ignore storage errors
-        }
-      })
-      .catch(() => {
-        setSubscription(null);
-      })
-      .finally(() => {
+    const fetchSub = () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
         setLoading(false);
-      });
+        return;
+      }
+
+      getMySubscription(token)
+        .then((data) => {
+          setSubscription(data);
+          try {
+            sessionStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ data, timestamp: Date.now() })
+            );
+          } catch {
+            // Ignore storage errors
+          }
+        })
+        .catch(() => {
+          setSubscription(null);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
+    fetchSub();
+
+    const handleSubUpdated = () => {
+      try {
+        sessionStorage.removeItem(CACHE_KEY);
+      } catch {
+        // Ignore
+      }
+      fetchSub();
+    };
+
+    window.addEventListener("subscription_updated", handleSubUpdated);
+    return () => {
+      window.removeEventListener("subscription_updated", handleSubUpdated);
+    };
   }, []);
 
   return { subscription, loading };
