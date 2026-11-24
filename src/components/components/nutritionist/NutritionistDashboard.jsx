@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Select from "react-select";
 import {
   createUserPatient,
@@ -44,6 +44,11 @@ import {
   CreditCard,
   DollarSign,
   Percent,
+  Filter,
+  SlidersHorizontal,
+  RotateCcw,
+  Apple,
+  Activity,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -146,6 +151,13 @@ const GoalDisplay = ({ goal }) => {
   );
 };
 
+// --- Helper function for Age Calculation ---
+const calculateAge = (dob) => {
+  if (!dob) return "N/A";
+  const diff = Date.now() - new Date(dob).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+};
+
 const NutritionistDashboard = () => {
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState("");
@@ -166,6 +178,16 @@ const NutritionistDashboard = () => {
   const [error, setError] = useState(null);
   const perPage = 8;
   const navigate = useNavigate();
+
+  // --- Filter & Sorting States for Nutritionist Dashboard ---
+  const [selectedGoal, setSelectedGoal] = useState("all");
+  const [selectedDiet, setSelectedDiet] = useState("all");
+  const [selectedGender, setSelectedGender] = useState("all");
+  const [selectedCondition, setSelectedCondition] = useState("all");
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState("all");
+  const [selectedActivity, setSelectedActivity] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   // State for enhanced search UX, consistent with Chat component
   const [isSearching, setIsSearching] = useState(false);
@@ -368,6 +390,233 @@ const NutritionistDashboard = () => {
   useEffect(() => {
     fetchPatients();
   }, [fetchPatients]);
+
+  // Reset pagination to 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedGoal, selectedDiet, selectedGender, selectedCondition, selectedAgeGroup, selectedActivity, sortBy]);
+
+  // Statistics for top quick filter chips
+  const stats = useMemo(() => {
+    let weightLoss = 0;
+    let weightGain = 0;
+    let maintenance = 0;
+    let specialCare = 0;
+
+    patients.forEach((p) => {
+      const g = (p.goal || "").toLowerCase().replace(/ /g, "_").replace(/_weight/g, "");
+      if (g.includes("lose")) weightLoss++;
+      else if (g.includes("gain")) weightGain++;
+      else if (g.includes("maintain")) maintenance++;
+
+      if (
+        p.is_diabetic ||
+        p.is_hypertensive ||
+        p.has_heart_condition ||
+        p.has_thyroid_disorder ||
+        p.has_arthritis ||
+        p.has_gastric_issues
+      ) {
+        specialCare++;
+      }
+    });
+
+    return {
+      total: patients.length,
+      weightLoss,
+      weightGain,
+      maintenance,
+      specialCare,
+    };
+  }, [patients]);
+
+  // Filtered & Sorted Patients list
+  const filteredPatients = useMemo(() => {
+    return patients
+      .filter((patient) => {
+        // Goal Filter
+        if (selectedGoal !== "all") {
+          const normGoal = (patient.goal || "").toLowerCase().replace(/ /g, "_").replace(/_weight/g, "");
+          if (selectedGoal === "lose_weight" && !normGoal.includes("lose")) return false;
+          if (selectedGoal === "gain_weight" && !normGoal.includes("gain")) return false;
+          if (selectedGoal === "maintain" && !normGoal.includes("maintain")) return false;
+          if (selectedGoal === "not_set" && (normGoal.includes("lose") || normGoal.includes("gain") || normGoal.includes("maintain"))) return false;
+        }
+
+        // Diet Type Filter
+        if (selectedDiet !== "all") {
+          const pDiet = (patient.diet_type || "").toLowerCase().replace(/[\s_-]/g, "");
+          const targetDiet = selectedDiet.toLowerCase().replace(/[\s_-]/g, "");
+          if (!pDiet.includes(targetDiet)) return false;
+        }
+
+        // Gender Filter
+        if (selectedGender !== "all") {
+          const pGender = (patient.gender || "").toLowerCase();
+          if (pGender !== selectedGender.toLowerCase()) return false;
+        }
+
+        // Medical Condition Filter
+        if (selectedCondition !== "all") {
+          if (selectedCondition === "diabetic" && !patient.is_diabetic) return false;
+          if (selectedCondition === "hypertensive" && !patient.is_hypertensive) return false;
+          if (selectedCondition === "heart" && !patient.has_heart_condition) return false;
+          if (selectedCondition === "thyroid" && !patient.has_thyroid_disorder) return false;
+          if (selectedCondition === "any_condition") {
+            const hasAny = Boolean(
+              patient.is_diabetic ||
+              patient.is_hypertensive ||
+              patient.has_heart_condition ||
+              patient.has_thyroid_disorder ||
+              patient.has_arthritis ||
+              patient.has_gastric_issues
+            );
+            if (!hasAny) return false;
+          }
+        }
+
+        // Age Group Filter
+        if (selectedAgeGroup !== "all") {
+          const age = calculateAge(patient.date_of_birth);
+          if (age === "N/A") return false;
+          const numAge = Number(age);
+          if (selectedAgeGroup === "under_20" && numAge >= 20) return false;
+          if (selectedAgeGroup === "20_35" && (numAge < 20 || numAge > 35)) return false;
+          if (selectedAgeGroup === "36_50" && (numAge < 36 || numAge > 50)) return false;
+          if (selectedAgeGroup === "above_50" && numAge <= 50) return false;
+        }
+
+        // Activity Level Filter
+        if (selectedActivity !== "all") {
+          const pAct = (patient.activity_level || "").toLowerCase().replace(/[\s_-]/g, "");
+          const targetAct = selectedActivity.toLowerCase().replace(/[\s_-]/g, "");
+          if (!pAct.includes(targetAct)) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === "newest") {
+          const dateA = a.created_at || a.date_joined ? new Date(a.created_at || a.date_joined) : null;
+          const dateB = b.created_at || b.date_joined ? new Date(b.created_at || b.date_joined) : null;
+          if (dateA && dateB && !isNaN(dateA) && !isNaN(dateB)) return dateB - dateA;
+          return (b.id || 0) - (a.id || 0);
+        }
+        if (sortBy === "oldest") {
+          const dateA = a.created_at || a.date_joined ? new Date(a.created_at || a.date_joined) : null;
+          const dateB = b.created_at || b.date_joined ? new Date(b.created_at || b.date_joined) : null;
+          if (dateA && dateB && !isNaN(dateA) && !isNaN(dateB)) return dateA - dateB;
+          return (a.id || 0) - (b.id || 0);
+        }
+        if (sortBy === "name_asc") {
+          return (a.full_name || "").localeCompare(b.full_name || "");
+        }
+        if (sortBy === "name_desc") {
+          return (b.full_name || "").localeCompare(a.full_name || "");
+        }
+        if (sortBy === "age_asc") {
+          const ageA = calculateAge(a.date_of_birth) === "N/A" ? 999 : Number(calculateAge(a.date_of_birth));
+          const ageB = calculateAge(b.date_of_birth) === "N/A" ? 999 : Number(calculateAge(b.date_of_birth));
+          return ageA - ageB;
+        }
+        if (sortBy === "age_desc") {
+          const ageA = calculateAge(a.date_of_birth) === "N/A" ? -1 : Number(calculateAge(a.date_of_birth));
+          const ageB = calculateAge(b.date_of_birth) === "N/A" ? -1 : Number(calculateAge(b.date_of_birth));
+          return ageB - ageA;
+        }
+        return 0;
+      });
+  }, [patients, selectedGoal, selectedDiet, selectedGender, selectedCondition, selectedAgeGroup, selectedActivity, sortBy]);
+
+  // Active filter count and list for chips
+  const activeFilters = useMemo(() => {
+    const list = [];
+    if (selectedGoal !== "all") {
+      const label =
+        selectedGoal === "lose_weight"
+          ? "Goal: Weight Loss"
+          : selectedGoal === "gain_weight"
+          ? "Goal: Weight Gain"
+          : selectedGoal === "maintain"
+          ? "Goal: Maintain"
+          : "Goal: Not Set";
+      list.push({ key: "goal", label, reset: () => setSelectedGoal("all") });
+    }
+    if (selectedDiet !== "all") {
+      list.push({
+        key: "diet",
+        label: `Diet: ${selectedDiet.replace(/_/g, " ")}`,
+        reset: () => setSelectedDiet("all"),
+      });
+    }
+    if (selectedGender !== "all") {
+      list.push({
+        key: "gender",
+        label: `Gender: ${selectedGender.charAt(0).toUpperCase() + selectedGender.slice(1)}`,
+        reset: () => setSelectedGender("all"),
+      });
+    }
+    if (selectedCondition !== "all") {
+      const label =
+        selectedCondition === "diabetic"
+          ? "Diabetic"
+          : selectedCondition === "hypertensive"
+          ? "Hypertension"
+          : selectedCondition === "heart"
+          ? "Heart Condition"
+          : selectedCondition === "thyroid"
+          ? "Thyroid Disorder"
+          : "Has Clinical Condition";
+      list.push({
+        key: "condition",
+        label: `Health: ${label}`,
+        reset: () => setSelectedCondition("all"),
+      });
+    }
+    if (selectedAgeGroup !== "all") {
+      const label =
+        selectedAgeGroup === "under_20"
+          ? "< 20 yrs"
+          : selectedAgeGroup === "20_35"
+          ? "20–35 yrs"
+          : selectedAgeGroup === "36_50"
+          ? "36–50 yrs"
+          : "50+ yrs";
+      list.push({ key: "age", label: `Age: ${label}`, reset: () => setSelectedAgeGroup("all") });
+    }
+    if (selectedActivity !== "all") {
+      list.push({
+        key: "activity",
+        label: `Activity: ${selectedActivity.replace(/_/g, " ")}`,
+        reset: () => setSelectedActivity("all"),
+      });
+    }
+    if (sortBy !== "newest") {
+      const label =
+        sortBy === "oldest"
+          ? "Oldest"
+          : sortBy === "name_asc"
+          ? "Name: A → Z"
+          : sortBy === "name_desc"
+          ? "Name: Z → A"
+          : sortBy === "age_asc"
+          ? "Age: Youngest"
+          : "Age: Oldest";
+      list.push({ key: "sort", label: `Sort: ${label}`, reset: () => setSortBy("newest") });
+    }
+    return list;
+  }, [selectedGoal, selectedDiet, selectedGender, selectedCondition, selectedAgeGroup, selectedActivity, sortBy]);
+
+  const handleResetFilters = () => {
+    setSelectedGoal("all");
+    setSelectedDiet("all");
+    setSelectedGender("all");
+    setSelectedCondition("all");
+    setSelectedAgeGroup("all");
+    setSelectedActivity("all");
+    setSortBy("newest");
+    setCurrentPage(1);
+  };
 
   // --- [UNCHANGED] Patient Creation Logic ---
  // --- [REPLACE THIS ENTIRE FUNCTION] ---
@@ -637,7 +886,7 @@ const NutritionistDashboard = () => {
           <p className="text-[var(--color-text-default)] mt-2 text-lg font-[var(--font-secondary)]">
             Manage, search, and onboard your patients with ease.
           </p>
-          <div className="mt-6 flex flex-col sm:flex-row items-center gap-4">
+          <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
             <div className="relative w-full sm:flex-grow">
               <Search className="absolute top-1/2 left-4 -translate-y-1/2 text-[var(--color-text-muted)] z-10" />
               {isSearching && (
@@ -657,11 +906,31 @@ const NutritionistDashboard = () => {
                 className="w-full pl-12 pr-12 py-3 border-2 bg-[var(--color-bg-app)] border-[var(--color-border-default)] rounded-xl text-[var(--color-text-strong)] placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-border-hover)] focus:border-[var(--color-border-focus)] outline-none transition-all duration-300 shadow-inner"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="flex flex-wrap sm:flex-nowrap gap-2.5 w-full sm:w-auto">
+              {/* Toggle Filters Panel */}
+              <button
+                type="button"
+                onClick={() => setShowFilterPanel(!showFilterPanel)}
+                className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm border-2 transition-all duration-300 w-full sm:w-auto cursor-pointer ${
+                  activeFilters.length > 0 || showFilterPanel
+                    ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
+                    : "bg-[var(--color-bg-surface)] text-[var(--color-text-strong)] border-[var(--color-border-default)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                }`}
+                title="Toggle clinical & lifestyle filters"
+              >
+                <SlidersHorizontal size={18} />
+                <span>Filters</span>
+                {activeFilters.length > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-white text-[var(--color-primary)] text-xs flex items-center justify-center font-black">
+                    {activeFilters.length}
+                  </span>
+                )}
+              </button>
+
               {/* Manage Appointments */}
               <button
                 onClick={() => navigate("/nutritionist/availability")}
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 rounded-2xl sm:rounded-full font-bold text-sm sm:text-base
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm
                   bg-[var(--color-bg-surface)]
                   border-2 border-[var(--color-border-default)]
                   text-[var(--color-text-strong)]
@@ -670,25 +939,295 @@ const NutritionistDashboard = () => {
                   hover:shadow-lg
                   transition-all duration-300 w-full sm:w-auto"
               >
-                <CalendarDays size={19} />
-                <span>Manage Appointments</span>
+                <CalendarDays size={18} />
+                <span>Appointments</span>
               </button>
 
               {/* Add New Patient */}
               <button
                 onClick={() => setShowForm(true)}
-                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 rounded-2xl sm:rounded-full font-bold text-sm sm:text-base
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm
                   bg-[var(--color-primary)]
                   text-[var(--color-text-on-primary)]
                   hover:bg-[var(--color-primary-hover)]
                   hover:shadow-xl
                   transition-all duration-300 w-full sm:w-auto"
               >
-                <UserPlus size={19} />
-                <span>Add New Patient</span>
+                <UserPlus size={18} />
+                <span>Add Patient</span>
               </button>
             </div>
           </div>
+
+          {/* Quick Filter Goal & Health Stat Chips */}
+          <div className="mt-5 pt-4 border-t border-[var(--color-border-default)] flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mr-1 flex items-center gap-1.5">
+              <Sparkles size={13} className="text-[var(--color-primary)]" />
+              <span>Quick:</span>
+            </span>
+
+            {/* All Patients */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedGoal("all");
+                setSelectedCondition("all");
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                selectedGoal === "all" && selectedCondition === "all"
+                  ? "bg-[var(--color-primary)] text-white shadow-xs"
+                  : "bg-[var(--color-bg-app)] text-[var(--color-text-strong)] border border-[var(--color-border-default)] hover:border-[var(--color-primary)]"
+              }`}
+            >
+              <span>All ({stats.total})</span>
+            </button>
+
+            {/* Weight Loss */}
+            <button
+              type="button"
+              onClick={() => setSelectedGoal(selectedGoal === "lose_weight" ? "all" : "lose_weight")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                selectedGoal === "lose_weight"
+                  ? "bg-amber-500 text-white shadow-xs ring-2 ring-amber-400"
+                  : "bg-[var(--color-warning-bg-subtle)] text-[var(--color-warning-text)] border border-amber-300/40 hover:bg-amber-100 dark:hover:bg-amber-950/40"
+              }`}
+            >
+              <TrendingDown size={14} />
+              <span>Weight Loss ({stats.weightLoss})</span>
+            </button>
+
+            {/* Weight Gain */}
+            <button
+              type="button"
+              onClick={() => setSelectedGoal(selectedGoal === "gain_weight" ? "all" : "gain_weight")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                selectedGoal === "gain_weight"
+                  ? "bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400"
+                  : "bg-[var(--color-success-bg-subtle)] text-[var(--color-success-text)] border border-emerald-300/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/40"
+              }`}
+            >
+              <TrendingUp size={14} />
+              <span>Weight Gain ({stats.weightGain})</span>
+            </button>
+
+            {/* Maintain */}
+            <button
+              type="button"
+              onClick={() => setSelectedGoal(selectedGoal === "maintain" ? "all" : "maintain")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                selectedGoal === "maintain"
+                  ? "bg-blue-600 text-white shadow-xs ring-2 ring-blue-400"
+                  : "bg-[var(--color-info-bg-subtle)] text-[var(--color-info-text)] border border-blue-300/40 hover:bg-blue-100 dark:hover:bg-blue-950/40"
+              }`}
+            >
+              <Anchor size={14} />
+              <span>Maintain ({stats.maintenance})</span>
+            </button>
+
+            {/* Clinical Condition */}
+            <button
+              type="button"
+              onClick={() => setSelectedCondition(selectedCondition === "any_condition" ? "all" : "any_condition")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                selectedCondition === "any_condition"
+                  ? "bg-rose-600 text-white shadow-xs ring-2 ring-rose-400"
+                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-300/40 hover:bg-rose-100 dark:hover:bg-rose-950/40"
+              }`}
+            >
+              <HeartPulse size={14} />
+              <span>Clinical Care ({stats.specialCare})</span>
+            </button>
+          </div>
+
+          {/* Expandable Clinical & Lifestyle Filters Drawer */}
+          {showFilterPanel && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 pt-4 border-t border-[var(--color-border-default)] space-y-4"
+            >
+              <div className="flex items-center justify-between pb-1">
+                <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-[var(--color-primary)]" />
+                  <span className="font-bold text-sm text-[var(--color-text-strong)]">
+                    Advanced Patient Filters
+                  </span>
+                </div>
+                {activeFilters.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer"
+                  >
+                    <RotateCcw size={12} />
+                    <span>Reset All Filters</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                {/* 1. Primary Goal */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Primary Goal
+                  </label>
+                  <select
+                    value={selectedGoal}
+                    onChange={(e) => setSelectedGoal(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="all">All Goals</option>
+                    <option value="lose_weight">Weight Loss</option>
+                    <option value="gain_weight">Weight Gain</option>
+                    <option value="maintain">Maintain Weight</option>
+                    <option value="not_set">Goal Not Set</option>
+                  </select>
+                </div>
+
+                {/* 2. Dietary Preference */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Dietary Preference
+                  </label>
+                  <select
+                    value={selectedDiet}
+                    onChange={(e) => setSelectedDiet(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="all">All Diet Types</option>
+                    <option value="vegetarian">Vegetarian</option>
+                    <option value="non_vegetarian">Non-Vegetarian</option>
+                    <option value="vegan">Vegan</option>
+                    <option value="eggetarian">Eggetarian</option>
+                    <option value="keto">Keto</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* 3. Health & Medical Conditions */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Health Conditions
+                  </label>
+                  <select
+                    value={selectedCondition}
+                    onChange={(e) => setSelectedCondition(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="all">All Health Profiles</option>
+                    <option value="any_condition">Any Clinical Condition</option>
+                    <option value="diabetic">Diabetic Condition</option>
+                    <option value="hypertensive">Hypertension (High BP)</option>
+                    <option value="heart">Heart Condition (CVD)</option>
+                    <option value="thyroid">Thyroid Disorder</option>
+                  </select>
+                </div>
+
+                {/* 4. Gender */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Gender
+                  </label>
+                  <select
+                    value={selectedGender}
+                    onChange={(e) => setSelectedGender(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="all">All Genders</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* 5. Age Range */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Age Group
+                  </label>
+                  <select
+                    value={selectedAgeGroup}
+                    onChange={(e) => setSelectedAgeGroup(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="all">All Ages</option>
+                    <option value="under_20">Under 20 years</option>
+                    <option value="20_35">20 – 35 years</option>
+                    <option value="36_50">36 – 50 years</option>
+                    <option value="above_50">Above 50 years</option>
+                  </select>
+                </div>
+
+                {/* 6. Activity Level */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Activity Level
+                  </label>
+                  <select
+                    value={selectedActivity}
+                    onChange={(e) => setSelectedActivity(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="all">All Activity Levels</option>
+                    <option value="sedentary">Sedentary</option>
+                    <option value="lightly_active">Lightly Active</option>
+                    <option value="moderately_active">Moderately Active</option>
+                    <option value="very_active">Very / Extra Active</option>
+                  </select>
+                </div>
+
+                {/* 7. Sort By */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    Sort Patients By
+                  </label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] text-[var(--color-text-strong)] font-medium focus:border-[var(--color-primary)] outline-none"
+                  >
+                    <option value="newest">Recently Added First (Default)</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name_asc">Patient Name (A → Z)</option>
+                    <option value="name_desc">Patient Name (Z → A)</option>
+                    <option value="age_asc">Age (Youngest First)</option>
+                    <option value="age_desc">Age (Oldest First)</option>
+                  </select>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Active Filters Pill Bar */}
+          {activeFilters.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-[var(--color-border-default)] flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Active Filters:</span>
+              {activeFilters.map((af) => (
+                <span
+                  key={af.key}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[var(--color-primary-bg-subtle)] text-[var(--color-primary)] border border-[var(--color-border-hover)] shadow-2xs"
+                >
+                  <span>{af.label}</span>
+                  <button
+                    type="button"
+                    onClick={af.reset}
+                    className="hover:bg-[var(--color-primary)] hover:text-white rounded-full p-0.5 transition-colors cursor-pointer"
+                    title="Remove filter"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-xs font-bold text-rose-500 hover:text-rose-600 hover:underline ml-1 cursor-pointer"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </motion.header>
 
         <AnimatePresence>
@@ -1494,14 +2033,33 @@ const NutritionistDashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, transition: { delay: 0.2 } }}
         >
-          <div className="flex justify-between items-baseline mb-6">
-            <h2 className="text-3xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
-              Your Patients
-            </h2>
-            <span className="font-semibold text-[var(--color-text-default)] font-[var(--font-secondary)]">
-              {patients.length} Total
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                Your Patients
+              </h2>
+              <p className="text-xs sm:text-sm text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-0.5">
+                {activeFilters.length > 0 ? (
+                  <span>
+                    Showing <strong className="text-[var(--color-primary)] font-bold">{filteredPatients.length}</strong> of {patients.length} assigned patients
+                  </span>
+                ) : (
+                  <span>{patients.length} total assigned patients</span>
+                )}
+              </p>
+            </div>
+            {activeFilters.length > 0 && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors cursor-pointer self-start sm:self-auto"
+              >
+                <RotateCcw size={13} />
+                <span>Reset all filters ({activeFilters.length})</span>
+              </button>
+            )}
           </div>
+
           {isLoading ? (
             <div className="py-20">
               <VibrantLoader size="lg" text="Fetching patient records..." />
@@ -1520,6 +2078,26 @@ const NutritionistDashboard = () => {
                 {search ? "Try adjusting your search terms." : "You have no assigned patients yet."}
               </p>
             </div>
+          ) : filteredPatients.length === 0 ? (
+            <div className="text-center py-16 bg-[var(--color-bg-surface)] rounded-3xl border-2 border-dashed border-[var(--color-border-default)] flex flex-col items-center gap-4 max-w-lg mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Filter size={28} />
+              </div>
+              <p className="text-xl font-bold text-[var(--color-text-strong)] font-[var(--font-primary)]">
+                No Patients Match Current Filters
+              </p>
+              <p className="text-xs sm:text-sm text-[var(--color-text-muted)] font-[var(--font-secondary)] text-center px-4">
+                None of your {patients.length} patients match the active filter criteria. Try adjusting or clearing the filters above.
+              </p>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-xs font-bold shadow-md hover:bg-[var(--color-primary-hover)] transition-all cursor-pointer"
+              >
+                <RotateCcw size={13} />
+                <span>Reset All Filters</span>
+              </button>
+            </div>
           ) : (
             <motion.div
               variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
@@ -1527,7 +2105,7 @@ const NutritionistDashboard = () => {
               animate="visible"
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
             >
-              {patients
+              {filteredPatients
                 .slice((currentPage - 1) * perPage, currentPage * perPage)
                 .map((patient, index) => {
                   const avatarColor =
@@ -1535,76 +2113,115 @@ const NutritionistDashboard = () => {
                   const patientInitial = patient.full_name
                     ? patient.full_name.charAt(0).toUpperCase()
                     : "?";
+
+                  const ageVal = calculateAge(patient.date_of_birth);
+
                   return (
+                    <motion.div
+                      key={patient.id}
+                      variants={{
+                        hidden: { y: 20, opacity: 0 },
+                        visible: { y: 0, opacity: 1 },
+                      }}
+                      onClick={() => navigate(`/nutritionist/patient/${patient.id}`)}
+                      className="group cursor-pointer p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-xs hover:shadow-xl hover:border-[var(--color-primary)] hover:-translate-y-1.5 transition-all duration-300 ease-in-out transform-gpu flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Avatar and ID */}
+                        <div className="flex items-start justify-between mb-3.5">
+                          <div
+                            className="w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-bold text-xl text-[var(--color-text-on-primary)] shadow-md group-hover:scale-105 transition-transform duration-300"
+                            style={{ backgroundColor: avatarColor }}
+                          >
+                            {patientInitial}
+                          </div>
+                          <span className="text-[11px] font-semibold text-[var(--color-text-muted)] bg-[var(--color-bg-app)] px-2 py-0.5 rounded-lg border border-[var(--color-border-default)]">
+                            ID: #{patient.id}
+                          </span>
+                        </div>
 
-                    // new code
-       <motion.div
-        key={patient.id}
-        variants={{
-        hidden: { y: 20, opacity: 0 },
-        visible: { y: 0, opacity: 1 },
-  }}
-  onClick={() => navigate(`/nutritionist/patient/${patient.id}`)}
-  className="group cursor-pointer p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] shadow-md hover:shadow-xl hover:border-[var(--color-primary)] hover:-translate-y-2 transition-all duration-300 ease-in-out transform-gpu"
->
-  {/* Avatar and ID */}
-  <div className="flex items-start justify-between mb-4 sm:mb-5">
-    <div
-      className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl text-[var(--color-text-on-primary)] shadow-xl group-hover:scale-110 transition-transform duration-300"
-      style={{ backgroundColor: avatarColor }}
-    >
-      {patientInitial}
-    </div>
-    <span className="text-xs font-semibold text-[var(--color-text-muted)]">
-      ID: {patient.id}
-    </span>
-  </div>
+                        {/* Patient Info */}
+                        <div className="mb-3">
+                          <h3 className="text-lg sm:text-xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] capitalize leading-snug truncate group-hover:text-[var(--color-primary)] transition-colors">
+                            {patient.full_name || "No Name"}
+                          </h3>
+                          <p className="text-xs text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-0.5">
+                            {ageVal === "N/A" ? "Age not set" : `${ageVal} years old`}
+                            {patient.gender ? ` • ${patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}` : ""}
+                          </p>
+                        </div>
 
-  {/* Patient Info */}
-  <div className="mb-4">
-    <h3 className="text-xl sm:text-2xl font-extrabold text-[var(--color-text-strong)] font-[var(--font-primary)] capitalize leading-snug truncate">
-      {patient.full_name || "No Name"}
-    </h3>
-    <p className="text-xs sm:text-sm text-[var(--color-text-muted)] font-[var(--font-secondary)] mt-1">
-      {calculateAge(patient.date_of_birth)} years old
-    </p>
-  </div>
+                        {/* Badges: Diet & Clinical Conditions */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-3 min-h-[24px]">
+                          {patient.diet_type && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 capitalize">
+                              <Apple size={10} />
+                              <span>{patient.diet_type.replace(/_/g, " ")}</span>
+                            </span>
+                          )}
 
-  {/* Divider & Footer */}
-  <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-dashed border-[var(--color-border-default)] flex justify-between items-center">
-    <GoalDisplay goal={patient.goal} />
-    <div className="text-[var(--color-primary)] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform sm:translate-x-2 sm:group-hover:translate-x-0">
-      <ArrowRight size={20} className="sm:w-[22px] sm:h-[22px]" />
-    </div>
-  </div>
-</motion.div>
+                          {patient.is_diabetic && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                              <HeartPulse size={10} />
+                              <span>Diabetic</span>
+                            </span>
+                          )}
 
+                          {patient.is_hypertensive && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              <Activity size={10} />
+                              <span>High BP</span>
+                            </span>
+                          )}
+
+                          {patient.has_heart_condition && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                              <span>Heart</span>
+                            </span>
+                          )}
+
+                          {patient.has_thyroid_disorder && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                              <span>Thyroid</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Divider & Footer */}
+                      <div className="pt-3 border-t border-dashed border-[var(--color-border-default)] flex justify-between items-center mt-1">
+                        <GoalDisplay goal={patient.goal} />
+                        <div className="text-[var(--color-primary)] opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform sm:translate-x-1 sm:group-hover:translate-x-0">
+                          <ArrowRight size={18} />
+                        </div>
+                      </div>
+                    </motion.div>
                   );
                 })}
             </motion.div>
           )}
         </motion.section>
 
-        {patients.length > perPage && (
-          <div className="flex justify-center items-center mt-12 gap-2 sm:gap-4 font-[var(--font-secondary)]">
+        {filteredPatients.length > perPage && (
+          <div className="flex justify-center items-center mt-10 gap-2 sm:gap-4 font-[var(--font-secondary)]">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="px-4 py-2 rounded-lg bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] font-semibold transition-all hover:bg-[var(--color-bg-interactive-subtle)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] font-semibold transition-all hover:bg-[var(--color-bg-interactive-subtle)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
               disabled={currentPage === 1}
             >
               Previous
             </button>
-            <span className="text-sm font-semibold text-[var(--color-text-strong)] px-2">
-              Page {currentPage} of {Math.ceil(patients.length / perPage)}
+            <span className="text-xs sm:text-sm font-bold text-[var(--color-text-strong)] px-2">
+              Page {currentPage} of {Math.ceil(filteredPatients.length / perPage)}
             </span>
             <button
               onClick={() =>
                 setCurrentPage((p) =>
-                  p * perPage < patients.length ? p + 1 : p
+                  p * perPage < filteredPatients.length ? p + 1 : p
                 )
               }
-              className="px-4 py-2 rounded-lg bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] font-semibold transition-all hover:bg-[var(--color-bg-interactive-subtle)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={currentPage * perPage >= patients.length}
+              className="px-4 py-2 rounded-xl bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-default)] text-[var(--color-text-default)] font-semibold transition-all hover:bg-[var(--color-bg-interactive-subtle)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+              disabled={currentPage * perPage >= filteredPatients.length}
             >
               Next
             </button>

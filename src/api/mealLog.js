@@ -66,6 +66,23 @@ export const getMealsByDate = async (date) => {
   }
 };
 
+// getMealsByDateRange supports filtering across single date or start_date to end_date range.
+export const getMealsByDateRange = async (startDate, endDate) => {
+  try {
+    let url = `/logmeals/`;
+    if (startDate && endDate) {
+      url = `/logmeals/?start_date=${startDate}&end_date=${endDate}`;
+    } else if (startDate) {
+      url = `/logmeals/?date=${startDate}`;
+    }
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error fetching meals by date range:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 // --- All other functions (create, patch, delete) remain the same ---
 
 export const createMeal = async (mealData) => {

@@ -22,32 +22,32 @@ export const targetApi = async (currentDate) => {
 
 /**
  * GET /daily-calorie-summary/
- * Fetches the calorie and macronutrient summary for a specific day.
- * @param {string} date - The target date in 'YYYY-MM-DD' format.
+ * Fetches the calorie and macronutrient summary for a specific day or date range.
+ * @param {string} date - The target date in 'YYYY-MM-DD' format (or start date if endDate is provided).
+ * @param {string} [endDate] - Optional end date in 'YYYY-MM-DD' format for range query.
  */
-export const targetProgressApi = async (date) => {
-  // ✅ The input validation is preserved.
+export const targetProgressApi = async (date, endDate = null) => {
   if (!date) throw new Error("date is required for targetProgressApi.");
 
-  // ✅ The call is simplified using the instance and the 'params' object.
+  const params = endDate ? { start_date: date, end_date: endDate } : { date };
   const response = await axiosInstance.get('/daily-calorie-summary/', {
-    params: { date }
+    params
   });
   return response.data;
-}
+};
 
 /**
  * GET /nutrition7day/
- * Fetches nutritional data for the 7-day period ending on the given date.
- * @param {string} endDate - The end date for the 7-day range in 'YYYY-MM-DD' format.
+ * Fetches nutritional data for a date range (or 7-day period ending on endDate).
+ * @param {string} endDate - The end date in 'YYYY-MM-DD' format.
+ * @param {string} [startDate] - Optional start date in 'YYYY-MM-DD' format.
  */
-export const weeklyTrack = async (endDate) => {
-  // ✅ The input validation is preserved.
+export const weeklyTrack = async (endDate, startDate = null) => {
   if (!endDate) throw new Error("endDate is required for weeklyTrack.");
   
-  // ✅ The call is simplified using the instance and the 'params' object.
+  const params = startDate ? { start_date: startDate, end_date: endDate } : { end_date: endDate };
   const response = await axiosInstance.get('/nutrition7day/', {
-    params: { end_date: endDate }
+    params
   });
   return response.data;
 };

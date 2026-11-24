@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import {
   DollarSign, TrendingUp, Clock, CheckCircle2,
   Calendar, User, Video, Search, RefreshCw,
-  AlertCircle, ArrowUpRight, Filter, ChevronLeft, Percent, ShieldCheck
+  AlertCircle, ArrowUpRight, Filter, ChevronLeft, Percent, ShieldCheck,
+  X, RotateCcw, CalendarDays
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { getNutritionistPayouts } from "../../../api/appointmentApi";
@@ -29,7 +30,26 @@ const fmtDateTime = (v) => {
   });
 };
 
+const getLocalDateString = (date) => {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+};
+
+const formatDateDisplay = (dateString) => {
+  if (!dateString) return "";
+  return new Date(dateString + "T00:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+};
+
 const NutritionistPayouts = () => {
+  const todayStr = getLocalDateString(new Date());
+
   const [summary, setSummary] = useState({
     total_earned: 0,
     pending_payout: 0,
@@ -41,12 +61,90 @@ const NutritionistPayouts = () => {
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | PENDING | PAID
   const [search, setSearch] = useState("");
 
+  // Date Filtering State
+  const [datePreset, setDatePreset] = useState("ALL"); // ALL | TODAY | 7DAYS | 30DAYS | THIS_MONTH | CUSTOM
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const handleSelectDatePreset = (preset) => {
+    setDatePreset(preset);
+    const today = new Date();
+    const todayFormatted = getLocalDateString(today);
+
+    if (preset === "ALL") {
+      setStartDate("");
+      setEndDate("");
+      setCustomStart("");
+      setCustomEnd("");
+    } else if (preset === "TODAY") {
+      setStartDate(todayFormatted);
+      setEndDate(todayFormatted);
+      setCustomStart(todayFormatted);
+      setCustomEnd(todayFormatted);
+    } else if (preset === "7DAYS") {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      const sFormatted = getLocalDateString(d);
+      setStartDate(sFormatted);
+      setEndDate(todayFormatted);
+      setCustomStart(sFormatted);
+      setCustomEnd(todayFormatted);
+    } else if (preset === "30DAYS") {
+      const d = new Date();
+      d.setDate(d.getDate() - 29);
+      const sFormatted = getLocalDateString(d);
+      setStartDate(sFormatted);
+      setEndDate(todayFormatted);
+      setCustomStart(sFormatted);
+      setCustomEnd(todayFormatted);
+    } else if (preset === "THIS_MONTH") {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const sFormatted = getLocalDateString(firstDay);
+      setStartDate(sFormatted);
+      setEndDate(todayFormatted);
+      setCustomStart(sFormatted);
+      setCustomEnd(todayFormatted);
+    } else if (preset === "CUSTOM") {
+      if (!customStart) setCustomStart(todayFormatted);
+      if (!customEnd) setCustomEnd(todayFormatted);
+    }
+  };
+
+  const handleApplyCustomRange = (e) => {
+    e?.preventDefault();
+    if (!customStart || !customEnd) return;
+    let s = customStart;
+    let eDate = customEnd;
+    if (s > eDate) {
+      const temp = s;
+      s = eDate;
+      eDate = temp;
+      setCustomStart(s);
+      setCustomEnd(eDate);
+    }
+    setStartDate(s);
+    setEndDate(eDate);
+    setDatePreset("CUSTOM");
+  };
+
+  const handleResetDateFilter = () => {
+    setDatePreset("ALL");
+    setStartDate("");
+    setEndDate("");
+    setCustomStart("");
+    setCustomEnd("");
+  };
+
   const fetchPayouts = async () => {
     setLoading(true);
     try {
       const params = {};
       if (statusFilter !== "ALL") params.payout_status = statusFilter;
       if (search) params.search = search;
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
 
       const res = await getNutritionistPayouts(params);
       setSummary(res.data?.summary || {});
@@ -61,7 +159,7 @@ const NutritionistPayouts = () => {
 
   useEffect(() => {
     fetchPayouts();
-  }, [statusFilter]);
+  }, [statusFilter, startDate, endDate]);
 
   useEffect(() => {
     const timer = setTimeout(fetchPayouts, 300);
@@ -197,41 +295,140 @@ const NutritionistPayouts = () => {
           </div>
         </div>
 
-        {/* ── Toolbar: Filters & Search ── */}
-        <div className="p-4 rounded-3xl bg-white border-2 border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 self-start max-w-full overflow-x-auto no-scrollbar">
-            {[
-              { key: "ALL", label: "All Payouts" },
-              { key: "PENDING", label: "Pending" },
-              { key: "PAID", label: "Completed (Paid)" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setStatusFilter(tab.key)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  statusFilter === tab.key
-                    ? "bg-orange-500 text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        {/* ── Toolbar: Status Tabs, Search & Date Filters ── */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-3.5">
+          {/* Row 1: Status Tabs & Search Box */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Status Tabs */}
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 self-start max-w-full overflow-x-auto no-scrollbar">
+              {[
+                { key: "ALL", label: "All Payouts" },
+                { key: "PENDING", label: "Pending" },
+                { key: "PAID", label: "Completed (Paid)" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.key)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    statusFilter === tab.key
+                      ? "bg-orange-500 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Box */}
+            <div className="relative w-full sm:w-auto min-w-0 sm:min-w-[260px]">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by patient name or ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:border-orange-500 focus:outline-none placeholder:text-slate-400 font-medium"
+              />
+            </div>
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-auto min-w-0 sm:min-w-[240px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by patient name or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:border-orange-500 focus:outline-none placeholder:text-slate-400 font-medium"
-            />
+          {/* Row 2: Date Filters Bar */}
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1 flex items-center gap-1">
+                <Calendar size={13} className="text-orange-600" />
+                <span>Date:</span>
+              </span>
+
+              {[
+                { id: "ALL", label: "All Time" },
+                { id: "TODAY", label: "Today" },
+                { id: "7DAYS", label: "Last 7 Days" },
+                { id: "30DAYS", label: "Last 30 Days" },
+                { id: "THIS_MONTH", label: "This Month" },
+                { id: "CUSTOM", label: "Custom Range" },
+              ].map((p) => {
+                const isActive = datePreset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectDatePreset(p.id)}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-orange-500 text-white shadow-xs"
+                        : "bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Range Pill */}
+            {startDate && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                  <CalendarDays size={12} />
+                  <span>
+                    {startDate === endDate
+                      ? formatDateDisplay(startDate)
+                      : `${formatDateDisplay(startDate)} – ${formatDateDisplay(endDate)}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetDateFilter}
+                    className="hover:bg-orange-200 rounded-full p-0.5 text-orange-700 transition-colors cursor-pointer"
+                    title="Clear date filter"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* Row 3: Custom Date Pickers (Shown when Custom Range is active) */}
+          {datePreset === "CUSTOM" && (
+            <form onSubmit={handleApplyCustomRange} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-end gap-3 mt-1">
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500 shadow-2xs"
+                  required
+                />
+              </div>
+
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-orange-500 shadow-2xs"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 shrink-0"
+              >
+                <Filter size={13} />
+                <span>Apply Date Range</span>
+              </button>
+            </form>
+          )}
         </div>
 
         {/* ── Payouts Table ── */}
