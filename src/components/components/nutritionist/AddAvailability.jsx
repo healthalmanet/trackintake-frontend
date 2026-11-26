@@ -757,72 +757,89 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated, initialDate = null }) =>
             </div>
           )}
 
-          {/* ── PRICING PREVIEW: Grayed-out Configured Settings ── */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-                <Lock size={13} className="text-slate-500" />
-                <span>
+          {/* ── PRICING PREVIEW: Fixed vs Variable ── */}
+          {profileData?.nutritionist_type === "expert" && pricingMode === "VARIABLE" ? (
+            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-800">
+                  <FileText size={13} className="text-indigo-600" />
+                  <span>Variable Case Slot (Nutritionist-Controlled)</span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                  2-Step Custom Quote
+                </span>
+              </div>
+              <p className="text-xs text-indigo-700 leading-relaxed">
+                Platform fixed rates do not apply to Variable Case Slots. Patients submit their case details and health dossier first, and you quote your own custom consultation fee based on case complexity.
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <Lock size={13} className="text-slate-500" />
+                  <span>
+                    {profileData?.nutritionist_type === "expert"
+                      ? profileData?.expert_fixed_pricing_enabled
+                        ? "Platform Enforced Fixed Slot Rates"
+                        : "Your Practice Consultation Rates"
+                      : "Standard Platform Consultation Rates"}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
                   {profileData?.nutritionist_type === "expert"
                     ? profileData?.expert_fixed_pricing_enabled
-                      ? "Platform Enforced Fixed Slot Rates"
-                      : "Your Practice Consultation Rates"
-                    : "Standard Platform Consultation Rates"}
+                      ? "Expert · Fixed Enforced"
+                      : "Specialist Tier"
+                    : "In-House Tier"}
                 </span>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
-                {profileData?.nutritionist_type === "expert"
-                  ? profileData?.expert_fixed_pricing_enabled
-                    ? "Expert · Fixed Enforced"
-                    : "Specialist Tier"
-                  : "In-House Tier"}
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
-                  Virtual / Online Rate
-                </span>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-black text-slate-900">
-                    ₹{onlineFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
+                    Virtual / Online Rate
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200 font-bold">
-                    {profileData?.is_online_available ? "Enabled" : "Disabled"}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-black text-slate-900">
+                      ₹{onlineFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200 font-bold">
+                      {profileData?.is_online_available ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
+                    In-Clinic / Physical Rate
                   </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-black text-slate-900">
+                      ₹{offlineFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200 font-bold">
+                      {offlinePaymentRequired ? "Pay Online" : "Pay at Clinic"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
-                  In-Clinic / Physical Rate
-                </span>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-black text-slate-900">
-                    ₹{offlineFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200 font-bold">
-                    {offlinePaymentRequired ? "Pay Online" : "Pay at Clinic"}
-                  </span>
+              {profileData?.offline_location && (
+                <div className="flex items-start gap-1.5 text-[11px] text-slate-700 pt-0.5">
+                  <MapPin size={12} className="text-orange-600 shrink-0 mt-0.5" />
+                  <span className="truncate"><strong>Practice Clinic:</strong> {profileData.offline_location}</span>
                 </div>
+              )}
+
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 italic pt-0.5">
+                <Info size={11} className="shrink-0" />
+                <span>
+                  These rates are automatically applied to appointments. {offlinePaymentRequired ? "Online payment is required for offline visits." : "Patients can pay upon arrival for offline visits."}
+                </span>
               </div>
             </div>
-
-            {profileData?.offline_location && (
-              <div className="flex items-start gap-1.5 text-[11px] text-slate-700 pt-0.5">
-                <MapPin size={12} className="text-orange-600 shrink-0 mt-0.5" />
-                <span className="truncate"><strong>Practice Clinic:</strong> {profileData.offline_location}</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 text-[10px] text-slate-500 italic pt-0.5">
-              <Info size={11} className="shrink-0" />
-              <span>
-                These rates are automatically applied to appointments. {offlinePaymentRequired ? "Online payment is required for offline visits." : "Patients can pay upon arrival for offline visits."}
-              </span>
-            </div>
-          </div>
+          )}
 
           {/* ── STEP 2: Custom Date Range / Single Date ── */}
           <div className="space-y-3 pt-1 border-t border-slate-200">
