@@ -184,6 +184,10 @@ export const archiveDietPlan = (dietId) =>
 export const restoreDietPlan = (dietId) =>
   axiosInstance.patch(`/nutritionist/diet-plans/${dietId}/restore/`);
 
+// Platform Consultation Pricing Config (Public)
+export const getPlatformPricingConfig = () =>
+  axiosInstance.get('/pricing-config/');
+
 // Nutritionist Self Profile & Password API calls
 export const getNutritionistProfile = () =>
   axiosInstance.get('/nutritionist/me/profile/');

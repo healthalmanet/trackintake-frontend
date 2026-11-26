@@ -1347,12 +1347,14 @@ const NutritionistProfile = () => {
                     <DollarSign size={14} /> Section 2: Consultation Fee Structure (₹)
                   </span>
 
-                  {nutriProfile?.nutritionist_type !== "expert" ? (
-                    /* In-House Nutritionist: Fixed platform rate view (Non-editable) */
+                  {nutriProfile?.nutritionist_type !== "expert" || nutriProfile?.expert_fixed_pricing_enabled ? (
+                    /* In-House OR Enforced Fixed Expert Pricing: Fixed platform rate view (Non-editable) */
                     <div className="p-3.5 rounded-xl bg-orange-50/80 border border-orange-200/80 space-y-3 pt-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span className="px-2.5 py-0.5 text-[10px] font-black uppercase rounded-md bg-orange-500 text-white tracking-wider">
-                          Standard In-House Platform Rates
+                          {nutriProfile?.nutritionist_type === "expert"
+                            ? "Enforced Expert Fixed Slot Rates"
+                            : "Standard In-House Platform Rates"}
                         </span>
                         <span className="text-[11px] text-slate-500 font-medium">
                           Centrally managed by administration
@@ -1363,21 +1365,27 @@ const NutritionistProfile = () => {
                         {appointmentForm.is_online_available && (
                           <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
                             <span className="text-[11px] font-bold text-slate-500 block">Virtual / Online Session</span>
-                            <span className="text-lg font-black text-slate-900">₹{appointmentForm.online_price || nutriProfile?.online_price || 0}</span>
+                            <span className="text-lg font-black text-slate-900">
+                              ₹{nutriProfile?.nutritionist_type === "expert" ? (nutriProfile?.expert_online_price ?? appointmentForm.online_price ?? 0) : (appointmentForm.online_price || nutriProfile?.online_price || 0)}
+                            </span>
                             <span className="text-[10px] text-slate-400 block mt-0.5">Fixed standard platform rate</span>
                           </div>
                         )}
                         {appointmentForm.is_offline_available && (
                           <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
                             <span className="text-[11px] font-bold text-slate-500 block">In-Clinic / Physical Session</span>
-                            <span className="text-lg font-black text-slate-900">₹{appointmentForm.offline_price || nutriProfile?.offline_price || 0}</span>
+                            <span className="text-lg font-black text-slate-900">
+                              ₹{nutriProfile?.nutritionist_type === "expert" ? (nutriProfile?.expert_offline_price ?? appointmentForm.offline_price ?? 0) : (appointmentForm.offline_price || nutriProfile?.offline_price || 0)}
+                            </span>
                             <span className="text-[10px] text-slate-400 block mt-0.5">Fixed standard platform rate</span>
                           </div>
                         )}
                       </div>
 
                       <p className="text-[11px] text-slate-500 italic">
-                        🔒 In-House consultation rates are standardized platform-wide. Individual fee edits are disabled for In-House practitioners.
+                        {nutriProfile?.nutritionist_type === "expert"
+                          ? "🔒 Fixed Price Slot rates are currently enforced platform-wide. You can still set custom quotes per case on Variable Case Slots."
+                          : "🔒 In-House consultation rates are standardized platform-wide. Individual fee edits are disabled for In-House practitioners."}
                       </p>
                     </div>
                   ) : (

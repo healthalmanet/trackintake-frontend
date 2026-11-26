@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { sendOtp, verifyOtp, registerUser } from "../../../api/auth";
+import { getPlatformPricingConfig } from "../../../api/nutritionistApi";
 
 const SPECIALIZATION_OPTIONS = [
   "Weight Management",
@@ -95,6 +96,28 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [serverError, setServerError] = useState("");
+  const [pricingConfig, setPricingConfig] = useState({
+    inhouse_online_price: 499,
+    inhouse_offline_price: 499,
+    expert_fixed_pricing_enabled: false,
+    expert_online_price: 999,
+    expert_offline_price: 999,
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    getPlatformPricingConfig()
+      .then((res) => {
+        if (active && res?.data) {
+          setPricingConfig(res.data);
+        }
+      })
+      .catch(() => {
+        // Fallback to defaults silently if network fails
+      });
+    return () => { active = false; };
+  }, [isOpen]);
 
   // Whenever email changes, immediately invalidate any stale OTP or token
   const handleEmailChange = (val) => {
@@ -193,7 +216,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         errors.appointmentMode = "Please enable at least one consultation mode (Online or Offline).";
       }
 
-      if (nutritionistType === "expert") {
+      if (nutritionistType === "expert" && !pricingConfig.expert_fixed_pricing_enabled) {
         if (isOnlineAvailable) {
           if (onlinePrice === "" || isNaN(parseFloat(onlinePrice)) || parseFloat(onlinePrice) < 0) {
             errors.onlinePrice = "Please enter a valid online consultation fee (₹0 or more).";
@@ -388,8 +411,24 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       formData.append("is_online_available", isOnlineAvailable);
       formData.append("is_offline_available", isOfflineAvailable);
       formData.append("offline_location", offlineLocation || "");
-      formData.append("online_price", nutritionistType === "expert" && onlinePrice ? parseFloat(onlinePrice) : 0);
-      formData.append("offline_price", nutritionistType === "expert" && offlinePrice ? parseFloat(offlinePrice) : 0);
+      const resolvedOnlinePrice =
+        nutritionistType === "inhouse"
+          ? pricingConfig.inhouse_online_price
+          : pricingConfig.expert_fixed_pricing_enabled
+          ? pricingConfig.expert_online_price
+          : onlinePrice
+          ? parseFloat(onlinePrice)
+          : 0;
+      const resolvedOfflinePrice =
+        nutritionistType === "inhouse"
+          ? pricingConfig.inhouse_offline_price
+          : pricingConfig.expert_fixed_pricing_enabled
+          ? pricingConfig.expert_offline_price
+          : offlinePrice
+          ? parseFloat(offlinePrice)
+          : 0;
+      formData.append("online_price", resolvedOnlinePrice);
+      formData.append("offline_price", resolvedOfflinePrice);
       formData.append("offline_payment_required", offlinePaymentRequired);
 
       // Files
@@ -1192,7 +1231,7 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-primary)] flex items-center gap-2">
                     <DollarSign size={16} /> Section 2: Consultation Fee Structure (₹)
                   </span>
-                  {nutritionistType === "inhouse" && (
+                  {(nutritionistType === "inhouse" || pricingConfig.expert_fixed_pricing_enabled) && (
                     <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
                       <ShieldCheck size={13} /> Standard Platform Rates
                     </span>
@@ -1207,8 +1246,33 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                       <span>Standardized Platform Consultation Pricing</span>
                     </div>
                     <p className="text-xs text-emerald-700 leading-relaxed">
-                      As an In-House Nutritionist, your consultations follow standard platform session pricing and covered patient care plans. Patients can book your available slots immediately without needing custom price quotes or separate invoicing.
+                      As an In-House Nutritionist, your consultations follow standard platform session pricing (Online: <strong>₹{pricingConfig.inhouse_online_price}</strong>, In-Clinic: <strong>₹{pricingConfig.inhouse_offline_price}</strong>) and covered patient care plans. Patients can book your available slots immediately without needing custom price quotes.
                     </p>
+                  </div>
+                ) : pricingConfig.expert_fixed_pricing_enabled ? (
+                  /* Expert Practitioner with Platform-Enforced Fixed Slot Rates */
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs sm:text-sm">
+                      <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                      <span>Default Fixed Consultation Rates (Platform Enforced)</span>
+                    </div>
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      Fixed Price Slots currently use standard platform-controlled rates. For <strong>Variable Case Slots</strong>, you will still review patient medical dossiers and send custom fee quotes per case.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {isOnlineAvailable && (
+                        <div className="p-3 rounded-xl bg-white border border-emerald-200 shadow-2xs">
+                          <span className="text-[11px] font-bold text-slate-500 block">Online Fixed Slot Rate</span>
+                          <span className="text-lg font-black text-slate-900">₹{pricingConfig.expert_online_price}</span>
+                        </div>
+                      )}
+                      {isOfflineAvailable && (
+                        <div className="p-3 rounded-xl bg-white border border-emerald-200 shadow-2xs">
+                          <span className="text-[11px] font-bold text-slate-500 block">In-Clinic Fixed Slot Rate</span>
+                          <span className="text-lg font-black text-slate-900">₹{pricingConfig.expert_offline_price}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   /* Expert Practitioner Rates */

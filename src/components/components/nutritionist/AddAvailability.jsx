@@ -723,7 +723,11 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated, initialDate = null }) =>
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">Fixed Price Slot</h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Patient pays your standard rate upfront at booking</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {profileData?.expert_fixed_pricing_enabled
+                        ? "Patient pays the platform-enforced fixed rate upfront at booking"
+                        : "Patient pays your standard rate upfront at booking"}
+                    </p>
                   </div>
                 </button>
 
@@ -760,12 +764,18 @@ const CreateSlotsModal = ({ isOpen, onClose, onCreated, initialDate = null }) =>
                 <Lock size={13} className="text-slate-500" />
                 <span>
                   {profileData?.nutritionist_type === "expert"
-                    ? "Your Practice Consultation Rates"
+                    ? profileData?.expert_fixed_pricing_enabled
+                      ? "Platform Enforced Fixed Slot Rates"
+                      : "Your Practice Consultation Rates"
                     : "Standard Platform Consultation Rates"}
                 </span>
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
-                {profileData?.nutritionist_type === "expert" ? "Specialist Tier" : "In-House Tier"}
+                {profileData?.nutritionist_type === "expert"
+                  ? profileData?.expert_fixed_pricing_enabled
+                    ? "Expert · Fixed Enforced"
+                    : "Specialist Tier"
+                  : "In-House Tier"}
               </span>
             </div>
 
