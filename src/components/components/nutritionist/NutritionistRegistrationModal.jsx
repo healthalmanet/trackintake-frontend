@@ -297,14 +297,20 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     clearError("otp");
     try {
       console.log(`🔑 [OTP Request] Sending OTP to ${normalizedEmail}...`);
-      const otpRes = await sendOtp(normalizedEmail);
+      const otpRes = await sendOtp(normalizedEmail, phoneNumber.trim());
       console.log(`✅ [OTP Request Success]`, otpRes?.data);
       toast.success(`OTP sent to ${normalizedEmail}. Valid for 10 minutes.`);
       setOtpSent(true);
       setOtpTimer(600);
     } catch (error) {
       console.error("❌ [OTP Request Error]:", error);
-      let errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.email || error?.response?.data?.message || error?.response?.data?.error;
+      const resData = error?.response?.data;
+      let errMsg =
+        resData?.phone_number?.[0] ||
+        resData?.email?.[0] ||
+        resData?.email ||
+        resData?.message ||
+        resData?.error;
       if (!errMsg) {
         if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
           errMsg = "Request timed out while contacting server. Please check your network and try again.";
@@ -312,12 +318,17 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           errMsg = error?.message || "Failed to send OTP.";
         }
       }
-      setFieldErrors((prev) => ({ ...prev, email: errMsg, otp: errMsg }));
+      setFieldErrors((prev) => ({
+        ...prev,
+        ...(resData?.phone_number ? { phoneNumber: Array.isArray(resData.phone_number) ? resData.phone_number[0] : resData.phone_number } : {}),
+        ...(resData?.email ? { email: Array.isArray(resData.email) ? resData.email[0] : resData.email } : {}),
+        otp: errMsg,
+      }));
       setServerError(errMsg);
-      if (error?.response?.data?.email) {
+      if (resData?.email || resData?.phone_number) {
         setStep(1);
       }
-      toast.error(errMsg);
+      toast.error(errMsg, { duration: 6000 });
     } finally {
       setSendingOtp(false);
     }
@@ -427,8 +438,8 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
           : offlinePrice
           ? parseFloat(offlinePrice)
           : 0;
-      formData.append("online_price", resolvedOnlinePrice);
-      formData.append("offline_price", resolvedOfflinePrice);
+      formData.append("online_price", Number.isFinite(Number(resolvedOnlinePrice)) ? Number(resolvedOnlinePrice) : 0);
+      formData.append("offline_price", Number.isFinite(Number(resolvedOfflinePrice)) ? Number(resolvedOfflinePrice) : 0);
       formData.append("offline_payment_required", offlinePaymentRequired);
 
       // Files
@@ -1533,25 +1544,64 @@ const NutritionistRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   );
 };
 
-const FileInputField = ({ label, file, setFile, isImage = false }) => (
-  <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] flex items-center justify-between gap-3">
-    <div className="truncate min-w-0 flex-1">
-      <p className="text-xs sm:text-sm font-bold text-[var(--color-text-strong)] truncate">{label}</p>
-      <p className="text-[11px] sm:text-xs text-[var(--color-text-muted)] truncate mt-0.5">
-        {file ? file.name : isImage ? "Optional photo - JPG, PNG, JPEG, WEBP" : "Optional attachment - PDF, JPG, JPEG, PNG, WEBP, DOC"}
-      </p>
+const MAX_DOC_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+const FileInputField = ({ label, file, setFile, isImage = false }) => {
+  const handleFileChange = (e) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    if (selected.size > MAX_DOC_SIZE_BYTES) {
+      toast.error(`${selected.name} exceeds 10 MB. Please choose a smaller file.`);
+      e.target.value = "";
+      return;
+    }
+
+    const ext = selected.name.includes(".") ? `.${selected.name.split(".").pop().toLowerCase()}` : "";
+    const allowed = isImage
+      ? [".jpg", ".jpeg", ".png", ".webp"]
+      : [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx", ".rtf", ".odt"];
+    if (ext && !allowed.includes(ext)) {
+      toast.error(`Unsupported file type (${ext}). Allowed: ${isImage ? "JPG, PNG, WEBP" : "PDF, JPG, PNG, WEBP, DOC, DOCX"}.`);
+      e.target.value = "";
+      return;
+    }
+
+    setFile(selected);
+  };
+
+  return (
+    <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] flex items-center justify-between gap-3">
+      <div className="truncate min-w-0 flex-1">
+        <p className="text-xs sm:text-sm font-bold text-[var(--color-text-strong)] truncate">{label}</p>
+        <p className="text-[11px] sm:text-xs text-[var(--color-text-muted)] truncate mt-0.5">
+          {file ? `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)` : isImage ? "Optional photo - JPG, PNG, JPEG, WEBP (max 10 MB)" : "Optional attachment - PDF, JPG, PNG, WEBP, DOC (max 10 MB)"}
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {file && (
+          <button
+            type="button"
+            onClick={() => setFile(null)}
+            title="Remove file"
+            className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 cursor-pointer transition-all"
+          >
+            <X size={14} />
+          </button>
+        )}
+        <label className="px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-interactive-subtle)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-primary)] cursor-pointer flex items-center gap-1.5 transition-all">
+          {isImage ? <ImageIcon size={14} /> : <Upload size={14} />}
+          <span>{file ? "Change" : "Browse"}</span>
+          <input
+            type="file"
+            accept={isImage ? "image/jpeg,image/png,image/jpg,image/webp" : ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.rtf,.odt,application/pdf,image/*"}
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </label>
+      </div>
     </div>
-    <label className="px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-interactive-subtle)] border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-primary)] cursor-pointer shrink-0 flex items-center gap-1.5 transition-all">
-      {isImage ? <ImageIcon size={14} /> : <Upload size={14} />}
-      <span>{file ? "Change" : "Browse"}</span>
-      <input
-        type="file"
-        accept={isImage ? "image/jpeg,image/png,image/jpg,image/webp,image/*" : ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/*"}
-        onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-        className="hidden"
-      />
-    </label>
-  </div>
-);
+  );
+};
 
 export default NutritionistRegistrationModal;

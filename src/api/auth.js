@@ -44,6 +44,7 @@ export const loginUser = (loginData) => {
 export const registerUser = (userData) => {
   return axiosInstance.post("/signup/", userData, {
     timeout: 180000, // 3 minutes for multi-file verification uploads (certificates, photos)
+    "axios-retry": { retries: 0 }, // Never auto-retry non-idempotent signup/OTP submissions
   });
 };
 
@@ -78,8 +79,12 @@ export const resetPassword = ({ uidb64, token, password }) => {
 
 // --- OTP Verification ---
 
-export const sendOtp = (email) => {
-  return axiosInstance.post("/send-otp/", { email }, {
+export const sendOtp = (email, phoneNumber = "") => {
+  const payload = { email };
+  if (phoneNumber) {
+    payload.phone_number = phoneNumber;
+  }
+  return axiosInstance.post("/send-otp/", payload, {
     timeout: 45000, // 45 seconds for external email delivery (Resend)
   });
 };

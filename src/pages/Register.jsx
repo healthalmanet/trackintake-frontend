@@ -129,15 +129,31 @@ const Register = ({ onSwitchToLogin }) => {
     setOtpError("");
     setVerificationToken("");
     try {
-      await sendOtp(normalizedEmail);
+      await sendOtp(normalizedEmail, phoneNumber.trim());
       toast.success(`OTP sent to ${normalizedEmail}. Valid for 10 minutes.`);
       setOtpSent(true);
       setOtpTimer(600); // 10 minutes
     } catch (error) {
-      const errMsg = error?.response?.data?.email?.[0] || error?.response?.data?.message || "Failed to send OTP.";
+      const resData = error?.response?.data;
+      const errMsg =
+        resData?.phone_number?.[0] ||
+        resData?.email?.[0] ||
+        resData?.error ||
+        resData?.message ||
+        "Failed to send OTP.";
       setOtpError(errMsg);
-      setFieldErrors((prev) => ({ ...prev, email: errMsg }));
-      toast.error(errMsg);
+      setFieldErrors((prev) => ({
+        ...prev,
+        ...(resData?.phone_number
+          ? { phoneNumber: Array.isArray(resData.phone_number) ? resData.phone_number[0] : resData.phone_number }
+          : {}),
+        ...(resData?.email
+          ? { email: Array.isArray(resData.email) ? resData.email[0] : resData.email }
+          : !resData?.phone_number
+          ? { email: errMsg }
+          : {}),
+      }));
+      toast.error(errMsg, { autoClose: 6000 });
     } finally {
       setOtpLoading(false);
     }
