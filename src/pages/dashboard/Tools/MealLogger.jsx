@@ -13,9 +13,11 @@ import {
   FilePenLine,
   Camera,
   Sparkles,
+  Copy,
 } from "lucide-react";
 import MealPhotoScannerModal from "../../../components/components/MealLogger/MealPhotoScannerModal";
 import MealSuccessModal from "../../../components/components/MealLogger/MealSuccessModal";
+import CopyOldMealModal from "../../../components/components/MealLogger/CopyOldMealModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 // Import the water API
@@ -163,6 +165,7 @@ const MealLogger = () => {
     handleFoodBlur,
     recentMeals = [],
     handleQuickReLog,
+    handleApplyCopiedMeals,
     setFoodInputs,
     fetchMeals,
     successModalData,
@@ -171,6 +174,7 @@ const MealLogger = () => {
   } = useMealLogger();
 
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
 
   const handleApplyPhotoToInputs = (data) => {
     if (!data.items || data.items.length === 0) return;
@@ -802,16 +806,27 @@ const MealLogger = () => {
                   </p>
                 </div>
                 {!editingMeal && (
-                  <button
-                    type="button"
-                    onClick={() => setScannerOpen(true)}
-                    className="group flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[#e05d32] text-white text-xs font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
-                    title="Snap or upload meal photo for instant AI analysis"
-                  >
-                    <Camera className="w-4 h-4 transition-transform group-hover:rotate-12" />
-                    <span>Snap / Photo AI</span>
-                    <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse" />
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setCopyModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-bg-app)] border border-[var(--color-border-default)] hover:border-[var(--color-primary)] text-[var(--color-text-strong)] hover:text-[var(--color-primary)] text-xs font-bold shadow-xs hover:shadow-sm transition-all duration-200 cursor-pointer"
+                      title="Copy logged meals from a previous day"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Old Meal</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScannerOpen(true)}
+                      className="group flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[#e05d32] text-white text-xs font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
+                      title="Snap or upload meal photo for instant AI analysis"
+                    >
+                      <Camera className="w-4 h-4 transition-transform group-hover:rotate-12" />
+                      <span>Snap / Photo AI</span>
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse" />
+                    </button>
+                  </div>
                 )}
               </div>
               {/* Editing Meal Alert Banner */}
@@ -1299,6 +1314,13 @@ const MealLogger = () => {
           </motion.div>
         </div>
       </div>
+
+      <CopyOldMealModal
+        isOpen={copyModalOpen}
+        onClose={() => setCopyModalOpen(false)}
+        targetDate={searchDate}
+        onCopyMeals={handleApplyCopiedMeals}
+      />
 
       <MealPhotoScannerModal
         isOpen={scannerOpen}

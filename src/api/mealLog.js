@@ -41,9 +41,9 @@ const normalizeFoodAttributesResponse = (foodData) => {
 
 export const getMeals = async (url) => {
   try {
-    // THE FIX IS HERE:
-    // We enforce HTTPS on the URL provided by the backend to prevent mixed-content errors.
-    const secureUrl = url.replace(/^http:\/\//, 'https://');
+    // Only upgrade http -> https for non-local hosts to prevent breaking localhost dev servers.
+    const isLocalHost = /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(url);
+    const secureUrl = isLocalHost ? url : url.replace(/^http:\/\//, 'https://');
 
     // Axios will now use the secure, absolute URL, and its interceptors will work.
     const response = await axiosInstance.get(secureUrl);

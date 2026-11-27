@@ -245,14 +245,50 @@ const PlansPage = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-700 text-xs">
+                  <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-gray-700 text-xs">
                     <div>
                       <span className="text-gray-400 block">In-House Consults</span>
-                      <strong className="text-white text-sm">{currentSub?.remaining_inhouse ?? 0} remaining</strong>
+                      {!currentSub?.plan?.appointment_allowed ? (
+                        <strong className="text-gray-300 text-sm block">Not included</strong>
+                      ) : currentSub?.plan?.inhouse_consults === 0 ? (
+                        <>
+                          <strong className="text-emerald-400 text-sm block">Unlimited</strong>
+                          <span className="text-[10px] text-gray-400">Included in plan</span>
+                        </>
+                      ) : (
+                        <>
+                          <strong className="text-white text-sm block">
+                            {currentSub?.remaining_inhouse ?? 0} remaining
+                          </strong>
+                          <span className="text-[10px] text-gray-400">
+                            {(currentSub?.remaining_inhouse ?? 0) === 0
+                              ? `Quota used (₹${currentSub?.plan?.inhouse_consultation_fee ?? 200}/visit)`
+                              : `of ${currentSub.plan.inhouse_consults} included`}
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div>
                       <span className="text-gray-400 block">Expert Consults</span>
-                      <strong className="text-white text-sm">{currentSub?.remaining_expert ?? 0} remaining</strong>
+                      {!currentSub?.plan?.appointment_allowed ? (
+                        <strong className="text-gray-300 text-sm block">Not included</strong>
+                      ) : currentSub?.plan?.expert_consults === 0 ? (
+                        <>
+                          <strong className="text-emerald-400 text-sm block">Unlimited</strong>
+                          <span className="text-[10px] text-gray-400">Included in plan</span>
+                        </>
+                      ) : (
+                        <>
+                          <strong className="text-white text-sm block">
+                            {currentSub?.remaining_expert ?? 0} remaining
+                          </strong>
+                          <span className="text-[10px] text-gray-400">
+                            {(currentSub?.remaining_expert ?? 0) === 0
+                              ? `Quota used (₹${currentSub?.plan?.expert_consultation_fee ?? 500}/visit)`
+                              : `of ${currentSub.plan.expert_consults} included`}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

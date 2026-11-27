@@ -20,9 +20,13 @@ const getLocalDateString = (date) => {
 const useMealLogger = () => {
   // --- All useState hooks are called unconditionally at the top level ---
   // === Changes made by Ananya (Start) ===
-  // Auto-select meal type based on current time
-  const getMealTypeByTime = () => {
-    const h = new Date().getHours();
+  // Auto-select meal type based on hour (from HH:MM string or current time)
+  const getMealTypeByTime = (timeStr = null) => {
+    let h = new Date().getHours();
+    if (timeStr && typeof timeStr === "string" && timeStr.includes(":")) {
+      const parsed = parseInt(timeStr.split(":")[0], 10);
+      if (!isNaN(parsed)) h = parsed;
+    }
     if (h >= 5  && h < 9)  return 'Early-Morning';
     if (h >= 9  && h < 11) return 'Breakfast';
     if (h >= 11 && h < 12) return 'Mid-Morning Snack';
@@ -30,6 +34,19 @@ const useMealLogger = () => {
     if (h >= 15 && h < 18) return 'Afternoon Snack';
     if (h >= 18 && h < 21) return 'Dinner';
     return 'Bedtime';
+  };
+
+  const getDefaultTimeForMealType = (mealType) => {
+    const defaults = {
+      'Early-Morning': '07:00',
+      'Breakfast': '09:00',
+      'Mid-Morning Snack': '11:30',
+      'Lunch': '13:30',
+      'Afternoon Snack': '16:30',
+      'Dinner': '20:00',
+      'Bedtime': '22:00',
+    };
+    return defaults[mealType] || new Date().toTimeString().slice(0, 5);
   };
 
   const getInitialFoodInput = (customDate = null, customTime = null, customMealType = null) => {
@@ -146,10 +163,13 @@ const useMealLogger = () => {
       console.log("[MealLogger] fetchMeals() nextUrl", { nextUrl });
 
 
-      // 3. For all SUBSEQUENT pages, use the generic paginated fetcher.
+      // 3. For all SUBSEQUENT pages, use the generic paginated fetcher with loop guard.
       let response = null;
-      while (nextUrl) {
-        // Pass the full nextUrl to the generic getMeals function.
+      const seenUrls = new Set();
+      let pageCount = 0;
+      while (nextUrl && !seenUrls.has(nextUrl) && pageCount < 25) {
+        seenUrls.add(nextUrl);
+        pageCount += 1;
         response = await getMeals(nextUrl);
         const pageResults = Array.isArray(response)
           ? response
@@ -360,6 +380,18 @@ const useMealLogger = () => {
       const nextInput = { ...input, [field]: value };
       if (field === "name") {
         nextInput.foodId = "";
+      } else if (field === "mealType") {
+        nextInput.mealTypeManuallyEdited = true;
+        // Keep logTime aligned with selected meal type unless user manually customized the time
+        if (!input.timeManuallyEdited && getMealTypeByTime(input.logTime) !== value) {
+          nextInput.logTime = getDefaultTimeForMealType(value);
+        }
+      } else if (field === "logTime") {
+        nextInput.timeManuallyEdited = true;
+        // Keep mealType aligned with chosen time unless user manually locked a meal type
+        if (!input.mealTypeManuallyEdited && value) {
+          nextInput.mealType = getMealTypeByTime(value);
+        }
       }
       return nextInput;
     }));
@@ -399,6 +431,56 @@ const useMealLogger = () => {
     // Hide dropdown immediately.
     setFoodSearchResults(prev => ({ ...prev, [inputIndex]: [] }));
     setFoodSearchLoading(prev => ({ ...prev, [inputIndex]: false }));
+  }, []);
+
+  // Copy old meals into the form inputs (preserving or replacing empty initial row)
+  const handleApplyCopiedMeals = useCallback((copiedMeals = [], copyToDate = null) => {
+    if (!Array.isArray(copiedMeals) || copiedMeals.length === 0) return;
+
+    const targetDate = copyToDate || getLocalDateString(new Date());
+    const newRows = copiedMeals.map((meal, idx) => {
+      const unitLower = (meal.unit || "").toLowerCase();
+      const isGram = unitLower === "gram" || unitLower === "g" || unitLower === "grams";
+      const isMl = unitLower === "milliliter" || unitLower === "milliliters" || unitLower === "ml";
+
+      let safeTime = getDefaultTimeForMealType(meal.meal_type || "Breakfast");
+      if (meal.consumed_at) {
+        const dt = new Date(meal.consumed_at);
+        if (!isNaN(dt.getTime())) {
+          safeTime = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+        }
+      }
+
+      return {
+        id: `${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 5)}`,
+        foodId: meal.food_item ? String(meal.food_item) : (meal.food_item_id ? String(meal.food_item_id) : ""),
+        name: meal.food_name_display || meal.food_name || "",
+        unit: meal.unit || "Bowl",
+        quantity: String(meal.quantity || "1"),
+        remark: meal.remarks || "",
+        portionSize: meal.selected_size || meal.portion_size || "Medium",
+        logDate: targetDate,
+        logTime: safeTime,
+        mealType: meal.meal_type || "Breakfast",
+        exact_grams: isGram ? String(meal.quantity || "") : "",
+        exact_ml: isMl ? String(meal.quantity || "") : "",
+        showExactOverride: isGram || isMl,
+        gramEquivalent: meal.gram_equivalent ?? null,
+        caloriesPerServing: meal.calories ?? null,
+        defaultUnit: null,
+        mealTypeManuallyEdited: true,
+        timeManuallyEdited: true,
+      };
+    });
+
+    setFoodInputs(prev => {
+      const isSingleEmpty = prev.length === 1 && !prev[0].name?.trim();
+      return isSingleEmpty ? newRows : [...prev, ...newRows];
+    });
+
+    toast.success(`${newRows.length} meal item(s) copied! Edit if needed and click Log Meals.`, {
+      icon: <CheckCircle className="text-[var(--color-success-text)]" />,
+    });
   }, []);
 
   // Quick re-log: pre-fill form from a recent meal entry
@@ -524,6 +606,7 @@ const useMealLogger = () => {
     // Recent meals for quick re-log
     recentMeals,
     handleQuickReLog,
+    handleApplyCopiedMeals,
     getMealTypeByTime,
     setFoodInputs,
     fetchMeals,
